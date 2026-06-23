@@ -17,7 +17,7 @@ jobs:
     name: Secret scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Custom secret gate (placeholder + fingerprint)
@@ -32,7 +32,7 @@ jobs:
     name: Shell syntax + lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Ensure shellcheck (preinstalled on ubuntu-latest; binary fallback)
         run: |
           if ! command -v shellcheck >/dev/null 2>&1; then
@@ -50,8 +50,8 @@ jobs:
     name: Plugin tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
       - name: npm test
@@ -61,8 +61,8 @@ jobs:
     name: Engine (TS)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
       - name: install
