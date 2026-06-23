@@ -1,5 +1,5 @@
 open-sakanafugu
-Copyright 2026 LeoLin990405
+Copyright 2026 BicaMind Labs
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -50,3 +50,10 @@ Attributions
 - The adaptive router (`fanout allocate`) draws on the multi-armed-bandit
   literature: Thompson Sampling (Agrawal & Goyal, 2012) and
   non-stationary / discounted bandits (Garivier & Moulines, 2011).
+
+- The project is named after and conceptually framed by Sakana AI's Fugu
+  (https://sakana.ai/fugu/) — many agents behind one interface with a
+  learned coordinator (TRINITY) and natural-language orchestration
+  (Conductor). open-sakanafugu is an independent, training-free,
+  harness-engineered analogue inspired by that framing; it does not derive
+  from or include any Sakana AI code.

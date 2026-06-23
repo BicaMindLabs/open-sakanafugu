@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Chinese-model multi-agent coding workflow: backends + fanout + ccb + bounded review-fix loop + auto-sync",
   "license": "Apache-2.0",
+  "author": "BicaMind Labs",
   "homepage": "https://github.com/LeoLin990405/open-sakanafugu",
   "repository": {
     "type": "git",
