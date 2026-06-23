@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
-# fanout — fan-out 工作流统一入口 (聚合各工具, 一个命令面)
+# fanout — fan-out workflow unified entrypoint (aggregates each tool, one command face)
 #
-#   fanout doctor              环境侦察 + 工作流推荐
-#   fanout fleet status|up [--pty]|down  拉起/查看/停 ccb fleet (剥 CLAUDE_CODE_* + detached tmux; --pty=pty.fork 兜底)
-#   fanout preflight [cfg]     运行前 go/no-go 门 (依赖/ccbd/no-Gemini/配置)
-#   fanout task new|log|done   TASK 文件脚手架/日志/收尾
-#   fanout template <n> [--set K=V]   渲染 prompt 模板 (impl|analysis|review)
+#   fanout doctor              env recon + workflow recommendation
+#   fanout fleet status|up [--pty]|down  bring up/view/stop ccb fleet (strip CLAUDE_CODE_* + detached tmux; --pty=pty.fork fallback)
+#   fanout preflight [cfg]     pre-run go/no-go gate (deps/ccbd/no-Gemini/config)
+#   fanout task new|log|done   TASK file scaffold/log/finalize
+#   fanout template <n> [--set K=V]   render prompt template (impl|analysis|review)
 #   fanout dispatch <agent> --template <n>|--prompt-file <f> [--task <file>]
-#                              包 ccb ask: 渲 prompt → 派活 → 记日志
-#   fanout cache ...           结果缓存 + fan-in barrier (init|put|fail|barrier|collect|resume|...)
-#   fanout integrate --work <repo> --agents "a b" [--onconflict abort|skip]  Phase3 worktree→main cherry-pick(冲突隔离)
-#   fanout allocate <task-type> [--top]|record|stats|reset   推荐模型 (bench 先验+实战后验混合)
-#   fanout skills index|list|match|show|inject   本机 skills 总目录(母目录)+ 按需注入 agent
-#   fanout workspace list|show|model|context <name>   工位上下文隔离 (借鉴 Zleap)
-#   fanout experience add|list|recall|show <ws>   经验记忆: 完成→抽方法→脱敏存→复用
-#   fanout plan "<goal>" [--models a,b,c]   多模型规划面板 (各自 Write 方案)
-#   fanout goal template|show|check <spec>  目标模式: 声明式目标 + 确定性验收门
-#   fanout loop init|record|decide|status   Phase 5 review-fix 状态机 (退出态判定+keep-best)
-#   fanout run set|round|status|next|clear   跨阶段 run 状态门面 (聚合 TASK/cache/loop → JSON, axi-inspired)
-#   fanout summary <round> [--task <file>]   round 可观测汇总 (含耗时)
-#   fanout ccb-sync check|adapt [--apply]    ccb 更新后同步适配 (版本/grafting/ccbd 重启)
-#   fanout selftest            跑全部 *.test.sh
-#   fanout help                本帮助
+#                              wraps ccb ask: render prompt → dispatch → log
+#   fanout cache ...           result cache + fan-in barrier (init|put|fail|barrier|collect|resume|...)
+#   fanout integrate --work <repo> --agents "a b" [--onconflict abort|skip]  Phase3 worktree→main cherry-pick(conflict isolation)
+#   fanout allocate <task-type> [--top]|record|stats|reset   recommend model (bench prior + live posterior mix)
+#   fanout skills index|list|match|show|inject   local skills catalog(mother dir)+ inject agent on demand
+#   fanout workspace list|show|model|context <name>   workspace context isolation (Zleap-inspired)
+#   fanout experience add|list|recall|show <ws>   experience memory: done→extract method→redact store→reuse
+#   fanout plan "<goal>" [--models a,b,c]   multi-model planning panel (each Writes a plan)
+#   fanout goal template|show|check <spec>  goal mode: declarative goal + deterministic acceptance gate
+#   fanout loop init|record|decide|status   Phase 5 review-fix state machine (exit-state decision+keep-best)
+#   fanout run set|round|status|next|clear   cross-phase run status facade (aggregate TASK/cache/loop → JSON, axi-inspired)
+#   fanout summary <round> [--task <file>]   round observability summary (incl. elapsed)
+#   fanout ccb-sync check|adapt [--apply]    post-ccb-update sync adapt (version/grafting/ccbd restart)
+#   fanout selftest            run all *.test.sh
+#   fanout help                this help
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -52,8 +52,8 @@ case "$sub" in
       echo "── $(basename "$t") ──"
       bash "$t" || ec=1
     done
-    [ "$ec" -eq 0 ] && echo "✓ selftest all passed" || echo "✗ selftest 有失败"
+    [ "$ec" -eq 0 ] && echo "✓ selftest all passed" || echo "✗ selftest had failures"
     exit "$ec";;
   help|-h|--help) sed -n '2,27p' "$0";;
-  *) echo "fanout: 未知子命令 '$sub' (doctor|fleet|preflight|task|template|dispatch|cache|integrate|allocate|skills|workspace|experience|plan|goal|loop|run|summary|ccb-sync|selftest|help)" >&2; exit 2;;
+  *) echo "fanout: unknown subcommand '$sub' (doctor|fleet|preflight|task|template|dispatch|cache|integrate|allocate|skills|workspace|experience|plan|goal|loop|run|summary|ccb-sync|selftest|help)" >&2; exit 2;;
 esac

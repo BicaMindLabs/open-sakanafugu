@@ -1,6 +1,6 @@
-# fanout goal spec 示例 — `fanout goal check <thisfile>` 跑 gate 判目标是否达成
-outcome: 给 X 模块加单测并全绿
+# fanout goal spec example — `fanout goal check <thisfile>` runs the gate to judge whether the goal is met
+outcome: add unit tests to module X and make them all green
 gate: pytest -q && npm run build
-rubric: correctness / 无回归 / 测试真覆盖(非空跑)
+rubric: correctness / no regression / tests truly cover (not an empty run)
 rounds: 3
 allocate: auto

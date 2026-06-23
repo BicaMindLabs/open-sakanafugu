@@ -1,25 +1,25 @@
-<!-- 一个 PR 一件事。面向用户的变更记得在 CHANGELOG.md 的 Unreleased 加一行。 -->
+<!-- One thing per PR. For user-facing changes, remember to add a line under Unreleased in CHANGELOG.md. -->
 
-## 这个 PR 做了什么
+## What does this PR do
 
-<!-- 一两句说清动机 + 改动 -->
+<!-- A sentence or two on the motivation + the change -->
 
-## 类型
+## Type
 
-- [ ] feat（新能力）
-- [ ] fix（修 bug）
+- [ ] feat (new capability)
+- [ ] fix (bug fix)
 - [ ] chore / docs / perf
-- [ ] 启动器逻辑（`backends/`）
-- [ ] 模型升级（`ccb.config.example` + `cc-model-registry.tsv`）
+- [ ] launcher logic (`backends/`)
+- [ ] model upgrade (`ccb.config.example` + `cc-model-registry.tsv`)
 
-## 自检清单
+## Self-check Checklist
 
-- [ ] `make ci` 本地通过（scan + lint + test）
-- [ ] **没有真 key 进仓**（`ccb.config*` 的 `key=` 全是 `<PLACEHOLDER>`）
-- [ ] 动了启动器的话，公共逻辑进了 `cc-model-lib.sh`，没在 head 里复制
-- [ ] 面向用户的变更已记 CHANGELOG
-- [ ] 没引入 Gemini 依赖
+- [ ] `make ci` passes locally (scan + lint + test)
+- [ ] **No real key entered the repo** (`ccb.config*`'s `key=` is all `<PLACEHOLDER>`)
+- [ ] If you touched the launcher, shared logic went into `cc-model-lib.sh`, not copied into a head
+- [ ] User-facing changes are recorded in the CHANGELOG
+- [ ] No Gemini dependency introduced
 
-## 备注
+## Notes
 
-<!-- 默认/旗舰档变更请说明理由；其它需要 reviewer 注意的点 -->
+<!-- For default/flagship profile changes, explain the reasoning; plus anything else the reviewer should note -->

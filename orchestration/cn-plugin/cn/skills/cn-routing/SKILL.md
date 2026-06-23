@@ -12,13 +12,13 @@ Use this skill inside the `cn:cn-dispatch` agent to pick the right model.
 
 | Priority | Signal / Keywords | Model | Why |
 |----------|-------------------|-------|-----|
-| 1 | SQL, Doris, ADB, PolarDB, RDS, 阿里云, DashScope | **qwen** | Alibaba ecosystem native |
-| 2 | 超长文本, >200K tokens, 多模态, 图文材料, 跨代码库分析 | **mimo** | 1M token-plan Pro plus V2.5/Omni profiles |
-| 3 | 长文本, 50K–200K, 论文, 合同, 文档综述 | **kimi** | Stable Kimi Code long-context route |
-| 4 | 数学, 证明, 逻辑推理, 方程, 优化, 算法推导 | **stepfun** | Math/logic specialist |
-| 5 | 深度推理, 中文理解, 语义分析, 知识问答 | **glm** | Strong Chinese reasoning |
-| 6 | 快速回答, 简单任务, 低延迟, 轻量 | **minimax** | Stable/highspeed M2 profiles |
-| 7 | 通用中文编码, 代码生成, 前端/视觉 coding, 默认 | **doubao** | Best all-round Chinese coder |
+| 1 | SQL, Doris, ADB, PolarDB, RDS, Alibaba Cloud, DashScope | **qwen** | Alibaba ecosystem native |
+| 2 | very long text, >200K tokens, multimodal, image+text material, cross-codebase analysis | **mimo** | 1M token-plan Pro plus V2.5/Omni profiles |
+| 3 | long text, 50K–200K, papers, contracts, document review | **kimi** | Stable Kimi Code long-context route |
+| 4 | math, proofs, logical reasoning, equations, optimization, algorithm derivation | **stepfun** | Math/logic specialist |
+| 5 | deep reasoning, Chinese comprehension, semantic analysis, knowledge Q&A | **glm** | Strong Chinese reasoning |
+| 6 | fast answers, simple tasks, low latency, lightweight | **minimax** | Stable/highspeed M2 profiles |
+| 7 | general Chinese coding, code generation, frontend/visual coding, default | **doubao** | Best all-round Chinese coder |
 
 ## Routing Rules
 
@@ -31,10 +31,10 @@ Use this skill inside the `cn:cn-dispatch` agent to pick the right model.
 
 ## Examples
 
-- "帮我写一个 Doris 的 ETL SQL" → **qwen**
-- "分析这篇 8 万字的研究报告" → **kimi**
-- "证明这个不等式" → **stepfun**
-- "这段古文是什么意思" → **glm**
-- "快速翻译这句话" → **minimax**
-- "写一个 Python 爬虫" → **doubao**
-- "跨这 20 个仓库找出所有用了 deprecated API 的地方" → **mimo** (1M ctx)
+- "write me an ETL SQL for Doris" → **qwen**
+- "analyze this 80,000-word research report" → **kimi**
+- "prove this inequality" → **stepfun**
+- "what does this passage of classical Chinese mean" → **glm**
+- "quickly translate this sentence" → **minimax**
+- "write a Python web scraper" → **doubao**
+- "across these 20 repos find every place that uses a deprecated API" → **mimo** (1M ctx)

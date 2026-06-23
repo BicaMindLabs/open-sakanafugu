@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Claude Code → MiMo Coding 分身
-# 端点: MIMO_REGION 路由 (默认 sgp token-plan). 公共尾部见 cc_model_launch
-# 注意: thinking 默认关 (服务端 thinking 块 signature 为空, 多轮中间件会拒)
+# Claude Code → MiMo Coding clone
+# Endpoint: MIMO_REGION routing (default sgp token-plan). Shared tail in cc_model_launch
+# Note: thinking off by default (server-side thinking block signature is empty, multi-turn middleware rejects it)
 REAL_HOME="$HOME"
 source "$REAL_HOME/bin/cc-model-lib.sh"
 export HOME="$REAL_HOME/.claude-envs/mimo"
@@ -19,7 +19,7 @@ export ANTHROPIC_BASE_URL="${MIMO_BASE_URL:-$MM_BURL}"
 export ANTHROPIC_AUTH_TOKEN="${MIMO_API_KEY:-${XIAOMI_API_KEY:-}}"
 unset ANTHROPIC_API_KEY ANTHROPIC_API_BASE
 
-# v2.5 默认开; MODELS 按 region/flags 变 (sgp token-plan 不收 mimo-v2-flash)
+# v2.5 on by default; MODELS varies by region/flags (sgp token-plan does not accept mimo-v2-flash)
 case "${MIMO_PROFILE:-}" in latest|v25|multimodal) MIMO_WANTS_V25=1 ;; *) MIMO_WANTS_V25="${MIMO_ENABLE_V25:-1}" ;; esac
 case "${MIMO_REGION:-sgp}" in
   public) MODELS=(mimo-v2.5-pro mimo-v2.5 mimo-v2-pro mimo-v2-flash mimo-v2-omni); MM_FAST=mimo-v2-flash ;;
@@ -48,7 +48,7 @@ CC_FAST="${MIMO_FAST:-$CC_HAIKU}"; CC_SUBAGENT="${MIMO_SUBAGENT:-$CC_SONNET}"
 
 # ===== MiMo quirks =====
 case "$MODEL" in *flash*) export CLAUDE_CODE_MAX_OUTPUT_TOKENS="${MIMO_MAX_OUTPUT:-64000}" ;; *) export CLAUDE_CODE_MAX_OUTPUT_TOKENS="${MIMO_MAX_OUTPUT:-128000}" ;; esac
-export ANTHROPIC_BETAS=""; export DISABLE_PROMPT_CACHING="1"   # cache_control 不支持
+export ANTHROPIC_BETAS=""; export DISABLE_PROMPT_CACHING="1"   # cache_control not supported
 if [ "${MIMO_ENABLE_THINKING:-0}" = "1" ] || [ -n "${MIMO_THINKING_BUDGET:-}" ]; then
   [ -n "$MIMO_THINKING_BUDGET" ] && export MAX_THINKING_TOKENS="$MIMO_THINKING_BUDGET"
 else
@@ -56,7 +56,7 @@ else
   export CLAUDE_CODE_EXTRA_BODY='{"thinking":{"type":"disabled"}}'; unset CLAUDE_CODE_ENABLE_THINKING
 fi
 [ -n "$MIMO_REASONING" ] && export CLAUDE_CODE_EFFORT_LEVEL="$MIMO_REASONING"
-# 独有 header: safety / 内置搜索
+# unique headers: safety / built-in search
 MIMO_H=()
 [ -n "$MIMO_SAFETY" ] && MIMO_H+=("x-mimo-safety: $MIMO_SAFETY")
 [ "${MIMO_WEB_SEARCH:-0}" = "1" ] && MIMO_H+=("x-mimo-use-search: true")
@@ -67,5 +67,5 @@ export CC_MODEL_COMMAND="cc-mimo" CC_MODEL_PROVIDER="mimo" CC_MODEL_PATCH_MARKER
 export CC_MODEL_PROMPT_FILE="$HOME/prompts/mimo-proactive-tools.md"
 if [ -n "${MIMO_API_KEY:-}" ]; then export CC_MODEL_AUTH_LABEL="MIMO_API_KEY"; else export CC_MODEL_AUTH_LABEL="XIAOMI_API_KEY"; fi
 export CC_MODEL_AUTH_VALUE="${MIMO_API_KEY:-${XIAOMI_API_KEY:-}}"
-CC_MODEL_POST_HOOK="$REAL_HOME/bin/mimo-usage --update"   # 会话后更新本地 token 统计
+CC_MODEL_POST_HOOK="$REAL_HOME/bin/mimo-usage --update"   # update local token stats after the session
 cc_model_launch "$@"

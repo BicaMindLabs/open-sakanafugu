@@ -1,11 +1,11 @@
-你的角色：规划者（{{MODEL}}）。把下面的目标拆成可并行执行的子任务方案。
+Your role: planner ({{MODEL}}). Decompose the goal below into a plan of subtasks that can run in parallel.
 
-目标：{{GOAL}}
+Goal: {{GOAL}}
 
-要求：
-1. 列 3-6 个子任务，每个标注：scope（一句话）+ 建议实现模型（按各模型擅长选）+ 要改的文件
-2. 标出依赖/排序（必须串行的写清楚），其余默认可并行
-3. 每个子任务给 1 条验收要点
-4. 末尾给一句「整体验收门」（一条能跑的命令，如 `pytest -q && npm run build`）
+Requirements:
+1. List 3-6 subtasks, each annotated: scope (one sentence) + suggested implementer model (by each model's strength) + files to change
+2. Mark dependencies/ordering (write out what must be serial); the rest defaults to parallel
+3. Give 1 acceptance point per subtask
+4. End with one "overall acceptance gate" (a runnable command, e.g. `pytest -q && npm run build`)
 
-输出：**必须用 Write 工具写到 {{OUTFILE}}**（不是 chat！chat 会丢），Markdown。
+Output: **must use the Write tool to write to {{OUTFILE}}** (NOT chat! chat gets lost), Markdown.

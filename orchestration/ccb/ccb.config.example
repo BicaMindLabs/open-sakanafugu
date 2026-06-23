@@ -1,21 +1,21 @@
-# ccb.config.example — 脱敏模板
+# ccb.config.example — sanitized template
 # ─────────────────────────────────────────────────────────────────────
-# 用法: 拷到你项目根的 .ccb/ccb.config, 把 <...> 占位换成真 key。
+# Usage: copy to .ccb/ccb.config in your project root, replace <...> placeholders with real keys.
 #   cp orchestration/ccb/ccb.config.example /path/to/proj/.ccb/ccb.config
-# 真 key 统一放在 ~/.config/cc-model-secrets.env (被 backends 的 launcher 读取);
-# 这里的 key= 行只是给 ccb 直接 spawn 用, **绝不提交带真 key 的 ccb.config**
-# (本仓 .gitignore 已忽略 **/.ccb/ccb.config, 只跟踪 .example)。
+# Real keys all live in ~/.config/cc-model-secrets.env (read by the backends launcher);
+# the key= lines here are only for ccb direct spawn, **never commit a ccb.config with real keys**
+# (this repo's .gitignore already ignores **/.ccb/ccb.config, only tracks .example).
 # ─────────────────────────────────────────────────────────────────────
 version = 2
 entry_window = "main"
 
 [windows]
-# planner = 你在战略层 (如 Claude Desktop app) 里直接 ccb ask (占位)
+# planner = you, in the strategy layer (e.g. Claude Desktop app), running ccb ask directly (placeholder)
 main   = "planner:claude"
-# 实现层: 国产分身, 各自 worktree 隔离 (single source of truth = 主 branch)
+# implementer layer: Chinese-model clones, each isolated in its own worktree (single source of truth = main branch)
 work   = "cc-deepseek:claude(worktree), cc-glm:claude(worktree), cc-kimi:claude(worktree), cc-minimax:claude(worktree), cc-mimo:claude(worktree), cc-stepfun:claude(worktree)"
 ark    = "cc-doubao:claude(worktree), cc-ark-auto:claude(worktree)"
-# 审查层: Codex (gpt-5.5 frontier) —— 生成≠审查, 跨家独立第二意见
+# reviewer layer: Codex (gpt-5.5 frontier) —— generation != review, independent cross-vendor second opinion
 review = "coder:codex"
 
 [ui.sidebar]
@@ -30,10 +30,10 @@ tips_height   = "35%"
 comms_limit   = 3
 
 [agents.planner]
-description = "main pane 占位 (人是真 planner, 在战略层如 Claude Desktop app 里直接 ccb ask)"
+description = "main pane placeholder (the human is the real planner, running ccb ask directly in the strategy layer e.g. Claude Desktop app)"
 
 [agents.cc-deepseek]
-description = "DeepSeek V4-Pro 分身 (最新最强推理, 原生 Anthropic 端点)"
+description = "DeepSeek V4-Pro clone (latest, strongest reasoning, native Anthropic endpoint)"
 key = "<DEEPSEEK_API_KEY>"
 url = "https://api.deepseek.com/anthropic"
 model = "deepseek-v4-pro"
@@ -41,7 +41,7 @@ model = "deepseek-v4-pro"
 CLAUDE_CODE_SIMPLE = "1"
 
 [agents.cc-glm]
-description = "智谱 GLM 5.2 分身 (最新, 原生 Anthropic 端点)"
+description = "Zhipu GLM 5.2 clone (latest, native Anthropic endpoint)"
 key = "<GLM_API_KEY>"
 url = "https://open.bigmodel.cn/api/anthropic"
 model = "glm-5.2"
@@ -49,7 +49,7 @@ model = "glm-5.2"
 CLAUDE_CODE_SIMPLE = "1"
 
 [agents.cc-kimi]
-description = "Moonshot Kimi For Coding 分身 (claude-cli UA 专用)"
+description = "Moonshot Kimi For Coding clone (claude-cli UA only)"
 key = "<KIMI_API_KEY>"
 url = "https://api.kimi.com/coding"
 model = "kimi-for-coding"
@@ -57,7 +57,7 @@ model = "kimi-for-coding"
 CLAUDE_CODE_SIMPLE = "1"
 
 [agents.cc-minimax]
-description = "MiniMax M3 分身 (最新 frontier, 原生 Anthropic 端点)"
+description = "MiniMax M3 clone (latest frontier, native Anthropic endpoint)"
 key = "<MINIMAX_API_KEY>"
 url = "https://api.minimaxi.com/anthropic"
 model = "MiniMax-M3"
@@ -65,7 +65,7 @@ model = "MiniMax-M3"
 CLAUDE_CODE_SIMPLE = "1"
 
 [agents.cc-mimo]
-description = "小米 MiMo v2.5 Pro 分身 (原生 Anthropic 端点)"
+description = "Xiaomi MiMo v2.5 Pro clone (native Anthropic endpoint)"
 key = "<MIMO_API_KEY>"
 url = "https://token-plan-sgp.xiaomimimo.com/anthropic"
 model = "mimo-v2.5-pro"
@@ -73,20 +73,20 @@ model = "mimo-v2.5-pro"
 CLAUDE_CODE_SIMPLE = "1"
 
 [agents.cc-stepfun]
-description = "StepFun Step Plan 分身 (step-3.7-flash thinking)"
+description = "StepFun Step Plan clone (step-3.7-flash thinking)"
 key = "<STEPFUN_API_KEY>"
 url = "https://api.stepfun.com/step_plan"
 model = "step-3.7-flash"
 [agents.cc-stepfun.env]
 CLAUDE_CODE_SIMPLE = "1"
 
-# ─── 火山方舟 Coding Plan 聚合层 ──────────────────────────────
-# 一个 ARK key 同时可用 8+ model: ark-code-latest / doubao-seed-code /
+# ─── Volcano Ark Coding Plan aggregation layer ──────────────────────────────
+# One ARK key gives access to 8+ models: ark-code-latest / doubao-seed-code /
 # deepseek-v4-flash / deepseek-v4-pro / kimi-k2.6 / glm-5.1 / minimax-latest
-# 端点: https://ark.cn-beijing.volces.com/api/coding (不要用 /api/v3, 会扣额外费用)
+# Endpoint: https://ark.cn-beijing.volces.com/api/coding (do not use /api/v3, it incurs extra charges)
 
 [agents.cc-doubao]
-description = "字节 Doubao Seed 2.0 编程版 (走火山方舟 Coding Plan)"
+description = "ByteDance Doubao Seed 2.0 coding edition (via Volcano Ark Coding Plan)"
 key = "<ARK_API_KEY>"
 url = "https://ark.cn-beijing.volces.com/api/coding"
 model = "doubao-seed-code-preview-latest"
@@ -94,7 +94,7 @@ model = "doubao-seed-code-preview-latest"
 CLAUDE_CODE_SIMPLE = "1"
 
 [agents.cc-ark-auto]
-description = "火山方舟 Coding Plan 自动切换 (控制台选 model, 3-5min 生效)"
+description = "Volcano Ark Coding Plan auto-switch (pick model in console, takes effect in 3-5min)"
 key = "<ARK_API_KEY>"
 url = "https://ark.cn-beijing.volces.com/api/coding"
 model = "ark-code-latest"
@@ -102,5 +102,5 @@ model = "ark-code-latest"
 CLAUDE_CODE_SIMPLE = "1"
 
 [agents.coder]
-description = "Codex CLI Reviewer/Implementer (gpt-5.5 frontier, ChatGPT 账号下最强)"
+description = "Codex CLI Reviewer/Implementer (gpt-5.5 frontier, strongest under a ChatGPT account)"
 model = "gpt-5.5"

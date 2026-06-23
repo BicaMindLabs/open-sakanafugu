@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# cc-sync — keep the cc-* 国产 fleet in sync.
-#   cc-sync cli            升级全部 .claude-envs/* + 主 claude 到最新 @anthropic-ai/claude-code
-#   cc-sync models         探各 provider /v1/models, 报告脚本 MODELS 数组缺的新模型
-#   cc-sync models --apply 把新模型追加进对应 launcher 的 MODELS 数组 (默认档不动)
-#   cc-sync all [--apply]  cli + models  (默认无参 = all 不 apply)
-# Env keys 走交互登录 shell (~/.config/cc-model-secrets.env / .zshrc 等)。
+# cc-sync — keep the cc-* Chinese-model fleet in sync.
+#   cc-sync cli            upgrade all .claude-envs/* + the main claude to the latest @anthropic-ai/claude-code
+#   cc-sync models         probe each provider's /v1/models, report new models missing from the scripts' MODELS arrays
+#   cc-sync models --apply append new models into the corresponding launcher's MODELS array (default profile untouched)
+#   cc-sync all [--apply]  cli + models  (no args by default = all without apply)
+# Env keys come from an interactive login shell (~/.config/cc-model-secrets.env / .zshrc etc.).
 set -uo pipefail
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:"$HOME/.npm-global/bin:$PATH"
 ENVS=(deepseek glm kimi qwen doubao minimax mimo stepfun longcat local)
@@ -15,33 +15,33 @@ getkey(){ zsh -lic "printf %s \"\$$1\"" 2>/dev/null; }
 sync_cli() {
   local latest cur opt v changed=0
   latest=$(npm view @anthropic-ai/claude-code version 2>/dev/null)
-  [ -z "$latest" ] && { echo "[cli] ❌ 无法获取 npm 最新版本"; return 1; }
-  echo "[cli] 目标最新版本: $latest"
+  [ -z "$latest" ] && { echo "[cli] ❌ unable to get the latest npm version"; return 1; }
+  echo "[cli] target latest version: $latest"
   cur=$(npm ls -g @anthropic-ai/claude-code 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+[-a-z0-9.]*' | head -1)
   if [ "$cur" != "$latest" ]; then
     npm i -g @anthropic-ai/claude-code@"$latest" --no-fund --no-audit >/dev/null 2>&1 \
-      && { echo "[cli] main: $cur → $latest"; changed=1; } || echo "[cli] main: 升级失败"
-  else echo "[cli] main: $latest (已最新)"; fi
+      && { echo "[cli] main: $cur → $latest"; changed=1; } || echo "[cli] main: upgrade failed"
+  else echo "[cli] main: $latest (already latest)"; fi
   for e in "${ENVS[@]}"; do
     opt="$HOME/.claude-envs/$e/opt"
     [ -d "$opt" ] || continue
     v=$(python3 -c "import json;print(json.load(open('$opt/node_modules/@anthropic-ai/claude-code/package.json'))['version'])" 2>/dev/null)
     if [ "$v" != "$latest" ]; then
       ( cd "$opt" && npm i @anthropic-ai/claude-code@"$latest" --no-fund --no-audit >/dev/null 2>&1 ) \
-        && { echo "[cli] $e: ${v:-none} → $latest"; changed=1; } || echo "[cli] $e: 升级失败"
+        && { echo "[cli] $e: ${v:-none} → $latest"; changed=1; } || echo "[cli] $e: upgrade failed"
     else echo "[cli] $e: $latest"; fi
   done
-  [ "$changed" = 1 ] && echo "[cli] ✅ 有更新" || echo "[cli] ✅ 全部已是最新"
+  [ "$changed" = 1 ] && echo "[cli] ✅ updates applied" || echo "[cli] ✅ everything already latest"
 }
 
-# provider → models-endpoint(Anthropic /v1/models) | key-env | grep 过滤(编码文本模型)
+# provider → models-endpoint(Anthropic /v1/models) | key-env | grep filter(coding/text models)
 declare -a PROBES=(
   "glm|https://api.z.ai/api/anthropic/v1/models|GLM_API_KEY|^glm-"
   "minimax|https://api.minimaxi.com/anthropic/v1/models|MINIMAX_API_KEY|^MiniMax-"
   "stepfun|https://api.stepfun.com/step_plan/v1/models|STEPFUN_API_KEY|^step-(3|router)"
   "deepseek|https://api.deepseek.com/v1/models|DEEPSEEK_API_KEY|^deepseek-"
 )
-NO_PROBE="qwen doubao kimi mimo longcat"   # 无干净 /v1/models 或需人工判断
+NO_PROBE="qwen doubao kimi mimo longcat"   # no clean /v1/models or needs human judgment
 
 launcher_models() { grep -oE 'MODELS=\([^)]*\)' "$BIN/$1-code" 2>/dev/null | head -1 | sed -E 's/MODELS=\(//; s/\)//'; }
 
@@ -50,18 +50,18 @@ sync_models() {
   for line in "${PROBES[@]}"; do
     IFS='|' read -r prov url keyenv filt <<<"$line"
     key=$(getkey "$keyenv")
-    [ -z "$key" ] && { echo "[models] $prov: 无 key, 跳过"; continue; }
+    [ -z "$key" ] && { echo "[models] $prov: no key, skip"; continue; }
     body=$(curl -sS -m 20 "$url" -H "x-api-key: $key" -H "authorization: Bearer $key" -H "anthropic-version: 2023-06-01" 2>/dev/null)
     remote=$(printf '%s' "$body" | python3 -c "import json,sys
 try:
   d=json.load(sys.stdin); arr=d.get('data') or d.get('models') or []
   print('\n'.join(str(x.get('id') or x.get('name')) for x in arr if isinstance(x,dict)))
 except Exception: pass" 2>/dev/null | grep -E "$filt" | sort -u)
-    [ -z "$remote" ] && { echo "[models] $prov: /v1/models 无返回, 跳过"; continue; }
+    [ -z "$remote" ] && { echo "[models] $prov: /v1/models returned nothing, skip"; continue; }
     have=$(launcher_models "$prov" | tr ' ' '\n' | sort -u)
     new=$(comm -23 <(printf '%s\n' "$remote") <(printf '%s\n' "$have"))
-    if [ -z "$new" ]; then echo "[models] $prov: ✅ 无新模型 ($(printf '%s' "$remote" | grep -c .) 个端点模型已覆盖)"; continue; fi
-    echo "[models] $prov: 🆕 端点新增 → $(echo $new | tr '\n' ' ')"
+    if [ -z "$new" ]; then echo "[models] $prov: ✅ no new models ($(printf '%s' "$remote" | grep -c .) endpoint models already covered)"; continue; fi
+    echo "[models] $prov: 🆕 new at endpoint → $(echo $new | tr '\n' ' ')"
     if [ "$apply" = 1 ]; then
       PROV="$prov" NEW="$new" python3 - "$BIN/$prov-code" <<'PY'
 import os,re,sys
@@ -73,34 +73,34 @@ if m:
     add=[x for x in new if x not in cur]
     if add:
         s=s.replace(m.group(0), 'MODELS=('+' '.join(cur+add)+')', 1)
-        open(f,'w').write(s); print(f"[models] {os.environ['PROV']}: ✅ 已追加 {len(add)} 个进 MODELS (默认档未动,需要时手动升旗舰)")
+        open(f,'w').write(s); print(f"[models] {os.environ['PROV']}: ✅ appended {len(add)} into MODELS (default profile untouched, manually promote flagship when needed)")
 PY
     fi
   done
-  echo "[models] 需人工核 (无干净端点清单): $NO_PROBE"
+  echo "[models] needs human check (no clean endpoint list): $NO_PROBE"
 }
 
-# ---------- agentic research: 读文档→学习→重建 ----------
+# ---------- agentic research: read docs→learn→rebuild ----------
 research() {
   local prompt="$BIN/cc-model-research-prompt.md"
-  [ -f "$prompt" ] || { echo "[research] ❌ 缺 $prompt"; return 1; }
-  command -v claude >/dev/null 2>&1 || { echo "[research] ❌ 找不到 claude"; return 1; }
+  [ -f "$prompt" ] || { echo "[research] ❌ missing $prompt"; return 1; }
+  command -v claude >/dev/null 2>&1 || { echo "[research] ❌ claude not found"; return 1; }
   local bk; bk="$BIN/.cc-launchers-bak.$(date +%Y%m%d-%H%M%S)"
   mkdir -p "$bk"; cp "$BIN"/*-code "$BIN/cc-model-registry.tsv" "$bk/" 2>/dev/null
-  echo "[research] 备份 → $bk"
-  echo "[research] 启动无头研究 agent (读各家官方文档→学习→重建 launcher→活体验证)..."
-  # 剥当前会话 OAuth 泄漏变量, 让子 agent 用自己的鉴权
+  echo "[research] backup → $bk"
+  echo "[research] launching headless research agent (read each vendor's official docs→learn→rebuild launchers→live verify)..."
+  # strip the current session's leaked OAuth vars so the sub-agent uses its own auth
   env -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_CHILD_SESSION -u CLAUDE_CODE_SDK_HAS_OAUTH_REFRESH \
       -u CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH -u CLAUDE_CODE_OAUTH_SCOPES \
     bash -c 'cd "$1" && claude -p "$(cat "$2")" --dangerously-skip-permissions 2>&1' _ "$BIN" "$prompt"
-  # 安全网: agent 改完后逐个语法校验, 坏的从备份还原 (防无人值守下改坏 fleet)
+  # safety net: syntax-check each launcher after the agent's changes, restore broken ones from backup (guards against breaking the fleet unattended)
   local f broke=0
   for f in "$BIN"/{deepseek,glm,kimi,qwen,doubao,minimax,mimo,stepfun,longcat}-code; do
     [ -f "$f" ] || continue
-    bash -n "$f" 2>/dev/null || { echo "[research] ⚠️ $(basename "$f") 语法坏 → 从备份还原"; cp "$bk/$(basename "$f")" "$f" 2>/dev/null; broke=1; }
+    bash -n "$f" 2>/dev/null || { echo "[research] ⚠️ $(basename "$f") syntax broken → restoring from backup"; cp "$bk/$(basename "$f")" "$f" 2>/dev/null; broke=1; }
   done
   bash -n "$BIN/cc-sync" 2>/dev/null || true
-  [ "$broke" = 0 ] && echo "[research] ✅ 改后全部 launcher 语法 OK" || echo "[research] ⚠️ 有 launcher 被还原(见上), 备份在 $bk"
+  [ "$broke" = 0 ] && echo "[research] ✅ all launchers syntax OK after changes" || echo "[research] ⚠️ some launchers were restored (see above), backup in $bk"
 }
 
 case "${1:-all}" in
@@ -108,5 +108,5 @@ case "${1:-all}" in
   models)   sync_models "$([ "${2:-}" = --apply ] && echo 1 || echo 0)" ;;
   research) research ;;
   all|"")   sync_cli; echo; sync_models "$([ "${2:-}" = --apply ] && echo 1 || echo 0)" ;;
-  *) echo "用法: cc-sync {cli|models [--apply]|research|all [--apply]}" >&2; exit 1 ;;
+  *) echo "Usage: cc-sync {cli|models [--apply]|research|all [--apply]}" >&2; exit 1 ;;
 esac

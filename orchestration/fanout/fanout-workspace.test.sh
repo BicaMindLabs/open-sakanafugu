@@ -8,28 +8,28 @@ ok(){ if eval "$2"; then echo "  ✓ $1"; pass=$((pass+1)); else echo "  ✗ $1"
 
 echo "fanout-workspace tests"
 
-ok "list 列出 >=6 工位" '[ "$(bash "$W" list | grep -c .)" -ge 6 ]'
-ok "list 含 code/review/main" 'o=$(bash "$W" list); grep -q code <<<"$o" && grep -q review <<<"$o" && grep -q main <<<"$o"'
+ok "list shows >=6 stations" '[ "$(bash "$W" list | grep -c .)" -ge 6 ]'
+ok "list includes code/review/main" 'o=$(bash "$W" list); grep -q code <<<"$o" && grep -q review <<<"$o" && grep -q main <<<"$o"'
 
-ok "show code 含 models 字段" 'bash "$W" show code | grep -q "^models:"'
+ok "show code has models field" 'bash "$W" show code | grep -q "^models:"'
 
-# model: @bench:code → 经 allocation 解析成 minimax,...
-ok "model code → bench 解析含 minimax" 'bash "$W" model code | grep -q minimax'
+# model: @bench:code → resolved via allocation to minimax,...
+ok "model code → bench resolves to minimax" 'bash "$W" model code | grep -q minimax'
 ok "model review → coder" '[ "$(bash "$W" model review)" = "coder" ]'
 
-# context: 五层齐全 (Zleap 格式)
+# context: all five layers present (Zleap format)
 ctx="$(bash "$W" context code)"
 for sec in "System Prompt" "Workspace Prompt" "### Tools" "### Memory" "### History"; do
-  ok "context 含 [$sec]" 'echo "$ctx" | grep -q "$sec"'
+  ok "context has [$sec]" 'echo "$ctx" | grep -q "$sec"'
 done
-ok "context 带入全局 no-Gemini 规则" 'echo "$ctx" | grep -q "不调用 Gemini"'
-ok "context code 只暴露本工位 tools(含 edit)" 'echo "$ctx" | grep -q "edit"'
+ok "context carries global no-Gemini rule" 'echo "$ctx" | grep -q "Do not call Gemini"'
+ok "context code exposes only this station tools(incl edit)" 'echo "$ctx" | grep -q "edit"'
 
-# --task 注入 (捕获后 here-string grep, 避免 pipefail+grep -q SIGPIPE)
-ok "context --task 注入任务" 'o=$(bash "$W" context code --task "做X"); grep -q "做X" <<<"$o"'
+# --task injection (capture then here-string grep, avoids pipefail+grep -q SIGPIPE)
+ok "context --task injects task" 'o=$(bash "$W" context code --task "doX"); grep -q "doX" <<<"$o"'
 
-bash "$W" context nope >/dev/null 2>&1; ok "未知 workspace → 非0" '[ "$?" -ne 0 ]'
-o=$(bash "$W" 2>&1); ok "无子命令 → 显示帮助(含 list)" 'grep -q list <<<"$o"'
+bash "$W" context nope >/dev/null 2>&1; ok "unknown workspace → non-0" '[ "$?" -ne 0 ]'
+o=$(bash "$W" 2>&1); ok "no subcommand → shows help(incl list)" 'grep -q list <<<"$o"'
 
 echo "fanout-workspace: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

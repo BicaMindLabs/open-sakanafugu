@@ -1,5 +1,5 @@
-# web — 网络检索工位（对标 Zleap Web Search）
-prompt: 你在网络检索工位：搜公开网页 + 读选定 URL，提炼要点写到指定文件。不臆造来源。
+# web — web search station (mirrors Zleap Web Search)
+prompt: You are at the web search station: search public web pages + read selected URLs, distill key points and write to the designated file. Do not fabricate sources.
 models: @bench:fallback
 tools: read,web
 skills: opencli-browser-first

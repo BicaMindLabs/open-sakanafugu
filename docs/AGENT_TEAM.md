@@ -1,82 +1,82 @@
-# Agent Team —— 多模型规划 + 层级 sub-agent
+# Agent Team — multi-model planning + hierarchical sub-agents
 
-两个玩法：① 用多个模型**并行规划**，② 在 team 下再分 **sub-agent**。两者都能落地，关键是**选对底座**。
+Two plays: (1) use multiple models to **plan in parallel**, and (2) split into **sub-agents** under a team. Both are workable; the key is **picking the right substrate**.
 
-## 两个底座
+## Two Substrates
 
-| 底座 | 顶层跨模型 | 层级/sub-agent | 多模型来源 | 现实度 |
+| Substrate | Top-level cross-model | Hierarchy / sub-agent | Multi-model source | Practicality |
 |---|---|---|---|---|
-| **ccb fleet**（本仓 fan-out） | ✓ 每个 ccb agent = 独立 CC 实例 | 成员可开自己 sub-agent，但**同模型**；再经 ccb 嵌套**很脆** | ccb.config 里 9 家 | 顶层强，嵌套差 |
-| **Claude Code 原生 subagent** | 靠 Bash-桥 custom agent | `Agent` 工具原生支持开 sub-agent + 层级 | `cn-dispatch`(国产) / `codex-rescue`(Codex) 等**已存在**的 custom agent | **层级/sub-agent 的对的底座** |
+| **ccb fleet** (this repo's fan-out) | Yes — each ccb agent = an independent CC instance | Members can spawn their own sub-agents, but **same model**; nesting again through ccb is **very fragile** | 9 vendors in ccb.config | Strong at top level, weak when nested |
+| **Claude Code native subagent** | Custom agents via the Bash bridge | The `Agent` tool natively supports spawning sub-agents + hierarchy | **Already-existing** custom agents like `cn-dispatch` (Chinese models) / `codex-rescue` (Codex) | **The right substrate for hierarchy/sub-agents** |
 
-**关键**：本机已有 `cn-dispatch`（路由国产模型）和 `codex-rescue`（交 Codex）这两个 custom subagent 类型。所以 Claude Code 原生的 Agent 系统 + 这俩 = 天生的「多模型 + 可层级」team，比硬塞 ccb 嵌套干净。
+**Key**: this machine already has `cn-dispatch` (routes Chinese models) and `codex-rescue` (hands off to Codex), two custom subagent types. So Claude Code's native Agent system + these two = a natural "multi-model + hierarchical" team, cleaner than forcing ccb nesting.
 
-## ① 多模型规划（planning panel）
+## (1) Multi-Model Planning (planning panel)
 
-把"拆解目标"同时发给多家，拿不同视角，再综合。两条路：
+Send "decompose the goal" to several vendors at once, get different perspectives, then synthesize. Two routes:
 
-- **ccb 路**（本仓工具）：
+- **ccb route** (this repo's tooling):
   ```bash
   fanout plan "<goal>" --models cc-deepseek,cc-kimi,coder
-  # 各模型把分解方案 Write 到 .fanout-cache/plans/<model>.plan.md, planner 综合成 Phase 1
+  # Each model Writes its decomposition to .fanout-cache/plans/<model>.plan.md; the planner synthesizes into Phase 1
   ```
-- **原生路**（Claude Code Agent 工具）：planner 并行 spawn N 个 subagent，每个用 `agentType: cn-dispatch`（带不同 model 提示）或不同 custom agent，各产出一份分解，planner 综合。
+- **Native route** (Claude Code Agent tool): the planner spawns N subagents in parallel, each with `agentType: cn-dispatch` (carrying a different model hint) or a different custom agent, each producing one decomposition, and the planner synthesizes.
 
-综合 = planner（你/Claude）读 N 份方案，取交集+补盲点，定最终 plan。这是 **design panel** 模式（研究上比单一规划更全）。
+Synthesis = the planner (you/Claude) reads the N plans, takes the intersection + fills the blind spots, and sets the final plan. This is the **design panel** pattern (research shows it is more complete than single-track planning).
 
-## ② team 下分 sub-agent（层级）
+## (2) Sub-Agents Under a Team (hierarchy)
 
-**现实的 2 层结构**（够强，别追求任意层嵌套）：
+**The realistic 2-layer structure** (strong enough; don't chase arbitrary nesting):
 
 ```
-顶层 team:   planner(Claude)
-             ├─ 成员 A = cn-dispatch → 国产模型 (实现子任务)
-             ├─ 成员 B = codex-rescue → Codex (审查/疑难)
-             └─ 成员 C = Explore → 只读检索
-   某成员任务复杂时（成员本身是完整 agent loop）:
-             成员 A ── 再开自己的 sub-agent 做子分解
+Top team:   planner(Claude)
+            |- Member A = cn-dispatch -> Chinese model (implements subtasks)
+            |- Member B = codex-rescue -> Codex (review/hard problems)
+            \- Member C = Explore -> read-only search
+   When a member's task is complex (the member is itself a full agent loop):
+            Member A -- spawns its own sub-agent for further decomposition
 ```
 
-- 顶层用 `Agent` 工具 spawn 成员（`subagent_type` 选 cn-dispatch / codex-rescue / Explore / general-purpose）。
-- 成员若是完整 agent，可在其内部再 spawn sub-agent（层级 +1）。
-- 要**确定性编排**（fan-out/pipeline/loop）用 `Workflow` 工具：`agent(prompt, {agentType:'cn-dispatch'})` 把成员指到国产模型；`pipeline()` 串「实现→审查」。
+- The top level uses the `Agent` tool to spawn members (`subagent_type` picks cn-dispatch / codex-rescue / Explore / general-purpose).
+- If a member is a full agent, it can spawn sub-agents internally (hierarchy +1).
+- For **deterministic orchestration** (fan-out/pipeline/loop) use the `Workflow` tool: `agent(prompt, {agentType:'cn-dispatch'})` points a member at a Chinese model; `pipeline()` chains "implement -> review".
 
-## 诚实约束（别踩坑）
+## Honest Constraints (avoid the traps)
 
-1. **原生 subagent 默认跑 Claude**；要多模型只能经 Bash-桥 custom agent（`cn-dispatch`/`codex-rescue`）。
-2. **`Workflow` 嵌套只允许 1 层**（child workflow 内再 `workflow()` 会抛错）。要更深用 `Agent` 工具的 subagent-开-subagent。
-3. **ccb 嵌套**（ccb agent 内再经 ccb 派活）未验证、脆，别用。
-4. **守 no-Gemini**：team 任何成员/审查都不路由 Gemini（agy=Gemini，仅前端实现，不进 team review）。
+1. **Native subagents run Claude by default**; for multi-model you can only go through Bash-bridge custom agents (`cn-dispatch`/`codex-rescue`).
+2. **`Workflow` nesting is allowed only 1 level deep** (calling `workflow()` again inside a child workflow throws). For more depth use the `Agent` tool's subagent-spawning-subagent.
+3. **ccb nesting** (dispatching again through ccb from inside a ccb agent) is unverified and fragile — don't use it.
+4. **Honor no-Gemini**: no team member/reviewer routes to Gemini (agy = Gemini, frontend implementation only, does not enter team review).
 
-## 选哪个
+## Which to Pick
 
-| 场景 | 用 |
+| Scenario | Use |
 |---|---|
-| 真并行**实现**（多文件、各自 worktree、持久） | **ccb fleet**（本仓 fan-out + cache/barrier） |
-| **层级 team / sub-agent / 确定性编排** | **Claude Code 原生**（Agent 工具 + cn-dispatch/codex + Workflow） |
-| 多模型**规划** | 两者皆可（`fanout plan` 或 原生并行 subagent） |
-| 跨模型**审查** | `coder`(Codex)；绝不 Gemini |
+| Real parallel **implementation** (multi-file, each with its own worktree, persistent) | **ccb fleet** (this repo's fan-out + cache/barrier) |
+| **Hierarchical team / sub-agent / deterministic orchestration** | **Claude Code native** (Agent tool + cn-dispatch/codex + Workflow) |
+| Multi-model **planning** | Either works (`fanout plan` or native parallel subagents) |
+| Cross-model **review** | `coder`(Codex); never Gemini |
 
-> 例子见 `orchestration/agent-team/team-review.workflow.mjs`（Workflow 脚本：plan panel → 跨模型实现 → Codex 审，确定性编排）。
+> See the example in `orchestration/agent-team/team-review.workflow.mjs` (a Workflow script: plan panel -> cross-model implementation -> Codex review, deterministic orchestration).
 
-## 已落地：Workspace 上下文隔离（借鉴 Zleap-Agent）
+## Landed: Workspace context isolation (inspired by Zleap-Agent)
 
-Zleap 的「别给小模型喂全部 context」已落到本仓：`orchestration/fanout/workspaces/*.workspace` 定义工位（main/code/sql/chinese/review/web），`fanout workspace context <name>` 按 **Context = System + Workspace + Tools + Memory + History** 组装该工位**只该看的**分层上下文：
+Zleap's "don't feed a small model all the context" has landed in this repo: `orchestration/fanout/workspaces/*.workspace` define workstations (main/code/sql/chinese/review/web), and `fanout workspace context <name>` assembles, per **Context = System + Workspace + Tools + Memory + History**, the layered context that workstation **and only it should see**:
 
 ```bash
-fanout workspace list                       # 列工位
-fanout workspace context code --task "..."   # 看 code 工位的分层 context
-fanout dispatch cc-minimax --workspace code --template impl --set ...  # 派活时前缀注入
+fanout workspace list                       # list workstations
+fanout workspace context code --task "..."   # view the code workstation's layered context
+fanout dispatch cc-minimax --workspace code --template impl --set ...  # prefix-inject on dispatch
 ```
 
-每个工位绑定：专属 prompt + 启用的 tools + memory 范围 + bench 推荐模型（`models: @bench:code` 自动走 allocation）。这把 `allocation.tsv`（只映射模型）升级成完整 **context profile**——弱模型每个子任务不被全量工具/记忆/规则淹没。Zleap 无 license + 异构栈，**只借思想，代码独立实现**。
+Each workstation binds: a dedicated prompt + enabled tools + memory scope + bench-recommended model (`models: @bench:code` auto-routes through allocation). This upgrades `allocation.tsv` (model mapping only) into a full **context profile** — a weak model is no longer drowned by the full tool/memory/rule set on each subtask. Zleap has no license + a heterogeneous stack, so **we only borrow the idea, implementing the code independently**.
 
-### Experience memory（Zleap 三分记忆里的"经验"）
+### Experience memory (the "experience" of Zleap's tripartite memory)
 
-任务完成 → 抽可复用方法 → 脱敏 → 按工位存 → 未来同类任务**自动回灌**到 workspace context 的 Memory 段：
+Task completes -> distill the reusable method -> sanitize -> store per workstation -> **auto-replay** into the Memory segment of future similar tasks' workspace context:
 ```bash
-echo "用 defensive copy 避免改输入区间" | fanout experience add code "防御拷贝技巧"   # 脱敏闸门(明文 key 拒入)
-fanout experience recall code              # 取该工位经验
-fanout workspace context code              # Memory 段已自动注入上面的经验
+echo "use a defensive copy to avoid mutating the input range" | fanout experience add code "defensive-copy trick"   # sanitization gate (plaintext keys rejected)
+fanout experience recall code              # recall this workstation's experience
+fanout workspace context code              # the Memory segment has auto-injected the experience above
 ```
-库在 `${FANOUT_STATE:-~/.config/fanout}/experience/<ws>/`（不入仓，runtime 累积）。这和 Leo「蒸馏 skill」的习惯同构——完成的活沉淀成可复用方法。
+The store lives in `${FANOUT_STATE:-~/.config/fanout}/experience/<ws>/` (not in the repo, accumulated at runtime). This is isomorphic to Leo's habit of "distilling skills" — completed work settles into a reusable method.

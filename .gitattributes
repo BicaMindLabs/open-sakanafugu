@@ -1,4 +1,4 @@
-# 统一行尾, 防跨平台 CRLF 污染脚本
+# Unify line endings, prevent cross-platform CRLF from polluting scripts
 * text=auto eol=lf
 
 *.sh        text eol=lf
@@ -7,11 +7,11 @@
 *.tsv       text eol=lf
 Makefile    text eol=lf
 
-# 语言统计: 启动器算 Shell
+# Language stats: count launchers as Shell
 *-code linguist-language=Shell
 backends/bin/cc-models linguist-language=Shell
 backends/bin/cc-sync   linguist-language=Shell
 
-# 文档不计入语言统计
+# Docs excluded from language stats
 docs/**     linguist-documentation
 *.md        linguist-documentation

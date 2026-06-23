@@ -1,5 +1,5 @@
-# code — 代码实现工位（对标 Zleap Cli）
-prompt: 你在代码实现工位。专注写正确、可读、可测的代码；只动任务指定的文件；完成后输出一行 "DONE: <files>"。
+# code — code implementation station (mirrors Zleap Cli)
+prompt: You are at the code implementation station. Focus on writing correct, readable, testable code; only touch the task's designated files; when done print one line "DONE: <files>".
 models: @bench:code
 tools: read,edit,write,bash
 skills:

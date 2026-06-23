@@ -13,20 +13,20 @@ echo r > "$TMP/a.md"
 
 bash "$C" init 1 t1:cc-deepseek t2:cc-glm >/dev/null
 bash "$C" put 1 t1 "$TMP/a.md" >/dev/null
-bash "$C" fail 1 t2 "超时" >/dev/null
+bash "$C" fail 1 t2 "timeout" >/dev/null
 
 out="$(bash "$S" 1)"
-ok "汇总含 Round 1 标题" 'echo "$out" | grep -q "Round 1 汇总"'
-ok "汇总含计数 done=1 fail=1" 'echo "$out" | grep -q "done=1 fail=1"'
-ok "汇总列出任务明细" 'echo "$out" | grep -q "t1" && echo "$out" | grep -q "cc-glm"'
+ok "summary has Round 1 title" 'echo "$out" | grep -q "Round 1 summary"'
+ok "summary has counts done=1 fail=1" 'echo "$out" | grep -q "done=1 fail=1"'
+ok "summary lists task detail" 'echo "$out" | grep -q "t1" && echo "$out" | grep -q "cc-glm"'
 
-# --task 写入
-TASKF="$TMP/task.md"; printf '## 执行日志\n' > "$TASKF"
+# --task write
+TASKF="$TMP/task.md"; printf '## Log\n' > "$TASKF"
 bash "$S" 1 --task "$TASKF" >/dev/null 2>&1
-ok "--task 把汇总写进文件" 'grep -q "Round 1 汇总" "$TASKF"'
+ok "--task writes summary into file" 'grep -q "Round 1 summary" "$TASKF"'
 
-# 未 init 的 round → 非0
-bash "$S" 9 >/dev/null 2>&1; ok "未 init round → 非0" '[ "$?" -ne 0 ]'
+# round not init → non-0
+bash "$S" 9 >/dev/null 2>&1; ok "round not init → non-0" '[ "$?" -ne 0 ]'
 
 echo "fanout-summary: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

@@ -1,22 +1,26 @@
-# ── secrets — 绝不进仓 ────────────────────────────────
-**/.ccb/ccb.config        # 真 key 的 ccb 配置 (只跟踪 ccb.config.example)
+# ── secrets — never enter the repo ───────────────────
+**/.ccb/ccb.config        # ccb config with the real key (only ccb.config.example is tracked)
 *secrets*.env
 cc-model-secrets.env
 .env
 .env.*
 
-# ── 运行态 / 缓存 ─────────────────────────────────────
+# ── runtime / cache ──────────────────────────────────
 node_modules/
 .claude-envs/*/opt/
-.fanout-cache/        # fan-out 结果缓存 (运行态, 每轮 round-N/)
+.fanout-cache/        # fan-out result cache (runtime, round-N/ per round)
 *.log
 .DS_Store
 
-# ── ccb 运行态 ────────────────────────────────────────
+# ── ccb runtime ──────────────────────────────────────
 .ccb/state/
 .ccb/*.sock
 .ccb/logs/
 
-# ── 任务 / 报告产物 ───────────────────────────────────
+# ── task / report artifacts ──────────────────────────
 tasks/*.local.md
 reports/
+
+# Python bytecode
+__pycache__/
+*.pyc

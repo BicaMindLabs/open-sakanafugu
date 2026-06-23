@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "国产模型多 Agent 编码工作流: backends + fanout + ccb + bounded review-fix loop + auto-sync",
+  "description": "Chinese-model multi-agent coding workflow: backends + fanout + ccb + bounded review-fix loop + auto-sync",
   "license": "Apache-2.0",
   "homepage": "https://github.com/LeoLin990405/cn-cc-workflow",
   "repository": {

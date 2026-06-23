@@ -27,3 +27,26 @@ Attributions
     - Tim Williams, "LLM Verification Loops: Best Practices and Patterns"
     - "Loop Engineering: Why the Best AI Agents in 2026 Are Built as Loops"
     - Reflexion / Self-Refine (academic literature)
+
+- The `Workspace isolation` and `Experience memory` concepts in
+  `orchestration/fanout/` are inspired by Zleap-AI/Zleap-Agent
+  (https://github.com/Zleap-AI/Zleap-Agent) — concepts only; the code is
+  an independent implementation, as Zleap ships without a license.
+
+- The loop's auto-fix vs ask-user finding split, the `fanout run` state
+  facade, and the `check-docs` docs-match-code drift gate are inspired by
+  kunchenguid/no-mistakes (https://github.com/kunchenguid/no-mistakes) and
+  lavish-axi (https://github.com/kunchenguid/lavish-axi), licensed MIT —
+  ideas only; the implementations here are independent.
+
+- The orchestrator-side ownership / violation-detection idea behind
+  `fanout integrate --ownership` is inspired by merkyor/Lynn
+  (https://gitee.com/merkyor/Lynn).
+
+- `fanout skills forge` delegates skill authoring to Anthropic's official
+  `skill-creator` Claude Code meta-skill, and the `fanout skills validate`
+  gate mirrors the checks in its `quick_validate.py`.
+
+- The adaptive router (`fanout allocate`) draws on the multi-armed-bandit
+  literature: Thompson Sampling (Agrawal & Goyal, 2012) and
+  non-stationary / discounted bandits (Garivier & Moulines, 2011).

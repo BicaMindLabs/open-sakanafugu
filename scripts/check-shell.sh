@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# check-shell.sh — 启动器/脚本的语法 + 静态检查 (本机 / CI / pre-commit 共用)
-#   1) bash -n 语法检查 (永远跑)
-#   2) shellcheck 静态检查 (装了才跑, 走 .shellcheckrc; CI 里保证装)
+# check-shell.sh — launcher/script syntax + static checks (shared by local / CI / pre-commit)
+#   1) bash -n syntax check (always runs)
+#   2) shellcheck static check (runs only if installed, via .shellcheckrc; guaranteed present in CI)
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 2
 
-# 收集所有 bash 脚本: 启动器(无扩展名,靠 shebang) + *.sh
+# Collect all bash scripts: launchers (no extension, identified by shebang) + *.sh
 mapfile -t SCRIPTS < <(
   { ls backends/bin/*-code backends/bin/cc-models backends/bin/cc-sync orchestration/fanout/fanout 2>/dev/null
     find backends scripts orchestration -name '*.sh' 2>/dev/null
@@ -16,21 +16,21 @@ mapfile -t SCRIPTS < <(
 
 fail=0
 
-echo "── bash -n 语法 (${#SCRIPTS[@]} 脚本) ──"
+echo "── bash -n syntax (${#SCRIPTS[@]} scripts) ──"
 for f in "${SCRIPTS[@]}"; do
   if bash -n "$f" 2>/dev/null; then :; else echo "  ✗ syntax: $f"; fail=1; fi
 done
-[ "$fail" -eq 0 ] && echo "  ✓ 全过"
+[ "$fail" -eq 0 ] && echo "  ✓ all pass"
 
 if command -v shellcheck >/dev/null 2>&1; then
-  echo "── shellcheck -S warning (走 .shellcheckrc) ──"
+  echo "── shellcheck -S warning (via .shellcheckrc) ──"
   if shellcheck -S warning "${SCRIPTS[@]}"; then
-    echo "  ✓ 0 warning"
+    echo "  ✓ 0 warnings"
   else
-    echo "  ✗ shellcheck 有发现"; fail=1
+    echo "  ✗ shellcheck has findings"; fail=1
   fi
 else
-  echo "── shellcheck 未安装, 跳过 (CI 会跑) ──"
+  echo "── shellcheck not installed, skipping (CI will run it) ──"
 fi
 
 exit "$fail"

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- ccb 更新后同步适配 — WatchPaths 监听 ccb 的 VERSION 文件, ccb update 一改写就触发完整 adapt。
-     安装: 把占位换成你的绝对路径, 拷到 ~/Library/LaunchAgents/, launchctl load -w 它。
-       __HOME__       → 你的 $HOME (如 /Users/leo)
-       __FANOUT__     → fanout 驱动绝对路径 (如 __HOME__/.claude/skills/fanout/fanout)
-       __CCB_WORK__   → 主 ccb 项目根 (如 __HOME__/Projects/ccb-test)
-       __CCB_CLAUDE__ → cc-claude 池项目根 (如 __HOME__/Projects/ccb-claude-only)
-       __CCB_VERSION_FILE__ → ccb 运行时 VERSION (ccb version 的 Install path 下的 VERSION)
-     adapt --apply 会 kill 各项目 ccbd(清掉旧代码, 下次 ccb 起守护即加载新版)。触发时机=你刚 `ccb update`,
-     通常不在 fan-out 中途, kill 安全。想更稳就把命令里的 `adapt --apply` 换回 `check`(只报告不动 ccbd)。 -->
+<!-- re-adapt after a ccb update — WatchPaths watches ccb's VERSION file, a ccb update rewrite triggers a full adapt.
+     install: replace the placeholders with your absolute paths, copy to ~/Library/LaunchAgents/, launchctl load -w it.
+       __HOME__       → your $HOME (e.g. /Users/leo)
+       __FANOUT__     → fanout driver absolute path (e.g. __HOME__/.claude/skills/fanout/fanout)
+       __CCB_WORK__   → main ccb project root (e.g. __HOME__/Projects/ccb-test)
+       __CCB_CLAUDE__ → cc-claude pool project root (e.g. __HOME__/Projects/ccb-claude-only)
+       __CCB_VERSION_FILE__ → ccb runtime VERSION (the VERSION under the Install path from ccb version)
+     adapt --apply kills each project's ccbd(clears old code, next ccb start of the daemon loads the new version). Trigger timing = you just ran `ccb update`,
+     usually not mid fan-out, so kill is safe. For more safety swap `adapt --apply` in the command back to `check`(report only, does not touch ccbd). -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -17,10 +17,10 @@
   <array>
     <string>/bin/zsh</string>
     <string>-lc</string>
-    <string>echo "===== $(date '+%Y-%m-%d %H:%M') ccb 更新→适配 ====="; CCB_WORK=__CCB_WORK__ CCB_CLAUDE=__CCB_CLAUDE__ __FANOUT__ ccb-sync adapt --apply</string>
+    <string>echo "===== $(date '+%Y-%m-%d %H:%M') ccb update→adapt ====="; CCB_WORK=__CCB_WORK__ CCB_CLAUDE=__CCB_CLAUDE__ __FANOUT__ ccb-sync adapt --apply</string>
   </array>
 
-  <!-- ccb update 改写 VERSION → 触发 -->
+  <!-- ccb update rewrites VERSION → triggers -->
   <key>WatchPaths</key>
   <array>
     <string>__CCB_VERSION_FILE__</string>

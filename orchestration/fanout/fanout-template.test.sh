@@ -8,22 +8,22 @@ ok(){ if eval "$2"; then echo "  ✓ $1"; pass=$((pass+1)); else echo "  ✗ $1"
 
 echo "fanout-template tests"
 
-out="$(bash "$T" impl --set ROLE=后端 --set SCOPE=写解析器 --set FILES=src/p.py)"
-ok "impl 模板渲染含替换值" 'echo "$out" | grep -q "你的角色：后端" && echo "$out" | grep -q "写解析器" && echo "$out" | grep -q "src/p.py"'
-ok "已 set 的占位被替换掉" '! echo "$out" | grep -q "{{ROLE}}"'
+out="$(bash "$T" impl --set ROLE=backend --set SCOPE=write-parser --set FILES=src/p.py)"
+ok "impl template renders with substituted values" 'echo "$out" | grep -q "Your role: backend" && echo "$out" | grep -q "write-parser" && echo "$out" | grep -q "src/p.py"'
+ok "set placeholders are replaced" '! echo "$out" | grep -q "{{ROLE}}"'
 
-# 未 set 的占位保留
+# unset placeholders are kept
 out2="$(bash "$T" impl --set ROLE=x)"
-ok "未 set 的 {{SCOPE}} 保留" 'echo "$out2" | grep -q "{{SCOPE}}"'
+ok "unset {{SCOPE}} is kept" 'echo "$out2" | grep -q "{{SCOPE}}"'
 
-# review / analysis 模板存在
-ok "review 模板可渲染" 'bash "$T" review --set REVIEWER=Codex --set DIFF_RANGE=main...HEAD --set DIFF=x | grep -q "VERDICT: ACCEPTED"'
-ok "analysis 模板可渲染" 'bash "$T" analysis --set ROLE=审查 | grep -q "必须用 Write 工具"'
+# review / analysis templates exist
+ok "review template renders" 'bash "$T" review --set REVIEWER=Codex --set DIFF_RANGE=main...HEAD --set DIFF=x | grep -q "VERDICT: ACCEPTED"'
+ok "analysis template renders" 'bash "$T" analysis --set ROLE=reviewer | grep -q "must use the Write tool"'
 
-# 错误
-bash "$T" >/dev/null 2>&1; ok "无名 → 非0" '[ "$?" -ne 0 ]'
-bash "$T" nope >/dev/null 2>&1; ok "未知模板 → 非0" '[ "$?" -ne 0 ]'
-bash "$T" impl --set BADFORMAT >/dev/null 2>&1; ok "--set 无 = → 非0" '[ "$?" -ne 0 ]'
+# errors
+bash "$T" >/dev/null 2>&1; ok "no name → non-0" '[ "$?" -ne 0 ]'
+bash "$T" nope >/dev/null 2>&1; ok "unknown template → non-0" '[ "$?" -ne 0 ]'
+bash "$T" impl --set BADFORMAT >/dev/null 2>&1; ok "--set without = → non-0" '[ "$?" -ne 0 ]'
 
 echo "fanout-template: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

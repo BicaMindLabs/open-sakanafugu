@@ -1,5 +1,5 @@
-# sql — SQL 工位
-prompt: 你在 SQL 工位。写正确高效的 SQL；标清方言（MySQL/PG）；只给 SQL + 必要说明。
+# sql — SQL station
+prompt: You are at the SQL station. Write correct, efficient SQL; mark the dialect (MySQL/PG); give only SQL + necessary notes.
 models: @bench:sql
 tools: read,edit,write
 skills:

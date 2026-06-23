@@ -11,39 +11,39 @@ ok(){ if eval "$2"; then echo "  ✓ $1"; pass=$((pass+1)); else echo "  ✗ $1"
 echo "fanout-experience tests"
 
 # add via stdin
-echo "用 defensive copy(intervals[0][:]) 避免改输入区间" | bash "$E" add code "防御拷贝技巧" >/dev/null
-ok "add 落库" '[ -f "$FANOUT_EXPERIENCE/code/防御拷贝技巧.md" ]'
-ok "记录含 body" 'grep -q "defensive copy" "$FANOUT_EXPERIENCE/code/防御拷贝技巧.md"'
-ok "记录有 frontmatter" 'grep -q "^workspace: code" "$FANOUT_EXPERIENCE/code/防御拷贝技巧.md"'
+echo "use defensive copy(intervals[0][:]) to avoid mutating the input interval" | bash "$E" add code "defensive-copy-trick" >/dev/null
+ok "add stored" '[ -f "$FANOUT_EXPERIENCE/code/defensive-copy-trick.md" ]'
+ok "record has body" 'grep -q "defensive copy" "$FANOUT_EXPERIENCE/code/defensive-copy-trick.md"'
+ok "record has frontmatter" 'grep -q "^workspace: code" "$FANOUT_EXPERIENCE/code/defensive-copy-trick.md"'
 
-# 脱敏: body 含明文 key → 拒绝 (运行时拼 fake key, 不在文件留 sk- 字面, 免 scan-secrets 误报)
+# redaction: body has plaintext key → reject (build fake key at runtime, no literal sk- in the file, avoids scan-secrets false positive)
 FAKEKEY="sk-$(printf 'a%.0s' $(seq 25))"
-echo "用这个 key $FAKEKEY" | bash "$E" add code "坏经验" >/dev/null 2>&1
-ok "含 key → 拒绝(非0)" '[ "$?" -ne 0 ]'
-ok "坏经验未落库" '[ ! -f "$FANOUT_EXPERIENCE/code/坏经验.md" ]'
+echo "use this key $FAKEKEY" | bash "$E" add code "bad-experience" >/dev/null 2>&1
+ok "has key → reject(non-0)" '[ "$?" -ne 0 ]'
+ok "bad experience not stored" '[ ! -f "$FANOUT_EXPERIENCE/code/bad-experience.md" ]'
 
-# list (capture 防 SIGPIPE)
-ok "list 含标题" 'o=$(bash "$E" list code); grep -q 防御拷贝 <<<"$o"'
+# list (capture to avoid SIGPIPE)
+ok "list has title" 'o=$(bash "$E" list code); grep -q defensive-copy <<<"$o"'
 
 # recall
 out="$(bash "$E" recall code)"
-ok "recall 出 body" 'echo "$out" | grep -q "defensive copy"'
-ok "recall 带【经验】标记" 'echo "$out" | grep -q "【经验】"'
-ok "recall 不漏 frontmatter(无 created:)" '! echo "$out" | grep -q "^created:"'
+ok "recall emits body" 'echo "$out" | grep -q "defensive copy"'
+ok "recall has [experience] marker" 'echo "$out" | grep -q "\[experience\]"'
+ok "recall drops frontmatter(no created:)" '! echo "$out" | grep -q "^created:"'
 
-# 空 ws → 空输出, 0 退出
-ok "recall 空 ws → 空" '[ -z "$(bash "$E" recall nonexistent)" ]'
+# empty ws → empty output, exit 0
+ok "recall empty ws → empty" '[ -z "$(bash "$E" recall nonexistent)" ]'
 
-# query 过滤
-echo "qwen3 SQL 近30天用 DATE_SUB(CURDATE(),INTERVAL 30 DAY)" | bash "$E" add sql "SQL日期窗口" >/dev/null
-ok "recall --query 命中" 'o=$(bash "$E" recall sql --query DATE_SUB); grep -q DATE_SUB <<<"$o"'
+# query filter
+echo "qwen3 SQL last 30 days uses DATE_SUB(CURDATE(),INTERVAL 30 DAY)" | bash "$E" add sql "sql-date-window" >/dev/null
+ok "recall --query hits" 'o=$(bash "$E" recall sql --query DATE_SUB); grep -q DATE_SUB <<<"$o"'
 
 # show
-ok "show 打印记录" 'o=$(bash "$E" show code 防御拷贝技巧); grep -q "title: 防御拷贝技巧" <<<"$o"'
+ok "show prints record" 'o=$(bash "$E" show code defensive-copy-trick); grep -q "title: defensive-copy-trick" <<<"$o"'
 
-# 集成: workspace context 注入该 ws 经验 (FANOUT_EXPERIENCE 已 export)
+# integration: workspace context injects this ws's experience (FANOUT_EXPERIENCE already exported)
 ctx="$(bash "$HERE/fanout-workspace.sh" context code)"
-ok "workspace context 注入经验" 'echo "$ctx" | grep -q "defensive copy"'
+ok "workspace context injects experience" 'echo "$ctx" | grep -q "defensive copy"'
 
 echo "fanout-experience: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

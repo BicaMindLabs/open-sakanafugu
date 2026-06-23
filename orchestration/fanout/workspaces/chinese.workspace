@@ -1,5 +1,5 @@
-# chinese — 中文文档工位
-prompt: 你在中文文档工位。写清晰准确的中文；**严格遵守长度/格式约束**（要"三句"就三句，不展开）。
+# chinese — Chinese documentation station
+prompt: You are at the Chinese documentation station. Write clear, accurate Chinese; **strictly obey length/format constraints** (if "three sentences" is asked, give three, don't expand).
 models: @bench:chinese
 tools: read,edit,write
 skills:

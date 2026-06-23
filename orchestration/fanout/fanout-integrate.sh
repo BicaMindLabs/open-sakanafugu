@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# fanout-integrate.sh — Phase 3 整合: 把各 agent worktree 的改动 cherry-pick 回主分支
+# fanout-integrate.sh — Phase 3 integrate: cherry-pick each agent worktree's changes back to main branch
 #
-# 取代 SKILL.md 里"遇冲突就 break 整个循环"的裸 shell: 冲突被隔离到单个 agent
-# (cherry-pick --abort 保持 main 干净), 其余 agent 继续整合, 最后给一张汇总表。
-# 模型 = git worktree (worktree 与主 repo 共享对象库, 主 repo 能 pick worktree 分支的 SHA)。
+# Replaces the SKILL.md naked shell that "breaks the whole loop on conflict": a conflict is isolated to a single agent
+# (cherry-pick --abort keeps main clean), the other agents keep integrating, and a summary table is given at the end.
+# Model = git worktree (worktree shares the object store with the main repo, so the main repo can pick a worktree branch's SHA).
 #
-#   --work <repo>          主 repo (cherry-pick 落点; 须 git 仓库)
-#   --agents "a b c"       要整合的 agent (worktree 名), 空格分隔
-#   --ws-parent <dir>      worktree 父目录 (相对 work 或绝对; 默认 .ccb/workspaces)
-#   --onconflict abort|skip  冲突处理: abort=放弃该 agent 保持 main 干净(默认) / skip=留冲突待人解
-#   --ownership <file>     越界检测清单 (借 Lynn: 编排器侧强制, 不信 worker 自觉)。TSV 每行:
-#                          agent<TAB>owned-globs<TAB>forbidden-globs (逗号分隔; owned 空/`*`=不限)
-#                          worker 改了 owned 之外 / 命中 forbidden 的文件 → 标 violation, 不整合
-#   --task <file>          把汇总追加进 TASK 文件 (可选)
-#   --dry                  只打印将整合谁, 不动 git
+#   --work <repo>          main repo (cherry-pick target; must be a git repo)
+#   --agents "a b c"       agents to integrate (worktree names), space-separated
+#   --ws-parent <dir>      worktree parent dir (relative to work or absolute; default .ccb/workspaces)
+#   --onconflict abort|skip  conflict handling: abort=give up that agent, keep main clean(default) / skip=leave conflict for human
+#   --ownership <file>     out-of-bounds detection list (borrowed from Lynn: enforced on the orchestrator side, do not trust worker self-discipline). TSV per line:
+#                          agent<TAB>owned-globs<TAB>forbidden-globs (comma-separated; owned empty/`*`=unrestricted)
+#                          worker changed a file outside owned / matching forbidden → mark violation, do not integrate
+#   --task <file>          append the summary into the TASK file (optional)
+#   --dry                  only print who would be integrated, do not touch git
 #
-# 每个 agent: 越界校验 → worktree 有未提交改动 → add+commit(以 agent 身份) → 主 repo cherry-pick。
-# 退出码: 0 = 全 picked/no-change / 1 = 有冲突或越界(已隔离, 列在报告里) / 2 = 用法错
+# Each agent: out-of-bounds check → worktree has uncommitted changes → add+commit(as the agent) → main repo cherry-pick.
+# Exit codes: 0 = all picked/no-change / 1 = conflict or out-of-bounds(isolated, listed in report) / 2 = usage error
 set -uo pipefail
 die(){ echo "fanout-integrate: $*" >&2; exit 2; }
 
@@ -30,30 +30,30 @@ while [ "$#" -gt 0 ]; do
     --ownership)  ownership="${2:-}"; shift 2;;
     --task)       task="${2:-}"; shift 2;;
     --dry)        dry=1; shift;;
-    *) die "未知参数 '$1'";;
+    *) die "unknown argument '$1'";;
   esac
 done
-[ -n "$work" ] || die "需 --work <repo>"
-[ -d "$work/.git" ] || git -C "$work" rev-parse --git-dir >/dev/null 2>&1 || die "--work 不是 git 仓库: $work"
-[ -n "$agents" ] || die "需 --agents \"a b c\""
-case "$onconflict" in abort|skip) ;; *) die "--onconflict 须 abort|skip";; esac
-[ -z "$ownership" ] || [ -f "$ownership" ] || die "--ownership 文件不存在: $ownership"
+[ -n "$work" ] || die "need --work <repo>"
+[ -d "$work/.git" ] || git -C "$work" rev-parse --git-dir >/dev/null 2>&1 || die "--work is not a git repo: $work"
+[ -n "$agents" ] || die "need --agents \"a b c\""
+case "$onconflict" in abort|skip) ;; *) die "--onconflict must be abort|skip";; esac
+[ -z "$ownership" ] || [ -f "$ownership" ] || die "--ownership file not found: $ownership"
 
-# worktree 绝对路径 (ws_parent 绝对则直用, 否则相对 work)
+# worktree absolute path (ws_parent absolute → use directly, else relative to work)
 wt_path(){ case "$ws_parent" in /*) printf '%s/%s' "$ws_parent" "$1";; *) printf '%s/%s/%s' "$work" "$ws_parent" "$1";; esac; }
 
-# 越界检测 (借 Lynn: 编排器侧强制 ownership/forbidden, 不信 worker 自觉)
-_match_any(){  # file 是否匹配逗号 glob 列表里任一
+# out-of-bounds detection (borrowed from Lynn: enforce ownership/forbidden on the orchestrator side, do not trust worker self-discipline)
+_match_any(){  # whether file matches any glob in the comma list
   local f="$1" globs="$2" g; local IFS=','
   for g in $globs; do
     [ -n "$g" ] || continue
-    # shellcheck disable=SC2254  # $g 是 glob 模式, 故意不引号(就是要 glob 匹配)
+    # shellcheck disable=SC2254  # $g is a glob pattern, intentionally unquoted (glob matching is wanted)
     case "$f" in $g) return 0;; esac
   done
   return 1
 }
 own_line(){ [ -n "$ownership" ] && awk -F'\t' -v a="$1" '$1==a{print $2"\t"$3; exit}' "$ownership"; }
-# 输出越界文件 (空=未越界或不在清单=不限)
+# output out-of-bounds files (empty=not out-of-bounds or not in list=unrestricted)
 check_violation(){
   local ag="$1" changed="$2" line owned forbidden f bad=""
   line="$(own_line "$ag")"; [ -n "$line" ] || { printf ''; return 0; }
@@ -71,48 +71,48 @@ report=()
 
 for ag in $agents; do
   wt="$(wt_path "$ag")"
-  if [ ! -d "$wt" ]; then missing+=("$ag"); report+=("  ?  missing   $ag  ($wt 不存在)"); continue; fi
-  # worktree 内有无改动
+  if [ ! -d "$wt" ]; then missing+=("$ag"); report+=("  ?  missing   $ag  ($wt does not exist)"); continue; fi
+  # whether the worktree has changes
   if [ -z "$(git -C "$wt" status --porcelain 2>/dev/null)" ]; then
     nochange+=("$ag"); report+=("  —  no-change $ag"); continue
   fi
   files="$(git -C "$wt" status --porcelain | sed 's/^...//' | tr '\n' ' ')"
-  # 越界检测: cherry-pick 前比对 diff 是否动了 owned 之外 / 命中 forbidden, 越界即隔离(不整合)
+  # out-of-bounds detection: before cherry-pick, compare diff for changes outside owned / matching forbidden, isolate(do not integrate) if out-of-bounds
   bad="$(check_violation "$ag" "$files")"
   if [ -n "$bad" ]; then
-    violation+=("$ag"); report+=("  ⚠  violation $ag  → 越界改动: $bad (owned/forbidden 校验未过; 不整合, 人工裁决)"); continue
+    violation+=("$ag"); report+=("  ⚠  violation $ag  → out-of-bounds changes: $bad (owned/forbidden check failed; not integrated, human adjudication)"); continue
   fi
   if [ "$dry" -eq 1 ]; then report+=("  ▸  would-pick $ag  ($files)"); picked+=("$ag"); continue; fi
 
   git -C "$wt" add -A
   git -C "$wt" -c user.email=ccb@local -c user.name="$ag" commit -q -m "$ag: $files" || {
-    nochange+=("$ag"); report+=("  —  no-change $ag (commit 空)"); continue; }
+    nochange+=("$ag"); report+=("  —  no-change $ag (empty commit)"); continue; }
   sha="$(git -C "$wt" rev-parse HEAD)"
 
-  # cherry-pick 要建新 commit → 需 committer 身份; 显式带上, 别依赖全局 git config
-  # (无全局 identity 的环境如 CI/全新用户 否则会失败, 被误判成 conflict)
+  # cherry-pick creates a new commit → needs a committer identity; pass it explicitly, do not rely on global git config
+  # (environments without a global identity like CI/brand-new user would otherwise fail, misclassified as conflict)
   if git -C "$work" -c user.email=ccb@local -c user.name=fanout-integrate cherry-pick "$sha" >/dev/null 2>&1; then
     picked+=("$ag"); report+=("  ✓  picked    $ag  ${sha:0:7}  ($files)")
   else
     if [ "$onconflict" = abort ]; then
       git -C "$work" cherry-pick --abort >/dev/null 2>&1
-      conflict+=("$ag"); report+=("  ✗  conflict  $ag  → 已 abort, main 保持干净; 需人工 cherry-pick/rebase $sha")
+      conflict+=("$ag"); report+=("  ✗  conflict  $ag  → aborted, main stays clean; needs manual cherry-pick/rebase $sha")
     else
-      conflict+=("$ag"); report+=("  ✗  conflict  $ag  → 冲突留在工作区(skip 模式), 解决后 git cherry-pick --continue")
+      conflict+=("$ag"); report+=("  ✗  conflict  $ag  → conflict left in working tree(skip mode), after resolving git cherry-pick --continue")
     fi
   fi
 done
 
-# 汇总
+# summary
 hdr="── integrate (work=$work) ──"
-sum="$(printf '%s · %s · %s · %s · %s' \
+sum="$(printf '%s | %s | %s | %s | %s' \
   "${#picked[@]} picked" "${#nochange[@]} no-change" "${#conflict[@]} conflict" "${#violation[@]} violation" "${#missing[@]} missing")"
 { echo "$hdr"; printf '%s\n' "${report[@]}"; echo "$sum"; }
 
 if [ -n "$task" ] && [ -f "$task" ]; then
   { echo ""; echo "### Integrate — $sum"; printf '%s\n' "${report[@]}"; } >> "$task"
-  echo "→ 已写入 $task" >&2
+  echo "→ written to $task" >&2
 fi
 
-# 冲突或越界 → 非0 (都已隔离, 需人工裁决)
+# conflict or out-of-bounds → non-0 (both isolated, need human adjudication)
 [ "${#conflict[@]}" -eq 0 ] && [ "${#violation[@]}" -eq 0 ]

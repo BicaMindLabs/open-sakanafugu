@@ -1,5 +1,5 @@
-# pre-commit 本地闸门 — 与 CI 同源 (复用 scripts/*.sh, 不重复逻辑)
-#   安装: pipx install pre-commit && pre-commit install
+# pre-commit local gate — same source as CI (reuses scripts/*.sh, no duplicated logic)
+#   install: pipx install pre-commit && pre-commit install
 minimum_pre_commit_version: "3.5.0"
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -21,20 +21,20 @@ repos:
   - repo: local
     hooks:
       - id: scan-secrets
-        name: scan-secrets (占位 + 指纹闸门)
+        name: scan-secrets (placeholder + fingerprint gate)
         entry: bash scripts/scan-secrets.sh
         language: system
         pass_filenames: false
 
       - id: check-shell
-        name: shell 语法 + shellcheck
+        name: shell syntax + shellcheck
         entry: bash scripts/check-shell.sh
         language: system
         pass_filenames: false
         files: '(-code|\.sh)$'
 
       - id: cn-plugin-test
-        name: cn-plugin 测试
+        name: cn-plugin tests
         entry: npm test
         language: system
         pass_filenames: false

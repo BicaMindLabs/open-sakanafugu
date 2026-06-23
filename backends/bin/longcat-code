@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # LongCat Code — Claude Code → LongCat Anthropic-compatible API
-# Endpoint: https://api.longcat.chat/anthropic. 公共尾部见 cc_model_launch
+# Endpoint: https://api.longcat.chat/anthropic. Shared tail in cc_model_launch
 REAL_HOME="$HOME"
 source "$REAL_HOME/bin/cc-model-lib.sh"
 export HOME="$REAL_HOME/.claude-envs/longcat"
 mkdir -p "$HOME/.claude"
 cc_model_unset_proxies
 
-# LONGCAT_API_KEY 常只在交互 shell; 空则兜底从登录 zsh 取
+# LONGCAT_API_KEY often only set in an interactive shell; if empty, fall back to fetching from a login zsh
 [ -z "${LONGCAT_API_KEY:-}" ] && LONGCAT_API_KEY="$(HOME="$REAL_HOME" zsh -lic 'printf %s "$LONGCAT_API_KEY"' 2>/dev/null || true)"
 export ANTHROPIC_BASE_URL="https://api.longcat.chat/anthropic"
 export ANTHROPIC_AUTH_TOKEN="${LONGCAT_API_KEY:-}"
@@ -28,7 +28,7 @@ CC_OPUS="${LONGCAT_OPUS:-$CC_OPUS}"; CC_SONNET="${LONGCAT_SONNET:-$CC_SONNET}"; 
 CC_FAST="${LONGCAT_FAST:-$CC_HAIKU}"; CC_SUBAGENT="${LONGCAT_SUBAGENT:-$CC_SONNET}"
 
 # ===== LongCat quirks =====
-# 文档无 Claude extended-thinking; 默认关 (profile=thinking 或 LONGCAT_ENABLE_THINKING 时不关)
+# docs have no Claude extended-thinking; off by default (not disabled when profile=thinking or LONGCAT_ENABLE_THINKING is set)
 if [[ -z "${LONGCAT_ENABLE_THINKING:-}" && "${LONGCAT_PROFILE:-agent}" != "thinking" ]]; then
   export MAX_THINKING_TOKENS=0 CLAUDE_CODE_DISABLE_THINKING=1 ANTHROPIC_THINKING=disabled
 fi

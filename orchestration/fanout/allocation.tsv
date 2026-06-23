@@ -1,5 +1,5 @@
-# task-type<TAB>ranked-models(逗号, 第一=首选)  —— 源自 model_task_allocation_bench (2026-06-19 实测)
-# 给 fanout allocate / goal 自动分配用; 改这里即改默认分配策略。
+# task-type<TAB>ranked-models (comma-separated, first = preferred)  —— from model_task_allocation_bench (measured 2026-06-19)
+# Used by fanout allocate / goal for auto-routing; edit here to change the default allocation policy.
 code	minimax,doubao,glm
 reasoning	kimi,mimo,doubao
 logic	kimi,mimo,doubao

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# fanout-ccb-sync.sh — ccb 更新后同步适配 (类比 backends/bin/cc-sync 之于 claude-code)
+# fanout-ccb-sync.sh — re-adapt after a ccb update (analogous to backends/bin/cc-sync for claude-code)
 #
-# ccb 升级后要做的适配 (把已知坑变成自动检查):
-#   1. grafting 依赖 (api_shortcuts.py) 还在吗 —— claude+url 嫁接全靠它
-#   2. ccbd 需重启 —— `ccb update` 不会重启在跑的守护, 旧代码会继续跑 (已知坑)
-#   3. 重新 preflight (ccb.config 在新版本下仍健全 + no-Gemini)
-#   4. 记录新版本, 供下次比对
+# Adaptations to do after a ccb upgrade (turning known pitfalls into automatic checks):
+#   1. is the grafting dependency (api_shortcuts.py) still there —— claude+url grafting relies entirely on it
+#   2. ccbd must restart —— `ccb update` does not restart a running daemon, old code keeps running (known pitfall)
+#   3. re-run preflight (ccb.config still sound under the new version + no-Gemini)
+#   4. record the new version, for next comparison
 #
-#   check            打印 当前/上次 ccb 版本 + 是否漂移 + grafting 健全
-#   adapt [--apply]  漂移则适配: 校验 grafting → (--apply 才真 kill ccbd) → preflight → 记录版本
-#                    不带 --apply = dry-run (只报告, 不动 ccbd / 不写 stamp)
-#   env: FANOUT_CCB(默认 ccb) / CCB_WORK / CCB_CLAUDE / FANOUT_STATE(默认 ~/.config/fanout) / CCB_INSTALL(覆盖 install path)
+#   check            print current/last ccb version + whether drifted + grafting soundness
+#   adapt [--apply]  if drifted, adapt: verify grafting → (--apply actually kills ccbd) → preflight → record version
+#                    without --apply = dry-run (report only, does not touch ccbd / does not write stamp)
+#   env: FANOUT_CCB(default ccb) / CCB_WORK / CCB_CLAUDE / FANOUT_STATE(default ~/.config/fanout) / CCB_INSTALL(override install path)
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCB="${FANOUT_CCB:-ccb}"
@@ -28,46 +28,46 @@ grafting_ok(){ local ins; ins="$(ccb_install)"; [ -n "$ins" ] && [ -f "$ins/lib/
 
 cmd_check(){
   local cur last; cur="$(ccb_ver)"; last="$(cat "$STAMP" 2>/dev/null || echo '(none)')"
-  echo "ccb 当前: ${cur:-未知}   上次记录: $last"
-  [ -n "$cur" ] || { echo "  ⚠ 取不到 ccb 版本 (ccb 没装?)"; return 0; }
-  if [ "$cur" != "$last" ]; then echo "  → 版本漂移 ($last → $cur): 跑 'fanout ccb-sync adapt --apply' 适配"
-  else echo "  ✓ 无漂移"; fi
-  if grafting_ok; then echo "  ✓ grafting api_shortcuts.py 在 ($(ccb_install))"
-  else echo "  ✗ grafting api_shortcuts.py 不见了 — claude+url 嫁接可能失效, 需人工查 ccb 新版"; fi
+  echo "ccb current: ${cur:-unknown}   last recorded: $last"
+  [ -n "$cur" ] || { echo "  ⚠ cannot get ccb version (ccb not installed?)"; return 0; }
+  if [ "$cur" != "$last" ]; then echo "  → version drift ($last → $cur): run 'fanout ccb-sync adapt --apply' to adapt"
+  else echo "  ✓ no drift"; fi
+  if grafting_ok; then echo "  ✓ grafting api_shortcuts.py present ($(ccb_install))"
+  else echo "  ✗ grafting api_shortcuts.py is gone — claude+url grafting may break, check the new ccb version manually"; fi
 }
 
 cmd_adapt(){
   local apply=0; [ "${1:-}" = "--apply" ] && apply=1
   local cur last; cur="$(ccb_ver)"; last="$(cat "$STAMP" 2>/dev/null || echo '')"
-  [ -n "$cur" ] || die "取不到 ccb 版本"
-  if [ "$apply" -eq 1 ]; then echo "── ccb 适配 (${last:-none} → $cur) ──"; else echo "── ccb 适配 (${last:-none} → $cur) [dry-run] ──"; fi
+  [ -n "$cur" ] || die "cannot get ccb version"
+  if [ "$apply" -eq 1 ]; then echo "── ccb adapt (${last:-none} → $cur) ──"; else echo "── ccb adapt (${last:-none} → $cur) [dry-run] ──"; fi
 
-  # 1) grafting 依赖
-  if grafting_ok; then echo "  ✓ grafting api_shortcuts.py 在"
-  else echo "  ✗ grafting 依赖丢失 — 新版 ccb 可能改了 provider_profiles, 嫁接方案需人工适配"; fi
+  # 1) grafting dependency
+  if grafting_ok; then echo "  ✓ grafting api_shortcuts.py present"
+  else echo "  ✗ grafting dependency lost — new ccb may have changed provider_profiles, grafting scheme needs manual adaptation"; fi
 
-  # 2) ccbd 重启 (ccb update 不重启在跑的守护 → 旧代码)
+  # 2) ccbd restart (ccb update does not restart a running daemon → old code)
   local proj
   for proj in "${CCB_WORK:-}" "${CCB_CLAUDE:-}"; do
     [ -n "$proj" ] || continue
     if [ "$apply" -eq 1 ]; then
       (cd "$proj" 2>/dev/null && "$CCB" kill >/dev/null 2>&1) && \
-        echo "  ✓ kill ccbd @ $proj — 下次 'cd $proj && ccb' 起守护即加载新代码 (claude-only 用 env CLAUDE_START_CMD=claude)"
+        echo "  ✓ kill ccbd @ $proj — next 'cd $proj && ccb' starts the daemon and loads new code (claude-only uses env CLAUDE_START_CMD=claude)"
     else
-      echo "  [dry] 需重启 ccbd @ $proj (ccb update 不自动重启, 旧代码继续跑)"
+      echo "  [dry] need to restart ccbd @ $proj (ccb update does not auto-restart, old code keeps running)"
     fi
   done
-  [ -z "${CCB_WORK:-}${CCB_CLAUDE:-}" ] && echo "  ⚠ 未设 CCB_WORK/CCB_CLAUDE — 跳过 ccbd 重启 (设后重跑)"
+  [ -z "${CCB_WORK:-}${CCB_CLAUDE:-}" ] && echo "  ⚠ CCB_WORK/CCB_CLAUDE unset — skip ccbd restart (set them and re-run)"
 
-  # 3) 配置校验 (--config-only: 不依赖 ccbd 存活, 因为上面可能刚 kill 掉它)
+  # 3) config validation (--config-only: does not depend on ccbd being alive, since we may have just killed it above)
   if [ "$apply" -eq 1 ] && [ -n "${CCB_WORK:-}" ] && [ -f "$CCB_WORK/.ccb/ccb.config" ]; then
-    echo "  配置校验 (no-Gemini + 健全):"
+    echo "  config validation (no-Gemini + sound):"
     bash "$HERE/fanout-preflight.sh" --config-only "$CCB_WORK/.ccb/ccb.config" 2>&1 | sed 's/^/    /' || true
   fi
 
-  # 4) 记录版本
-  if [ "$apply" -eq 1 ]; then mkdir -p "$STATE"; printf '%s\n' "$cur" > "$STAMP"; echo "  ✓ 记录 $cur → $STAMP"
-  else echo "  [dry] 未写 stamp; 加 --apply 落实"; fi
+  # 4) record version
+  if [ "$apply" -eq 1 ]; then mkdir -p "$STATE"; printf '%s\n' "$cur" > "$STAMP"; echo "  ✓ recorded $cur → $STAMP"
+  else echo "  [dry] stamp not written; add --apply to commit"; fi
 }
 
 sub="${1:-}"; shift || true
@@ -75,5 +75,5 @@ case "$sub" in
   check) cmd_check "$@";;
   adapt) cmd_adapt "$@";;
   ''|-h|--help) sed -n '2,14p' "$0";;
-  *) die "未知子命令 '$sub' (check|adapt)";;
+  *) die "unknown subcommand '$sub' (check|adapt)";;
 esac

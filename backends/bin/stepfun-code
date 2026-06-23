@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Claude Code → Step Coding 分身
-# 端点: https://api.stepfun.com/step_plan (.com; .ai 域名会 401)
-# 模型: step-3.7-flash(旗舰)/3.5-flash-2603/3.5-flash/router-v1. 公共尾部见 cc_model_launch
+# Claude Code → Step Coding clone
+# Endpoint: https://api.stepfun.com/step_plan (.com; the .ai domain returns 401)
+# Models: step-3.7-flash(flagship)/3.5-flash-2603/3.5-flash/router-v1. Shared tail in cc_model_launch
 REAL_HOME="$HOME"
 source "$REAL_HOME/bin/cc-model-lib.sh"
 export HOME="$REAL_HOME/.claude-envs/stepfun"
@@ -33,19 +33,19 @@ case "${STEPFUN_REASONING:-}" in
     if [[ "$MODEL" == "step-3.5-flash-2603" || "${STEPFUN_FORCE_EFFORT:-0}" == "1" ]]; then
       export CLAUDE_CODE_EXTRA_BODY="{\"output_config\":{\"effort\":\"$STEPFUN_REASONING\"}}"
     else
-      echo "[cc-stepfun] ⚠️  output_config.effort 仅 step-3.5-flash-2603 生效; 当前 $MODEL 不注入" >&2
+      echo "[cc-stepfun] ⚠️  output_config.effort only takes effect on step-3.5-flash-2603; not injecting for current $MODEL" >&2
     fi ;;
   none)
     export MAX_THINKING_TOKENS=0 CLAUDE_CODE_DISABLE_THINKING=1 CLAUDE_CODE_EFFORT_LEVEL=none
     export CLAUDE_CODE_EXTRA_BODY='{"thinking":{"type":"disabled"}}' ;;
   "") ;;
-  *) echo "[cc-stepfun] ⚠️  STEPFUN_REASONING 只支持 low/high/none" >&2 ;;
+  *) echo "[cc-stepfun] ⚠️  STEPFUN_REASONING only supports low/high/none" >&2 ;;
 esac
 if [ "${STEPFUN_NO_THINKING:-0}" = "1" ]; then
   export MAX_THINKING_TOKENS=0 CLAUDE_CODE_DISABLE_THINKING=1 CLAUDE_CODE_EFFORT_LEVEL=none
   export CLAUDE_CODE_EXTRA_BODY='{"thinking":{"type":"disabled"}}'
 fi
-# 已知 quirk: stepfun 响应 resp.model 为空字符串, 不影响 text/tool_use/多轮功能
+# known quirk: stepfun responses have an empty resp.model string, does not affect text/tool_use/multi-turn behavior
 
 CC_MODEL_DISPLAY="Step Coding"
 export CC_MODEL_COMMAND="cc-stepfun" CC_MODEL_PROVIDER="stepfun" CC_MODEL_PATCH_MARKER="Step Coding"

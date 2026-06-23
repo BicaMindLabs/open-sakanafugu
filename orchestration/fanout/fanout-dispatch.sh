@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# fanout-dispatch.sh — 取/渲 prompt → 派给 agent (harness 无关) → 记 TASK 日志
+# fanout-dispatch.sh — fetch/render prompt → dispatch to agent (harness-agnostic) → log TASK
 #   fanout-dispatch.sh <target> [--harness ccb|codex|opencode] [--workspace <ws>] \
 #       (--template <name> [--set K=V ...] | --prompt-file <f>) [--task <file>]
-#   --harness 选执行器: ccb(默认, Claude Code cc-* 分身) / codex(codex exec) / opencode(opencode run)
-#     <target> 含义随 harness: ccb=ccb agent(cc-deepseek) / codex=model(gpt-5.5) / opencode=provider/model
-#   --workspace 前缀注入该工位分层 context (Zleap 式: 只喂该看的)
-#   --task-type T  把 (T, agent) 追加进 alloc ledger → 后续 `allocate feed --from-ledger` 用 verdict 喂回路由(数据飞轮)
-#   --skills a,b   把选中 skill 注入该 agent context (progressive disclosure; 经 fanout-skills inject)
-#   env: FANOUT_CCB / FANOUT_CODEX / FANOUT_OPENCODE (默认 ccb/codex/opencode; 测试可 stub)
-#        FANOUT_ALLOCATION_LEDGER (alloc ledger 路径, 与 allocate 一致)
+#   --harness pick executor: ccb(default, Claude Code cc-* clone) / codex(codex exec) / opencode(opencode run)
+#     <target> meaning varies by harness: ccb=ccb agent(cc-deepseek) / codex=model(gpt-5.5) / opencode=provider/model
+#   --workspace prefix-inject that workspace's layered context (Zleap-style: feed only what it should see)
+#   --task-type T  append (T, agent) into alloc ledger → later `allocate feed --from-ledger` feeds verdict back to routing(data flywheel)
+#   --skills a,b   inject selected skill into that agent context (progressive disclosure; via fanout-skills inject)
+#   env: FANOUT_CCB / FANOUT_CODEX / FANOUT_OPENCODE (default ccb/codex/opencode; test may stub)
+#        FANOUT_ALLOCATION_LEDGER (alloc ledger path, consistent with allocate)
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCB="${FANOUT_CCB:-ccb}"
@@ -16,7 +16,7 @@ LEDGER="${FANOUT_ALLOCATION_LEDGER:-${FANOUT_STATE:-$HOME/.config/fanout}/alloc-
 die(){ echo "fanout-dispatch: $*" >&2; exit 2; }
 
 agent="${1:-}"; shift || true
-[ -n "$agent" ] || die "用法: <agent> (--template <name> [--set K=V] | --prompt-file <f>) [--task <file>]"
+[ -n "$agent" ] || die "usage: <agent> (--template <name> [--set K=V] | --prompt-file <f>) [--task <file>]"
 
 tpl=""; pfile=""; task=""; ws=""; harness="ccb"; ttype=""; skills=""; sets=()
 while [ "$#" -gt 0 ]; do
@@ -29,42 +29,42 @@ while [ "$#" -gt 0 ]; do
     --task)        task="${2:-}"; shift 2;;
     --task-type)   ttype="${2:-}"; shift 2;;
     --skills)      skills="${2:-}"; shift 2;;
-    *) die "未知参数 '$1'";;
+    *) die "unknown arg '$1'";;
   esac
 done
 
-# skills 注入前缀 (progressive disclosure: 只把该 agent 该爬的 skill 喂给它)
+# skills inject prefix (progressive disclosure: feed this agent only the skill it should crawl)
 skills_ctx=""
 [ -n "$skills" ] && skills_ctx="$(bash "$HERE/fanout-skills.sh" inject "$skills")
 "
-# workspace context 前缀 (借鉴 Zleap: 只喂该工位该看的分层 context)
+# workspace context prefix (Zleap-inspired: feed only this workspace's layered context to see)
 ctx=""
 [ -n "$ws" ] && ctx="$(bash "$HERE/fanout-workspace.sh" context "$ws")
 "
 
-# 取 prompt body
+# fetch prompt body
 if [ -n "$pfile" ]; then
-  [ -f "$pfile" ] || die "无 prompt 文件 $pfile"; body="$(cat "$pfile")"
+  [ -f "$pfile" ] || die "no prompt file $pfile"; body="$(cat "$pfile")"
 elif [ -n "$tpl" ]; then
   body="$(bash "$HERE/fanout-template.sh" "$tpl" ${sets[@]+"${sets[@]}"})"
 elif [ -n "$ws" ]; then
-  body=""   # 仅 workspace context 即作 prompt
-else die "需要 --template <name> / --prompt-file <f> / --workspace <name>"; fi
+  body=""   # workspace context alone serves as prompt
+else die "need --template <name> / --prompt-file <f> / --workspace <name>"; fi
 prompt="${skills_ctx}${ctx}${body}"
 
-# 派活 (harness 无关)：<target> 含义随 harness 变
+# dispatch (harness-agnostic): <target> meaning varies by harness
 case "$harness" in
-  ccb)      printf '%s\n' "$prompt" | "$CCB" ask "$agent" --compact; rc=$? ;;   # Claude Code cc-* 分身
+  ccb)      printf '%s\n' "$prompt" | "$CCB" ask "$agent" --compact; rc=$? ;;   # Claude Code cc-* clone
   codex)    "${FANOUT_CODEX:-codex}" exec --model "$agent" "$prompt"; rc=$? ;;    # codex exec, target=model
   opencode) "${FANOUT_OPENCODE:-opencode}" run -m "$agent" "$prompt"; rc=$? ;;    # opencode run, target=provider/model
-  *) die "未知 harness '$harness' (ccb|codex|opencode)" ;;
+  *) die "unknown harness '$harness' (ccb|codex|opencode)" ;;
 esac
 
-# 记 TASK 日志 (可选)
+# log TASK (optional)
 if [ -n "$task" ] && [ -f "$task" ]; then
   printf -- '- [%s] dispatch → %s [%s] (rc=%s)\n' "$(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M')" "$agent" "$harness" "$rc" >> "$task"
 fi
-# alloc ledger (可选): 记 (task-type, agent) 供 `allocate feed --from-ledger` 用 verdict 喂回路由
+# alloc ledger (optional): record (task-type, agent) for `allocate feed --from-ledger` to feed verdict back to routing
 if [ -n "$ttype" ]; then
   mkdir -p "$(dirname "$LEDGER")"
   printf '%s\t%s\n' "$ttype" "$agent" >> "$LEDGER"

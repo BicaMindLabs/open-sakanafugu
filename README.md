@@ -5,8 +5,6 @@
 [![Node](https://img.shields.io/badge/node-%E2%89%A518.18-339933.svg)](package.json)
 [![Tests](https://img.shields.io/badge/tests-312%20passing-success.svg)](orchestration/fanout)
 
-**English | [简体中文](README_ZH.md)**
-
 > A multi-agent coding workflow that drives a fleet of **9 Chinese LLMs** (each running as an isolated Claude Code instance) as the implementers, an independent frontier model (Codex) as the quality gate, and a **bounded review-fix loop** that converges to acceptance — never looping forever, never hard-marking done.
 
 Cheap, fast Chinese models do the work; a different-family reviewer judges it; the orchestrator (Claude) plans, integrates, and patches. A fan-out/fan-in cache guarantees every dispatched task returns before the next round, and per-task **workspace isolation** keeps weaker models from drowning in context.
@@ -39,6 +37,7 @@ Small / cheap models fail when an agent shows them *every* tool, memory, rule an
 - **Context isolation** — each task runs in a *workspace* that exposes only the prompt, tools, memory and model it needs.
 - **Completeness guarantee** — a fan-in barrier: N tasks dispatched ⇒ N must return before the round advances.
 - **Adaptive routing** — the model-allocation table is a Bayesian bandit: it starts from a hand-tuned prior and learns from each review verdict which model wins which task type (Thompson-Sampling exploration, decay on model upgrades) — a training-free analogue of a learned coordinator.
+- **Progressive disclosure of skills** — a mother-catalog indexes every local skill (3 sources), so the planner injects only the handful each agent actually needs instead of drowning a weak model in 500+ skills — and methods learned on a task **precipitate back into the catalog** (a closed loop: index → dispatch → forge → validate → re-index).
 
 ---
 
@@ -91,7 +90,7 @@ Small / cheap models fail when an agent shows them *every* tool, memory, rule an
 | `orchestration/ccb/ccb.config.example` | Sanitized ccb multi-window topology template (placeholder keys) |
 | `orchestration/cn-plugin/cn/` | Claude Code plugin: `/cn:*` commands + `cn-dispatch` agent (derived from `openai/codex-plugin-cc`) |
 | `orchestration/agent-team/` | Workflow-tool orchestration example (multi-model planning → implement → review) |
-| `scripts/` | `scan-secrets.sh` + `check-shell.sh` (shared by Make / CI / pre-commit) |
+| `scripts/` | `scan-secrets.sh` (secret-leak gate) + `check-shell.sh` (bash -n + shellcheck) + `check-docs.sh` (docs-match-code gate) + `install-skill.sh` — shared by Make / CI / pre-commit |
 | `AGENTS.md` | Cross-harness entry — Claude Code / Codex / OpenCode all read it; one bash CLI drives the workflow from any agent |
 | `docs/` | [`WORKFLOW.md`](docs/WORKFLOW.md) (end-to-end pipeline) · [`AGENT_TEAM.md`](docs/AGENT_TEAM.md) (multi-model planning + sub-agents) · [`INTEGRATIONS.md`](docs/INTEGRATIONS.md) (consuming cn-cc as an engine, e.g. CivAgent) |
 
@@ -209,6 +208,7 @@ The core is a **5-phase pipeline** (full detail in [`docs/WORKFLOW.md`](docs/WOR
 - **Planning panel** — `fanout plan` fans decomposition out to multiple models; synthesize into Phase 1.
 - **Workspace isolation** — `fanout dispatch --workspace <ws>` gives a model only the context that workspace needs.
 - **Adaptive allocation** — `fanout allocate` blends the static bench table (prior) with `record`ed verdicts (posterior), so routing self-improves as the loop feeds outcomes back — no training required.
+- **Skills catalog + closed loop** — `fanout skills index` builds a mother-catalog of every local skill (user + `.system` meta-skills + plugin marketplaces); the planner reads it to route, `dispatch --skills` injects only the needed few (progressive disclosure), and `fanout skills forge` precipitates a learned method into a *new* skill — authored by the official `skill-creator`, gated by `validate`, then folded back in with `index --refresh`.
 
 See [`docs/AGENT_TEAM.md`](docs/AGENT_TEAM.md) for multi-model planning and hierarchical sub-agents (ccb fleet vs. native Claude Code subagents).
 
@@ -222,6 +222,7 @@ See [`docs/AGENT_TEAM.md`](docs/AGENT_TEAM.md) for multi-model planning and hier
 - **Cache-first + fan-in barrier** — every result is cached durably; N dispatched ⇒ N returned before the next round.
 - **Context isolation** — weaker models see only what the workspace needs.
 - **Adaptive routing, not static** — allocation is a Beta-Bernoulli bandit (bench prior + verdict posterior, Thompson-Sampling exploration); it self-improves from the loop's verdicts with no training.
+- **Progressive disclosure + skill precipitation** — agents see only the skills they need (a mother-catalog over all 3 sources), and methods learned on a task close the loop back into that catalog — authored by the official `skill-creator`, gated by a `validate` check.
 - **Keys stay out of the repo** — only `~/.config/cc-model-secrets.env`; the repo ships only `.example`. Pre-commit + CI scan blocks leaks.
 - **Docs match code** — a `check-docs` gate fails CI if the README's subcommands/counts drift from the actual `fanout` CLI.
 - **No Gemini** — review / second opinions go to Codex or a Chinese backend.
@@ -264,6 +265,8 @@ This workflow handles API keys. Hard rules (full policy in [`SECURITY.md`](SECUR
 - [**openai/codex-plugin-cc**](https://github.com/openai/codex-plugin-cc) (Apache-2.0) — the plugin architecture (`/cn:*` commands, agents, skills, companion scripts) that `orchestration/cn-plugin/` derives from.
 - [**Zleap-AI/Zleap-Agent**](https://github.com/Zleap-AI/Zleap-Agent) — inspiration for the **Workspace isolation** and **Experience memory** ideas (concepts only; code is independent, as Zleap is unlicensed).
 - [**kunchenguid/no-mistakes**](https://github.com/kunchenguid/no-mistakes) & [**lavish-axi**](https://github.com/kunchenguid/lavish-axi) (MIT) — the loop's **auto-fix vs ask-user** finding split + the **`run` state facade** (axi-style), and the **docs-match-code** drift gate (from `build:skill --check`).
+- [**merkyor/Lynn**](https://gitee.com/merkyor/Lynn) — the orchestrator-side **ownership / violation-detection** idea behind `integrate --ownership` (enforce on the orchestrator, don't trust the worker's prompt).
+- **Anthropic `skill-creator`** (the official Claude Code meta-skill) — `fanout skills forge` delegates skill *authoring* to it, and the `validate` gate mirrors its `quick_validate.py` checks.
 - The **Phase 5 loop** design draws on agentic verification-loop work (Self-Refine, Reflexion, loop-engineering 2026); the **adaptive router** on the multi-armed-bandit literature — Thompson Sampling (Agrawal & Goyal 2012), non-stationary/discounted bandits (Garivier & Moulines 2011).
 
 See [`NOTICE`](NOTICE) for attribution detail.

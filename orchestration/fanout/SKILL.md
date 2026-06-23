@@ -1,6 +1,6 @@
 ---
 name: fanout
-description: Use this skill for a multi-agent collaborative coding task. Triggers (中/英)：「/fanout」·「走 fanout 流程」·「用 fanout 做 X」·「用 cc 分身 + codex 写 Y」·「多 agent 协作做 Z」·「前后端 + review 做 W」·「拆给多个 agent 并行」·"fan out X" · "use the model fleet + a reviewer to build Y" · "split this across multiple agents" · "frontend + backend + review". Use whenever a request benefits from 2+ ccb agents (implementer backends + an independent reviewer). Implements a Planner / Implementers / Reviewer matrix: Planner = your strategic layer (e.g. Claude Desktop), Backend Implementers = the ccb model fleet (Claude + the Chinese-model 分身 deepseek/glm/kimi/minimax/mimo/stepfun/doubao/ark-auto), Reviewer/Judge = an independent frontier model (e.g. Codex). Auto-creates a TASK file, dispatches via `ccb ask`, integrates via git worktree cherry-pick to the main branch, runs reviewer with a VERDICT, then a bounded review-fix loop (NEEDS FIX → operator patches → re-review, capped then escalate; never loops forever / never hard-marks DONE). Always uses each provider's latest model.
+description: Use this skill for a multi-agent collaborative coding task. Triggers (CN/EN): "/fanout" · "run the fanout flow" · "use fanout to do X" · "use cc clones + codex to write Y" · "multi-agent collaboration to do Z" · "frontend + backend + review to do W" · "split across multiple agents in parallel" · "fan out X" · "use the model fleet + a reviewer to build Y" · "split this across multiple agents" · "frontend + backend + review". Use whenever a request benefits from 2+ ccb agents (implementer backends + an independent reviewer). Implements a Planner / Implementers / Reviewer matrix: Planner = your strategic layer (e.g. Claude Desktop), Backend Implementers = the ccb model fleet (Claude + the Chinese-model clones deepseek/glm/kimi/minimax/mimo/stepfun/doubao/ark-auto), Reviewer/Judge = an independent frontier model (e.g. Codex). Auto-creates a TASK file, dispatches via `ccb ask`, integrates via git worktree cherry-pick to the main branch, runs reviewer with a VERDICT, then a bounded review-fix loop (NEEDS FIX → operator patches → re-review, capped then escalate; never loops forever / never hard-marks DONE). Always uses each provider's latest model.
 metadata:
   short-description: Multi-agent fan-out (Planner / Implementers / Reviewer)
 ---
@@ -23,7 +23,7 @@ Three roles, five phases. Planner orchestrates, the implementer fleet writes cod
 | Role | Agent | Call |
 |---|---|---|
 | **Planner / Integrator / Fixer** | You (your strategic layer — e.g. Claude Desktop) | Direct shell + `ccb ask` to dispatch; **not itself in a ccb pane** |
-| **Backend Implementers** (auto fan-out) | `cc-claude` (Claude, in `$CCB_CLAUDE`) + the Chinese-model 分身 `cc-deepseek` `cc-glm` `cc-kimi` `cc-minimax` `cc-mimo` `cc-stepfun` `cc-doubao` `cc-ark-auto` (in `$CCB_WORK`) | `ccb ask cc-X --compact <<EOF ... EOF` |
+| **Backend Implementers** (auto fan-out) | `cc-claude` (Claude, in `$CCB_CLAUDE`) + the Chinese-model clones `cc-deepseek` `cc-glm` `cc-kimi` `cc-minimax` `cc-mimo` `cc-stepfun` `cc-doubao` `cc-ark-auto` (in `$CCB_WORK`) | `ccb ask cc-X --compact <<EOF ... EOF` |
 | **Frontend Implementer** (opt-in) | **Antigravity (`agy` CLI)** | manual in the IDE, or headless `agy --print "<prompt>"`; commit/paste output, integrator merges. **Frontend-only — never reviews** (backend = Gemini, must stay off the review path) |
 | **Reviewer / Final Judge** | `coder` (an independent frontier model, e.g. Codex, in `$CCB_WORK`) | `ccb ask coder --compact` → VERDICT: ACCEPTED or NEEDS FIX |
 
@@ -36,10 +36,10 @@ Three roles, five phases. Planner orchestrates, the implementer fleet writes cod
 > Plan → Dispatch → Integrate → Review → **Review-Fix Loop** (NEEDS FIX iterates to ACCEPTED, bounded then escalate)
 
 **Higher-level entry points** (optional, layered on the 5 phases):
-- **Goal mode** — declarative target with a deterministic gate: `"$FO" goal template` → fill `outcome/gate/rubric/rounds` → `"$FO" goal check <spec>` runs the gate (the loop drives to it). 目标达成 = gate 0 + reviewer ACCEPTED.
-- **Planning panel** — multi-model decomposition: `"$FO" plan "<goal>" --models cc-deepseek,cc-kimi,coder` fans the "拆解 goal" out to several models (each Writes its plan); you synthesize them into Phase 1.
+- **Goal mode** — declarative target with a deterministic gate: `"$FO" goal template` → fill `outcome/gate/rubric/rounds` → `"$FO" goal check <spec>` runs the gate (the loop drives to it). Goal met = gate 0 + reviewer ACCEPTED.
+- **Planning panel** — multi-model decomposition: `"$FO" plan "<goal>" --models cc-deepseek,cc-kimi,coder` fans the "decompose goal" out to several models (each Writes its plan); you synthesize them into Phase 1.
 - **Allocation (adaptive)** — `"$FO" allocate <task-type> --top` → recommended model; a **bench-prior + battle-experience blend** (Beta-Bernoulli): the static `allocation.tsv` is the prior, and `"$FO" allocate record <task-type> <agent> ok|fail` (call after each verdict — ACCEPTED→`ok`, NEEDS FIX→`fail`) updates the posterior. **Cold-start == the static bench order**; it drifts only once you've recorded outcomes (KAPPA pseudo-counts gate how much), with Laplace smoothing so no agent is starved by one failure. `"$FO" allocate stats <type>` shows scores; `reset` clears. **Auto-feed (data flywheel)**: dispatch with `"$FO" dispatch <agent> --task-type <T> ...` so it logs `(T, agent)` to a ledger; after the round's verdict, `"$FO" allocate feed --from-ledger --result ok [--fail <agents-that-needed-fixing>]` feeds the whole round at once (the `cc-` prefix is normalized to the bench's bare name, so experience lands on the same key it ranks). Routing self-improves from verdicts without per-agent manual calls — but it plateaus at "best-in-pool per coarse task-type", and old stats decay when you upgrade a provider's model. **Iterations**: `--sample` switches ranking from greedy posterior-mean to **Thompson Sampling** (Gaussian-approx Beta sample → explores under-sampled agents, won't lock onto an early winner; Agrawal-Goyal 2012). `"$FO" allocate decay --gamma G [--type T]` discounts counts (`s,f ×G`) to forget stale stats after a model upgrade (discounted bandit; Garivier-Moulines 2011).
-- **Workspace 隔离**（借鉴 Zleap-Agent）— `"$FO" workspace context <ws>` 按工位组装分层 context（System + Workspace + Tools + Memory + History）；`"$FO" dispatch <agent> --workspace <ws> ...` 前缀注入，让(弱)模型只看该工位该看的，不被全量 context 淹没。工位: main/code/sql/chinese/review/web。
+- **Workspace isolation** (inspired by Zleap-Agent) — `"$FO" workspace context <ws>` assembles layered context per station (System + Workspace + Tools + Memory + History); `"$FO" dispatch <agent> --workspace <ws> ...` injects it as a prefix, so a (weak) model sees only what this station should see, not drowned in the full context. Stations: main/code/sql/chinese/review/web.
 - **Skills mother-catalog (progressive disclosure)** — 3 steps: ① `"$FO" skills index` scans **3 sources** (user `~/.claude/skills` + `.system` meta-skills incl. the official `skill-creator`/`plugin-creator` + plugin marketplaces, `plugin:skill` ids) into one compact catalog (source·functional/note·path) = the mother index; ② the Planner reads it (or `"$FO" skills match "<subtask>"`) and assigns skills per subtask/agent; ③ `"$FO" dispatch <agent> --skills "a,b"` injects *only* those skills into that agent's context — a weak model crawls just what it needs, not all 500+. This is fanout's isolation philosophy applied to the skill dimension. ④ **Close the loop (precipitate→create→re-classify)**: `"$FO" skills forge --name X (--from-experience <ws/slug> | --source <f>) [--agent A]` gathers material → candidate gate → dispatches a worker (with `skill-creator` injected) to author a proper skill → `"$FO" skills validate <name>` quality gate (mirrors the official `quick_validate.py`; `--official` uses it) → on pass, `"$FO" skills index --refresh` folds it back into the catalog for next time. **Authoring is delegated to the official `skill-creator`** (not re-implemented).
 
 ### Phase 1: Plan
@@ -53,7 +53,7 @@ Three roles, five phases. Planner orchestrates, the implementer fleet writes cod
    ```
 1. **Preflight (go/no-go gate)** — deps / ccbd alive / ccb.config sanity + the **no-Gemini guard**, all as code:
    ```bash
-   CCB_WORK=<ccb project> "$FO" preflight   # NO-GO → 修好再派活 (ccbd down → fleet up)
+   CCB_WORK=<ccb project> "$FO" preflight   # NO-GO → fix before dispatching (ccbd down → fleet up)
    ```
    `"$FO" doctor` shows the full environment + recommendation. **Never dispatch when preflight is NO-GO** — that's how tasks get stuck in an empty queue.
 
@@ -134,7 +134,7 @@ Hard: 1. Read inputs; 2. Write the output file; 3. no chat output
 EOF
 ```
 
-- Backend implementers (the 分身 + `coder`) live in `$CCB_WORK`; `cc-claude` in `$CCB_CLAUDE`.
+- Backend implementers (the clones + `coder`) live in `$CCB_WORK`; `cc-claude` in `$CCB_CLAUDE`.
 - Frontend / UI work (if any) goes to **Antigravity (`agy`)** — either manual in the IDE, or headless:
   ```bash
   agy --print --print-timeout 5m "<frontend task prompt>"   # add --dangerously-skip-permissions only in a sandbox
@@ -281,7 +281,7 @@ The fleet's models are pinned in `.ccb/ccb.config` (see `orchestration/ccb/ccb.c
 - **NEEDS FIX → operator patches** (Edit), never re-dispatch the implementer to rewrite.
 - **Latest model always**; ground truth is `ccb.config`, not strings in this skill.
 - **`ccb ask` is the only sanctioned dispatch channel** — don't spawn sub-agents by other means.
-- **Second opinions go to `coder` or another fleet 分身**, never to an excluded provider.
+- **Second opinions go to `coder` or another fleet clone**, never to an excluded provider.
 - **Implementers must Write artifacts to files**, never chat-only (async output is lossy).
 
 ---

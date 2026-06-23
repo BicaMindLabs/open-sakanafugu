@@ -1,16 +1,16 @@
-# gitleaks 配置 — 扩展默认规则集 + 本仓 allowlist
+# gitleaks config — extends the default rule set + this repo's allowlist
 [extend]
 useDefault = true
 
 [allowlist]
-description = "占位符与合法署名, 非真密钥"
+description = "Placeholders and valid attributions, not real secrets"
 regexes = [
-  # ccb.config.example 里的 <PROVIDER_API_KEY> 占位
+  # the <PROVIDER_API_KEY> placeholder in ccb.config.example
   '''<[A-Z_]+_API_KEY>''',
-  # 文档里的示例 ID 段
+  # example ID snippets in the docs
   '''sk-xxx|sk-\.\.\.|<your-[a-z-]+>''',
 ]
 paths = [
-  # 模板文件本就含占位 key=, 不是泄漏
+  # the template file inherently contains a placeholder key=, not a leak
   '''orchestration/ccb/ccb\.config\.example''',
 ]

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""fleet-launch.py — pty.fork 兜底启动器 (detached tmux 不灵时用)
+"""fleet-launch.py — pty.fork fallback launcher (used when detached tmux fails)
 
-用法: fleet-launch.py <project-dir> <cmd> [args...]
-  在 <project-dir> 里, 剥掉所有 CLAUDE_CODE_* 环境变量后, 用 pty 起 <cmd> 并 detach
-  (调用者立刻返回, ccb 继续在后台跑)。
+usage: fleet-launch.py <project-dir> <cmd> [args...]
+  Inside <project-dir>, after stripping all CLAUDE_CODE_* env vars, start <cmd> with a pty and detach
+  (caller returns immediately, ccb keeps running in the background).
 
-为什么这样:
-  - 剥 CLAUDE_CODE_*: 父会话的 OAuth/session env 会泄漏给子 cc-* → 假 401。
-  - pty.fork: ccb 要一个 tty 才肯起 agent pane。
-  - fork + setsid: 脱离调用 shell 的会话, ccb 在调用者退出后存活。
-  - 排空 pty: 防 ccb 写满输出缓冲阻塞。
+Why this way:
+  - strip CLAUDE_CODE_*: parent session's OAuth/session env leaks to child cc-* → fake 401.
+  - pty.fork: ccb needs a tty before it will start the agent pane.
+  - fork + setsid: detach from the calling shell's session, ccb survives after the caller exits.
+  - drain pty: prevent ccb from blocking when the output buffer fills up.
 """
 import os
 import pty
@@ -18,34 +18,34 @@ import sys
 
 def main() -> int:
     if len(sys.argv) < 3:
-        sys.stderr.write("用法: fleet-launch.py <project-dir> <cmd> [args...]\n")
+        sys.stderr.write("usage: fleet-launch.py <project-dir> <cmd> [args...]\n")
         return 2
     project = sys.argv[1]
     cmd = sys.argv[2:]
     if not os.path.isdir(project):
-        sys.stderr.write("fleet-launch: 无目录 %s\n" % project)
+        sys.stderr.write("fleet-launch: no directory %s\n" % project)
         return 2
 
-    # 1) 剥 CLAUDE_CODE_* (provider key/PATH/HOME 等保留)
+    # 1) strip CLAUDE_CODE_* (keep provider key/PATH/HOME etc.)
     for k in [k for k in list(os.environ) if k.startswith("CLAUDE_CODE")]:
         del os.environ[k]
 
-    # 2) daemonize: 父立刻返回; 子脱离 tty 会话
+    # 2) daemonize: parent returns immediately; child detaches from the tty session
     if os.fork() > 0:
         return 0
     os.chdir(project)
     os.setsid()
 
-    # 3) pty.fork: 孙进程在 pty 里 exec 目标命令
+    # 3) pty.fork: grandchild exec's the target command inside the pty
     pid, fd = pty.fork()
     if pid == 0:
         try:
             os.execvp(cmd[0], cmd)
         except OSError as e:
-            sys.stderr.write("exec %s 失败: %s\n" % (cmd[0], e))
+            sys.stderr.write("exec %s failed: %s\n" % (cmd[0], e))
             os._exit(127)
 
-    # 4) daemon 排空 pty 输出, 目标退出则结束
+    # 4) daemon drains pty output, ends when target exits
     try:
         while True:
             try:

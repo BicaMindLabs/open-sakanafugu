@@ -274,19 +274,19 @@ cc_model_launch() {
 
   local tag="${CC_MODEL_COMMAND:-cc-model}"
   if [ ! -f "$cli" ]; then
-    echo "[$tag] ❌ Claude Code executable 不存在: $cli" >&2
-    echo "      先: cd $HOME/opt && npm install @anthropic-ai/claude-code" >&2
+    echo "[$tag] ❌ Claude Code executable does not exist: $cli" >&2
+    echo "      first: cd $HOME/opt && npm install @anthropic-ai/claude-code" >&2
     exit 1
   fi
-  # cli.js 旧版需品牌 patch; native binary 跳过
+  # old cli.js needs a brand patch; native binary skips it
   if [ "${cli##*/}" != "claude.exe" ] && [ -n "${CC_MODEL_PATCH_MARKER:-}" ] \
      && ! grep -q "$CC_MODEL_PATCH_MARKER" "$cli" 2>/dev/null; then
-    "$HOME/bin/apply-${CC_MODEL_PROVIDER}-patch.sh" >&2 || { echo "[$tag] patch 失败" >&2; exit 1; }
+    "$HOME/bin/apply-${CC_MODEL_PROVIDER}-patch.sh" >&2 || { echo "[$tag] patch failed" >&2; exit 1; }
   fi
 
   cc_model_reset_plugins
   echo "[$tag] model=$MODEL  (opus→$ANTHROPIC_DEFAULT_OPUS_MODEL sonnet→$ANTHROPIC_DEFAULT_SONNET_MODEL haiku→$ANTHROPIC_DEFAULT_HAIKU_MODEL)  endpoint=$ANTHROPIC_BASE_URL" >&2
-  [ -z "${CC_MODEL_AUTH_VALUE:-}" ] && echo "[$tag] ⚠️  ${CC_MODEL_AUTH_LABEL:-API key} 未设" >&2
+  [ -z "${CC_MODEL_AUTH_VALUE:-}" ] && echo "[$tag] ⚠️  ${CC_MODEL_AUTH_LABEL:-API key} not set" >&2
 
   local extra=()
   [ -f "${CC_MODEL_PROMPT_FILE:-}" ] && extra=(--append-system-prompt "$(cat "$CC_MODEL_PROMPT_FILE")")

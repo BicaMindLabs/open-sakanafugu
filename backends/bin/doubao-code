@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Claude Code → Doubao Coding 分身
-# 端点: https://ark.cn-beijing.volces.com/api/coding (火山方舟 Coding Plan)
-# 模型: Doubao Seed Code + ark-code-latest 路由 + Seed 2.0 系. 公共尾部见 cc_model_launch
+# Claude Code → Doubao Coding clone
+# Endpoint: https://ark.cn-beijing.volces.com/api/coding (Volcano Ark Coding Plan)
+# Models: Doubao Seed Code + ark-code-latest routing + Seed 2.0 series. Shared tail in cc_model_launch
 REAL_HOME="$HOME"
 source "$REAL_HOME/bin/cc-model-lib.sh"
 export HOME="$REAL_HOME/.claude-envs/doubao"
@@ -35,7 +35,7 @@ case "$MODEL" in
   *)                          export CLAUDE_CODE_MAX_OUTPUT_TOKENS="${DOUBAO_MAX_OUTPUT:-32768}" ;;
 esac
 [ -n "$DOUBAO_REASONING" ] && export CLAUDE_CODE_EFFORT_LEVEL="$DOUBAO_REASONING"
-# seed-code 老模型不认 reasoning_effort; ark-code-latest 默认带 unsigned thinking → 默认关 thinking
+# old seed-code models do not accept reasoning_effort; ark-code-latest defaults to unsigned thinking → disable thinking by default
 DB_EB=""; DB_SEP=""
 if [ "${DOUBAO_ENABLE_THINKING:-0}" != "1" ]; then
   export MAX_THINKING_TOKENS=0 CLAUDE_CODE_DISABLE_THINKING=1 ANTHROPIC_THINKING=disabled

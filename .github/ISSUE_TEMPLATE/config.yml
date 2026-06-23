@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: 安全问题 / 密钥泄漏
+  - name: Security issue / key leak
     url: https://github.com/LeoLin990405/cn-cc-workflow/security/advisories/new
-    about: 安全漏洞请走私密上报，不要开公开 issue（见 SECURITY.md）。
+    about: Report security vulnerabilities privately, do not open a public issue (see SECURITY.md).

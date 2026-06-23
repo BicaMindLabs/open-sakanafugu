@@ -1,30 +1,30 @@
 # Security Policy
 
-## 密钥处理（本仓核心安全约束）
+## Secret Handling (core security constraint of this repo)
 
-这个工作流编排多个国产模型 provider，**会接触 API key**。仓库的硬约束：
+This workflow orchestrates several Chinese-model providers and **will touch API keys**. The repo's hard constraints:
 
-- **真 key 绝不进仓**。只存在 `~/.config/cc-model-secrets.env`（被启动器读取，最高优先级）或你项目本地的 `.ccb/ccb.config`（被 `.gitignore` 忽略）。
-- 仓里只跟踪 `orchestration/ccb/ccb.config.example`，其 `key=` 字段一律是 `<PROVIDER_API_KEY>` 占位。
-- `.gitignore` 忽略 `**/.ccb/ccb.config`、`*secrets*.env`、`.env*`。
-- 每次提交/推送经三道闸门：
-  1. `scripts/scan-secrets.sh` — 明文密钥指纹（`sk-`/`tp-`/zhipu 格式）+ `ccb.config*` 的 `key=` 必须是占位。
-  2. `gitleaks`（`.gitleaks.toml`）— 全 git 历史扫描。
-  3. CI 的 `secret-scan` job 二者都跑，红了不许合。
-- 本地启用：`pipx install pre-commit && pre-commit install`，提交即自动扫。
+- **Real keys never enter the repo.** They live only in `~/.config/cc-model-secrets.env` (read by the launcher, highest priority) or in your project-local `.ccb/ccb.config` (ignored by `.gitignore`).
+- The repo only tracks `orchestration/ccb/ccb.config.example`, whose `key=` field is always the `<PROVIDER_API_KEY>` placeholder.
+- `.gitignore` ignores `**/.ccb/ccb.config`, `*secrets*.env`, `.env*`.
+- Every commit/push passes three gates:
+  1. `scripts/scan-secrets.sh` — plaintext key fingerprints (`sk-`/`tp-`/zhipu format) + `ccb.config*`'s `key=` must be a placeholder.
+  2. `gitleaks` (`.gitleaks.toml`) — scans the full git history.
+  3. CI's `secret-scan` job runs both; red blocks the merge.
+- Enable locally: `pipx install pre-commit && pre-commit install`, and it scans automatically on commit.
 
-### 万一 key 泄漏了
+### If a key leaks
 
-1. 立刻去对应 provider 控制台**吊销/轮换**该 key。
-2. 用 `git filter-repo` 或 BFG 清理历史，force-push。
-3. 不要只删一个 commit —— key 一旦推到公开仓即视为已泄漏，必须轮换。
+1. Immediately **revoke/rotate** that key in the corresponding provider console.
+2. Clean history with `git filter-repo` or BFG, then force-push.
+3. Don't just delete one commit — once a key is pushed to a public repo it must be considered compromised and must be rotated.
 
-## 漏洞上报
+## Reporting Vulnerabilities
 
-发现安全问题（密钥泄漏路径、注入、权限绕过等），请**不要开公开 issue**。
-通过 GitHub Security Advisory（仓库 Security → Report a vulnerability）私下上报，
-或邮件联系仓库所有者。会尽快响应。
+If you find a security issue (key-leak path, injection, permission bypass, etc.), please **do not open a public issue**.
+Report privately via GitHub Security Advisory (repo Security -> Report a vulnerability),
+or email the repo owner. We will respond as soon as possible.
 
-## 支持范围
+## Support Scope
 
-这是个人维护的工作流工具仓，best-effort 维护，无 SLA。
+This is a personally maintained workflow tool repo, maintained best-effort, with no SLA.
