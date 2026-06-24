@@ -24,6 +24,6 @@ Legend: `bash ✓` shipped in shell · `ts …` engine status (`◐ core` = port
 | 16 | `task` (new/log/done) | `TaskStore` audit trail | ✓ | ◐ core (iter10) | ☐ |
 | 17 | `template` (render) | `ContextAssembler` (template part) | ✓ | ◐ core (iter6) | ☐ |
 | 18 | `ccb-sync` (check/adapt) | CcbSync (drift detect) | ✓ | ◐ core (iter11) | ☐ |
-| — | `(coordinator)` — wires the 5-phase pipeline | `Coordinator` | n/a (driver) | ☐ last | ☐ |
+| — | `(coordinator)` — wires the ports into the pipeline | `Coordinator` + `wire.ts` | n/a (driver) | ◐ core (iter12) | ☐ |
 
 Migration order (riskiest-last): pure strategies/state first (`allocate`, `loop`, `cache`, gates), then stores (`workspace`/`experience`/`skills`), then IO-heavy adapters (`harness`/`fleet`/`dispatch`), then the `Coordinator`.

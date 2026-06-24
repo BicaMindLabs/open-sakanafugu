@@ -158,3 +158,12 @@ export { runRecon, type BackendSpec, type ReconOptions } from './adapters/doctor
 // App helpers
 export { waitForRound } from './app/wait-for-round.js';
 export { planPanel, type PlanEntry } from './app/plan-panel.js';
+
+// Coordinator — the composition that wires the ports into the fan-in pipeline
+export {
+  Coordinator,
+  type CoordinatorDeps,
+  type DispatchTask,
+  type RunReport,
+} from './app/coordinator.js';
+export { wireCoordinator, type WireConfig } from './app/wire.js';
