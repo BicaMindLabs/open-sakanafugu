@@ -43,9 +43,13 @@ export class CcbHarness implements Harness {
   async health(): Promise<HealthStatus> {
     try {
       const result = await this.runner.run(this.bin, ['ping', 'ccbd'], this.options());
-      if (MOUNTED.test(result.stdout)) return { healthy: true, detail: 'ccbd mounted' };
+      // bash is_ready runs under pipefail: a nonzero `ccb ping` fails even if stdout
+      // happens to contain `mount_state: mounted`. Require both.
+      if (result.code === 0 && MOUNTED.test(result.stdout)) {
+        return { healthy: true, detail: 'ccbd mounted' };
+      }
       const seen = result.stdout.trim() || result.stderr.trim() || 'no response';
-      return { healthy: false, detail: `ccbd not mounted: ${seen}` };
+      return { healthy: false, detail: `ccbd not mounted (exit ${result.code}): ${seen}` };
     } catch (error) {
       return { healthy: false, detail: message(error) };
     }

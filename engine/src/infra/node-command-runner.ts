@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { constants } from 'node:os';
 
 import type { CommandOptions, CommandResult, CommandRunner } from './command-runner.js';
 
@@ -24,9 +25,15 @@ export class NodeCommandRunner implements CommandRunner {
       child.on('error', (error: Error) => {
         reject(error);
       });
-      child.on('close', (code: number | null) => {
+      child.on('close', (code: number | null, signal: NodeJS.Signals | null) => {
+        // A signal-killed child reports code=null; map it to nonzero (bash: 128+signum),
+        // never to 0 — otherwise a killed dispatch would look successful.
+        let exit: number;
+        if (code !== null) exit = code;
+        else if (signal !== null) exit = 128 + (constants.signals[signal] ?? 0);
+        else exit = 0;
         resolve({
-          code: code ?? 0,
+          code: exit,
           stdout: Buffer.concat(out).toString('utf8'),
           stderr: Buffer.concat(errChunks).toString('utf8'),
         });

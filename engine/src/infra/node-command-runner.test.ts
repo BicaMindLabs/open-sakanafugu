@@ -29,6 +29,14 @@ describe('NodeCommandRunner', () => {
     expect(result.stderr).toBe('nope');
   });
 
+  it('reports a nonzero code when the child is killed by a signal', async () => {
+    const result = await new NodeCommandRunner().run(node, [
+      '-e',
+      'process.kill(process.pid, "SIGTERM")',
+    ]);
+    expect(result.code).not.toBe(0); // signal-kill must not look like success
+  });
+
   it('rejects when the binary does not exist', async () => {
     await expect(
       new NodeCommandRunner().run('definitely-not-a-real-binary-xyz', []),

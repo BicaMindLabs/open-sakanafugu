@@ -67,6 +67,13 @@ describe('CcbHarness', () => {
     ).health();
     expect(unmounted.healthy).toBe(false);
   });
+
+  it('health requires `ccb ping` to exit 0 (pipefail parity), not just the mounted line', async () => {
+    const result = await new CcbHarness(
+      new FakeRunner(res({ code: 1, stdout: 'mount_state: mounted' })),
+    ).health();
+    expect(result.healthy).toBe(false);
+  });
 });
 
 describe('CodexHarness', () => {
