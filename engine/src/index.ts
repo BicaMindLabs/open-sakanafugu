@@ -67,6 +67,18 @@ export type {
   RecallOptions,
 } from './domain/experience.js';
 export { containsSecret, slugify } from './domain/experience-redact.js';
+export type { OwnershipRule, Ownership } from './domain/ownership.js';
+export { matchGlob, violatingFiles, checkOwnership } from './domain/ownership-check.js';
+export type {
+  Identity,
+  Worktree,
+  VcsError,
+  VcsErrorKind,
+  IntegrationOutcome,
+  AgentIntegration,
+  IntegrationReport,
+} from './domain/vcs.js';
+export { allClean } from './domain/vcs.js';
 export {
   rankAgents,
   applyOutcome,
@@ -85,6 +97,8 @@ export type { QualityGate } from './domain/ports/quality-gate.js';
 export type { Harness, HarnessName } from './domain/ports/harness.js';
 export type { WorkspaceStore } from './domain/ports/workspace-store.js';
 export type { ExperienceStore } from './domain/ports/experience-store.js';
+export type { VcsPort } from './domain/ports/vcs.js';
+export type { Integrator, IntegrateOptions } from './domain/ports/integrator.js';
 
 // Infra — injected IO
 export type { Clock } from './infra/clock.js';
@@ -112,6 +126,8 @@ export { OpencodeHarness } from './adapters/harness/opencode-harness.js';
 export type { HarnessExecOptions } from './adapters/harness/exec-helpers.js';
 export { FsWorkspaceStore } from './adapters/workspace/fs-workspace-store.js';
 export { FsExperienceStore } from './adapters/experience/fs-experience-store.js';
+export { GitVcsPort } from './adapters/integrate/git-vcs.js';
+export { DefaultIntegrator } from './adapters/integrate/default-integrator.js';
 
 // App helpers
 export { waitForRound } from './app/wait-for-round.js';

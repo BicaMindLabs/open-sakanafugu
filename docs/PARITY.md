@@ -11,7 +11,7 @@ Legend: `bash ✓` shipped in shell · `ts …` engine status (`◐ core` = port
 | 3 | `loop` (record/decide/status) | `ReviewLoop` | ✓ | ◐ core (iter2) | ☐ |
 | 4 | `preflight` (+ --probe) | `QualityGate` + `Policy` (no-Gemini/gen≠review) | ✓ | ◐ core (iter4, deterministic) | ☐ |
 | 5 | `goal` (template/show/check) | `QualityGate` (acceptance) | ✓ | ☐ | ☐ |
-| 6 | `integrate` (+ --ownership) | `IntegrationGuard` | ✓ | ☐ | ☐ |
+| 6 | `integrate` (+ --ownership) | `Integrator` + `VcsPort` + ownership | ✓ | ◐ core (iter8) | ☐ |
 | 7 | `workspace` (list/show/model/context) | `Workspace` / `ContextAssembler` | ✓ | ◐ core (iter6) | ☐ |
 | 8 | `experience` (add/recall/...) | `ExperienceStore` | ✓ | ◐ core (iter7) | ☐ |
 | 9 | `skills` (index/match/inject/forge/validate) | `SkillCatalog` | ✓ | ☐ | ☐ |
