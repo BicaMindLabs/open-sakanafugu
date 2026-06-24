@@ -26,17 +26,39 @@ export type {
   LoopExitCode,
 } from './domain/loop.js';
 export { decideLoop, bestRound } from './domain/loop-decide.js';
+export type {
+  TaskProfile,
+  AllocationOutcome,
+  BenchTable,
+  StatEntry,
+  StrategyState,
+  RankedAgent,
+  Ranking,
+  AllocationParams,
+} from './domain/allocation.js';
+export { DEFAULT_ALLOCATION_PARAMS, UNLISTED_RANK } from './domain/allocation.js';
+export {
+  rankAgents,
+  applyOutcome,
+  decayState,
+  betaPrior,
+  thompsonScore,
+} from './domain/allocation-score.js';
 
 // Domain — ports
 export type { ResultStore } from './domain/ports/result-store.js';
 export type { Barrier } from './domain/ports/barrier.js';
 export type { RunStore, RunPatch } from './domain/ports/run-store.js';
 export type { ReviewLoop } from './domain/ports/review-loop.js';
+export type { AllocationStrategy, RankOptions } from './domain/ports/allocation-strategy.js';
 
 // Infra — injected IO
 export type { Clock } from './infra/clock.js';
 export { systemClock } from './infra/clock.js';
 export type { FileSystem } from './infra/file-system.js';
+export type { Rng } from './infra/rng.js';
+export { systemRng } from './infra/rng.js';
+export { seededRng } from './infra/seeded-rng.js';
 export { NodeFileSystem } from './infra/node-file-system.js';
 export { MemoryFileSystem } from './infra/memory-file-system.js';
 
@@ -47,6 +69,7 @@ export { InMemoryRunStore } from './adapters/store/in-memory-run-store.js';
 export { FsRunStore } from './adapters/store/fs-run-store.js';
 export { PersistentBarrier } from './adapters/barrier/persistent-barrier.js';
 export { PersistentReviewLoop } from './adapters/loop/persistent-review-loop.js';
+export { BetaBernoulliAllocator } from './adapters/allocation/beta-bernoulli-allocator.js';
 
 // App helpers
 export { waitForRound } from './app/wait-for-round.js';

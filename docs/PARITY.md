@@ -6,7 +6,7 @@ Legend: `bash ✓` shipped in shell · `ts …` engine status (`◐ core` = port
 
 | # | Capability (bash subcommand) | Primary port | bash | ts | cutover |
 |---|---|---|---|---|---|
-| 1 | `allocate` (+ record/feed/stats/decay) | `AllocationStrategy` | ✓ | ☐ iter1.5 | ☐ |
+| 1 | `allocate` (+ record/feed/stats/decay) | `AllocationStrategy` | ✓ | ◐ core (iter3) | ☐ |
 | 2 | `cache` (+ barrier/collect/resume) | `ResultStore` / `Barrier` | ✓ | ◐ core (iter1) | ☐ |
 | 3 | `loop` (record/decide/status) | `ReviewLoop` | ✓ | ◐ core (iter2) | ☐ |
 | 4 | `preflight` (+ --probe) | `QualityGate` (Preflight/NoGemini) | ✓ | ☐ | ☐ |
