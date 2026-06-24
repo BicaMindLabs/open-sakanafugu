@@ -12,7 +12,7 @@ Legend: `bash ✓` shipped in shell · `ts …` engine status (`◐ core` = port
 | 4 | `preflight` (+ --probe) | `QualityGate` + `Policy` (no-Gemini/gen≠review) | ✓ | ◐ core (iter4, deterministic) | ☐ |
 | 5 | `goal` (template/show/check) | `QualityGate` (acceptance) | ✓ | ☐ | ☐ |
 | 6 | `integrate` (+ --ownership) | `IntegrationGuard` | ✓ | ☐ | ☐ |
-| 7 | `workspace` (list/show/model/context) | `Workspace` / `ContextAssembler` | ✓ | ☐ | ☐ |
+| 7 | `workspace` (list/show/model/context) | `Workspace` / `ContextAssembler` | ✓ | ◐ core (iter6) | ☐ |
 | 8 | `experience` (add/recall/...) | `ExperienceStore` | ✓ | ☐ | ☐ |
 | 9 | `skills` (index/match/inject/forge/validate) | `SkillCatalog` | ✓ | ☐ | ☐ |
 | 10 | `dispatch` (--harness ...) | `Harness` + `Phase` | ✓ | ◐ core (iter5) | ☐ |
@@ -22,7 +22,7 @@ Legend: `bash ✓` shipped in shell · `ts …` engine status (`◐ core` = port
 | 14 | `run` (set/round/status/next) | `RunState` facade (`RunStore`) | ✓ | ◐ core (iter1) | ☐ |
 | 15 | `summary` | observability over `RunState`/`ResultCache` | ✓ | ☐ | ☐ |
 | 16 | `task` (new/log/done) | `Task` audit trail | ✓ | ☐ | ☐ |
-| 17 | `template` (render) | `ContextAssembler` (template part) | ✓ | ☐ | ☐ |
+| 17 | `template` (render) | `ContextAssembler` (template part) | ✓ | ◐ core (iter6) | ☐ |
 | 18 | `ccb-sync` (check/adapt) | `Harness` (ccb) maintenance | ✓ | ☐ | ☐ |
 | — | `(coordinator)` — wires the 5-phase pipeline | `Coordinator` | n/a (driver) | ☐ last | ☐ |
 
