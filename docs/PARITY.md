@@ -13,7 +13,7 @@ Legend: `bash ✓` shipped in shell · `ts …` engine status (`◐ core` = port
 | 5 | `goal` (template/show/check) | `QualityGate` (acceptance) | ✓ | ☐ | ☐ |
 | 6 | `integrate` (+ --ownership) | `IntegrationGuard` | ✓ | ☐ | ☐ |
 | 7 | `workspace` (list/show/model/context) | `Workspace` / `ContextAssembler` | ✓ | ◐ core (iter6) | ☐ |
-| 8 | `experience` (add/recall/...) | `ExperienceStore` | ✓ | ☐ | ☐ |
+| 8 | `experience` (add/recall/...) | `ExperienceStore` | ✓ | ◐ core (iter7) | ☐ |
 | 9 | `skills` (index/match/inject/forge/validate) | `SkillCatalog` | ✓ | ☐ | ☐ |
 | 10 | `dispatch` (--harness ...) | `Harness` + `Phase` | ✓ | ◐ core (iter5) | ☐ |
 | 11 | `fleet` (status/up/down) | `Harness.health` + launcher | ✓ | ◐ health (iter5) | ☐ |

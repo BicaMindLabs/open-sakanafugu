@@ -59,6 +59,14 @@ export type {
 export type { Workspace } from './domain/workspace.js';
 export type { PromptBundle, AssembleInput } from './domain/prompt.js';
 export { assembleContext, renderBundle, renderTemplate } from './domain/prompt-render.js';
+export type {
+  Method,
+  AddMethod,
+  ExperienceError,
+  ExperienceErrorKind,
+  RecallOptions,
+} from './domain/experience.js';
+export { containsSecret, slugify } from './domain/experience-redact.js';
 export {
   rankAgents,
   applyOutcome,
@@ -76,6 +84,7 @@ export type { AllocationStrategy, RankOptions } from './domain/ports/allocation-
 export type { QualityGate } from './domain/ports/quality-gate.js';
 export type { Harness, HarnessName } from './domain/ports/harness.js';
 export type { WorkspaceStore } from './domain/ports/workspace-store.js';
+export type { ExperienceStore } from './domain/ports/experience-store.js';
 
 // Infra — injected IO
 export type { Clock } from './infra/clock.js';
@@ -102,6 +111,7 @@ export { CodexHarness } from './adapters/harness/codex-harness.js';
 export { OpencodeHarness } from './adapters/harness/opencode-harness.js';
 export type { HarnessExecOptions } from './adapters/harness/exec-helpers.js';
 export { FsWorkspaceStore } from './adapters/workspace/fs-workspace-store.js';
+export { FsExperienceStore } from './adapters/experience/fs-experience-store.js';
 
 // App helpers
 export { waitForRound } from './app/wait-for-round.js';
