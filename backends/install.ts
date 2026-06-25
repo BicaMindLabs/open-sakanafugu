@@ -42,6 +42,7 @@ installFile(
   join(targetBin, "cc-models"),
   0o755,
 );
+installFile(join(root, "bin", "cc-sync"), join(targetBin, "cc-sync"), 0o755);
 installFile(
   join(root, "bin", "cc-model-lib.sh"),
   join(targetBin, "cc-model-lib.sh"),

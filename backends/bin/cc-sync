@@ -1,112 +1,346 @@
-#!/usr/bin/env bash
-# cc-sync — keep the cc-* Chinese-model fleet in sync.
-#   cc-sync cli            upgrade all .claude-envs/* + the main claude to the latest @anthropic-ai/claude-code
-#   cc-sync models         probe each provider's /v1/models, report new models missing from the scripts' MODELS arrays
-#   cc-sync models --apply append new models into the corresponding launcher's MODELS array (default profile untouched)
-#   cc-sync all [--apply]  cli + models  (no args by default = all without apply)
-# Env keys come from an interactive login shell (~/.config/cc-model-secrets.env / .zshrc etc.).
-set -uo pipefail
-export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:"$HOME/.npm-global/bin:$PATH"
-ENVS=(deepseek glm kimi qwen doubao minimax mimo stepfun longcat local)
-BIN="$HOME/bin"
-getkey(){ zsh -lic "printf %s \"\$$1\"" 2>/dev/null; }
+#!/usr/bin/env node
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+  copyFileSync,
+} from "node:fs";
+import { basename, join } from "node:path";
+import { spawnSync } from "node:child_process";
 
-# ---------- CLI version sync ----------
-sync_cli() {
-  local latest cur opt v changed=0
-  latest=$(npm view @anthropic-ai/claude-code version 2>/dev/null)
-  [ -z "$latest" ] && { echo "[cli] ❌ unable to get the latest npm version"; return 1; }
-  echo "[cli] target latest version: $latest"
-  cur=$(npm ls -g @anthropic-ai/claude-code 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+[-a-z0-9.]*' | head -1)
-  if [ "$cur" != "$latest" ]; then
-    npm i -g @anthropic-ai/claude-code@"$latest" --no-fund --no-audit >/dev/null 2>&1 \
-      && { echo "[cli] main: $cur → $latest"; changed=1; } || echo "[cli] main: upgrade failed"
-  else echo "[cli] main: $latest (already latest)"; fi
-  for e in "${ENVS[@]}"; do
-    opt="$HOME/.claude-envs/$e/opt"
-    [ -d "$opt" ] || continue
-    v=$(python3 -c "import json;print(json.load(open('$opt/node_modules/@anthropic-ai/claude-code/package.json'))['version'])" 2>/dev/null)
-    if [ "$v" != "$latest" ]; then
-      ( cd "$opt" && npm i @anthropic-ai/claude-code@"$latest" --no-fund --no-audit >/dev/null 2>&1 ) \
-        && { echo "[cli] $e: ${v:-none} → $latest"; changed=1; } || echo "[cli] $e: upgrade failed"
-    else echo "[cli] $e: $latest"; fi
-  done
-  [ "$changed" = 1 ] && echo "[cli] ✅ updates applied" || echo "[cli] ✅ everything already latest"
+process.env.PATH = `/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:${process.env.HOME ?? ""}/.npm-global/bin:${process.env.PATH ?? ""}`;
+
+const envs = [
+  "deepseek",
+  "glm",
+  "kimi",
+  "qwen",
+  "doubao",
+  "minimax",
+  "mimo",
+  "stepfun",
+  "longcat",
+  "local",
+];
+const bin = join(process.env.HOME ?? "", "bin");
+const noProbe = "qwen doubao kimi mimo longcat";
+const probes = [
+  ["glm", "https://api.z.ai/api/anthropic/v1/models", "GLM_API_KEY", /^glm-/u],
+  [
+    "minimax",
+    "https://api.minimaxi.com/anthropic/v1/models",
+    "MINIMAX_API_KEY",
+    /^MiniMax-/u,
+  ],
+  [
+    "stepfun",
+    "https://api.stepfun.com/step_plan/v1/models",
+    "STEPFUN_API_KEY",
+    /^step-(3|router)/u,
+  ],
+  [
+    "deepseek",
+    "https://api.deepseek.com/v1/models",
+    "DEEPSEEK_API_KEY",
+    /^deepseek-/u,
+  ],
+];
+
+const run = (cmd, args, options = {}) =>
+  spawnSync(cmd, args, {
+    encoding: "utf8",
+    ...options,
+  });
+
+const getKey = (name) => {
+  const result = run("zsh", ["-lic", `printf %s "$${name}"`], {
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  return result.status === 0 ? result.stdout : "";
+};
+
+const syncCli = () => {
+  const latestResult = run(
+    "npm",
+    ["view", "@anthropic-ai/claude-code", "version"],
+    {
+      stdio: ["ignore", "pipe", "ignore"],
+    },
+  );
+  const latest = latestResult.stdout.trim();
+  if (latest.length === 0) {
+    console.log("[cli] ❌ unable to get the latest npm version");
+    return 1;
+  }
+
+  let changed = false;
+  console.log(`[cli] target latest version: ${latest}`);
+  const currentResult = run("npm", ["ls", "-g", "@anthropic-ai/claude-code"], {
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  const current =
+    /[0-9]+\.[0-9]+\.[0-9]+[-a-z0-9.]*/iu.exec(currentResult.stdout)?.[0] ?? "";
+  if (current !== latest) {
+    const result = run(
+      "npm",
+      [
+        "i",
+        "-g",
+        `@anthropic-ai/claude-code@${latest}`,
+        "--no-fund",
+        "--no-audit",
+      ],
+      {
+        stdio: "ignore",
+      },
+    );
+    if (result.status === 0) {
+      console.log(`[cli] main: ${current} -> ${latest}`);
+      changed = true;
+    } else {
+      console.log("[cli] main: upgrade failed");
+    }
+  } else {
+    console.log(`[cli] main: ${latest} (already latest)`);
+  }
+
+  for (const name of envs) {
+    const opt = join(process.env.HOME ?? "", ".claude-envs", name, "opt");
+    if (!existsSync(opt)) continue;
+    const packageFile = join(
+      opt,
+      "node_modules",
+      "@anthropic-ai",
+      "claude-code",
+      "package.json",
+    );
+    let version = "";
+    try {
+      version = JSON.parse(readFileSync(packageFile, "utf8")).version ?? "";
+    } catch {
+      version = "";
+    }
+    if (version !== latest) {
+      const result = run(
+        "npm",
+        ["i", `@anthropic-ai/claude-code@${latest}`, "--no-fund", "--no-audit"],
+        {
+          cwd: opt,
+          stdio: "ignore",
+        },
+      );
+      if (result.status === 0) {
+        console.log(`[cli] ${name}: ${version || "none"} -> ${latest}`);
+        changed = true;
+      } else {
+        console.log(`[cli] ${name}: upgrade failed`);
+      }
+    } else {
+      console.log(`[cli] ${name}: ${latest}`);
+    }
+  }
+
+  console.log(
+    changed ? "[cli] ✅ updates applied" : "[cli] ✅ everything already latest",
+  );
+  return 0;
+};
+
+const launcherModels = (provider) => {
+  try {
+    const text = readFileSync(join(bin, `${provider}-code`), "utf8");
+    const match = /MODELS=\(([^)]*)\)/u.exec(text);
+    return match?.[1]?.split(/\s+/u).filter((item) => item.length > 0) ?? [];
+  } catch {
+    return [];
+  }
+};
+
+const endpointModels = (body, filter) => {
+  try {
+    const data = JSON.parse(body);
+    const arr = Array.isArray(data.data)
+      ? data.data
+      : Array.isArray(data.models)
+        ? data.models
+        : [];
+    return arr
+      .map((item) =>
+        typeof item === "object" && item !== null ? (item.id ?? item.name) : "",
+      )
+      .filter((item) => typeof item === "string" && filter.test(item))
+      .sort();
+  } catch {
+    return [];
+  }
+};
+
+const syncModels = (apply) => {
+  for (const [provider, url, keyEnv, filter] of probes) {
+    const key = getKey(keyEnv);
+    if (key.length === 0) {
+      console.log(`[models] ${provider}: no key, skip`);
+      continue;
+    }
+
+    const result = run(
+      "curl",
+      [
+        "-sS",
+        "-m",
+        "20",
+        url,
+        "-H",
+        `x-api-key: ${key}`,
+        "-H",
+        `authorization: Bearer ${key}`,
+        "-H",
+        "anthropic-version: 2023-06-01",
+      ],
+      { stdio: ["ignore", "pipe", "ignore"] },
+    );
+    const remote = [...new Set(endpointModels(result.stdout, filter))].sort();
+    if (remote.length === 0) {
+      console.log(`[models] ${provider}: /v1/models returned nothing, skip`);
+      continue;
+    }
+
+    const have = new Set(launcherModels(provider));
+    const foundNew = remote.filter((model) => !have.has(model));
+    if (foundNew.length === 0) {
+      console.log(
+        `[models] ${provider}: ✅ no new models (${remote.length} endpoint models already covered)`,
+      );
+      continue;
+    }
+
+    console.log(
+      `[models] ${provider}: 🆕 new at endpoint -> ${foundNew.join(" ")}`,
+    );
+    if (!apply) continue;
+
+    const launcher = join(bin, `${provider}-code`);
+    const text = readFileSync(launcher, "utf8");
+    const match = /MODELS=\(([^)]*)\)/u.exec(text);
+    if (match === null) continue;
+    const current = match[1].split(/\s+/u).filter((item) => item.length > 0);
+    const add = foundNew.filter((model) => !current.includes(model));
+    if (add.length === 0) continue;
+    writeFileSync(
+      launcher,
+      text.replace(match[0], `MODELS=(${[...current, ...add].join(" ")})`),
+    );
+    console.log(
+      `[models] ${provider}: ✅ appended ${add.length} into MODELS (default profile untouched, manually promote flagship when needed)`,
+    );
+  }
+  console.log(
+    `[models] needs human check (no clean endpoint list): ${noProbe}`,
+  );
+};
+
+const stamp = () =>
+  new Date()
+    .toISOString()
+    .replace(/[-:]/gu, "")
+    .replace(/\..*$/u, "")
+    .replace("T", "-");
+
+const research = () => {
+  const prompt = join(bin, "cc-model-research-prompt.md");
+  if (!existsSync(prompt)) {
+    console.log(`[research] ❌ missing ${prompt}`);
+    return 1;
+  }
+  if (run("claude", ["--version"], { stdio: "ignore" }).status !== 0) {
+    console.log("[research] ❌ claude not found");
+    return 1;
+  }
+
+  const backup = join(bin, `.cc-launchers-bak.${stamp()}`);
+  mkdirSync(backup, { recursive: true });
+  for (const file of readdirSync(bin)) {
+    if (file.endsWith("-code") || file === "cc-model-registry.tsv") {
+      copyFileSync(join(bin, file), join(backup, file));
+    }
+  }
+  console.log(`[research] backup -> ${backup}`);
+  console.log(
+    "[research] launching headless research agent (read each vendor's official docs->learn->rebuild launchers->live verify)...",
+  );
+
+  const env = { ...process.env };
+  for (const key of [
+    "CLAUDE_CODE_SESSION_ID",
+    "CLAUDE_CODE_CHILD_SESSION",
+    "CLAUDE_CODE_SDK_HAS_OAUTH_REFRESH",
+    "CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH",
+    "CLAUDE_CODE_OAUTH_SCOPES",
+  ]) {
+    delete env[key];
+  }
+  spawnSync(
+    "claude",
+    ["-p", readFileSync(prompt, "utf8"), "--dangerously-skip-permissions"],
+    {
+      cwd: bin,
+      env,
+      stdio: "inherit",
+    },
+  );
+
+  let broke = false;
+  for (const provider of [
+    "deepseek",
+    "glm",
+    "kimi",
+    "qwen",
+    "doubao",
+    "minimax",
+    "mimo",
+    "stepfun",
+    "longcat",
+  ]) {
+    const file = join(bin, `${provider}-code`);
+    if (!existsSync(file)) continue;
+    const result = run("bash", ["-n", file], { stdio: "ignore" });
+    if (result.status === 0) continue;
+    console.log(
+      `[research] ⚠️ ${basename(file)} syntax broken -> restoring from backup`,
+    );
+    copyFileSync(join(backup, basename(file)), file);
+    broke = true;
+  }
+  run(process.execPath, ["--check", join(bin, "cc-sync")], { stdio: "ignore" });
+  console.log(
+    broke
+      ? `[research] ⚠️ some launchers were restored (see above), backup in ${backup}`
+      : "[research] ✅ all launchers syntax OK after changes",
+  );
+  return 0;
+};
+
+const applyFlag = process.argv[3] === "--apply";
+
+switch (process.argv[2] ?? "all") {
+  case "cli":
+    process.exit(syncCli());
+  case "models":
+    syncModels(applyFlag);
+    break;
+  case "research":
+    process.exit(research());
+  case "all":
+  case "":
+    syncCli();
+    console.log();
+    syncModels(applyFlag);
+    break;
+  default:
+    console.error(
+      "Usage: cc-sync {cli|models [--apply]|research|all [--apply]}",
+    );
+    process.exit(1);
 }
-
-# provider → models-endpoint(Anthropic /v1/models) | key-env | grep filter(coding/text models)
-declare -a PROBES=(
-  "glm|https://api.z.ai/api/anthropic/v1/models|GLM_API_KEY|^glm-"
-  "minimax|https://api.minimaxi.com/anthropic/v1/models|MINIMAX_API_KEY|^MiniMax-"
-  "stepfun|https://api.stepfun.com/step_plan/v1/models|STEPFUN_API_KEY|^step-(3|router)"
-  "deepseek|https://api.deepseek.com/v1/models|DEEPSEEK_API_KEY|^deepseek-"
-)
-NO_PROBE="qwen doubao kimi mimo longcat"   # no clean /v1/models or needs human judgment
-
-launcher_models() { grep -oE 'MODELS=\([^)]*\)' "$BIN/$1-code" 2>/dev/null | head -1 | sed -E 's/MODELS=\(//; s/\)//'; }
-
-sync_models() {
-  local apply="${1:-0}" line prov url keyenv filt key body remote have new
-  for line in "${PROBES[@]}"; do
-    IFS='|' read -r prov url keyenv filt <<<"$line"
-    key=$(getkey "$keyenv")
-    [ -z "$key" ] && { echo "[models] $prov: no key, skip"; continue; }
-    body=$(curl -sS -m 20 "$url" -H "x-api-key: $key" -H "authorization: Bearer $key" -H "anthropic-version: 2023-06-01" 2>/dev/null)
-    remote=$(printf '%s' "$body" | python3 -c "import json,sys
-try:
-  d=json.load(sys.stdin); arr=d.get('data') or d.get('models') or []
-  print('\n'.join(str(x.get('id') or x.get('name')) for x in arr if isinstance(x,dict)))
-except Exception: pass" 2>/dev/null | grep -E "$filt" | sort -u)
-    [ -z "$remote" ] && { echo "[models] $prov: /v1/models returned nothing, skip"; continue; }
-    have=$(launcher_models "$prov" | tr ' ' '\n' | sort -u)
-    new=$(comm -23 <(printf '%s\n' "$remote") <(printf '%s\n' "$have"))
-    if [ -z "$new" ]; then echo "[models] $prov: ✅ no new models ($(printf '%s' "$remote" | grep -c .) endpoint models already covered)"; continue; fi
-    echo "[models] $prov: 🆕 new at endpoint → $(echo $new | tr '\n' ' ')"
-    if [ "$apply" = 1 ]; then
-      PROV="$prov" NEW="$new" python3 - "$BIN/$prov-code" <<'PY'
-import os,re,sys
-f=sys.argv[1]; new=[m for m in os.environ["NEW"].split() if m]
-s=open(f).read()
-m=re.search(r'MODELS=\(([^)]*)\)', s)
-if m:
-    cur=m.group(1).split()
-    add=[x for x in new if x not in cur]
-    if add:
-        s=s.replace(m.group(0), 'MODELS=('+' '.join(cur+add)+')', 1)
-        open(f,'w').write(s); print(f"[models] {os.environ['PROV']}: ✅ appended {len(add)} into MODELS (default profile untouched, manually promote flagship when needed)")
-PY
-    fi
-  done
-  echo "[models] needs human check (no clean endpoint list): $NO_PROBE"
-}
-
-# ---------- agentic research: read docs→learn→rebuild ----------
-research() {
-  local prompt="$BIN/cc-model-research-prompt.md"
-  [ -f "$prompt" ] || { echo "[research] ❌ missing $prompt"; return 1; }
-  command -v claude >/dev/null 2>&1 || { echo "[research] ❌ claude not found"; return 1; }
-  local bk; bk="$BIN/.cc-launchers-bak.$(date +%Y%m%d-%H%M%S)"
-  mkdir -p "$bk"; cp "$BIN"/*-code "$BIN/cc-model-registry.tsv" "$bk/" 2>/dev/null
-  echo "[research] backup → $bk"
-  echo "[research] launching headless research agent (read each vendor's official docs→learn→rebuild launchers→live verify)..."
-  # strip the current session's leaked OAuth vars so the sub-agent uses its own auth
-  env -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_CHILD_SESSION -u CLAUDE_CODE_SDK_HAS_OAUTH_REFRESH \
-      -u CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH -u CLAUDE_CODE_OAUTH_SCOPES \
-    bash -c 'cd "$1" && claude -p "$(cat "$2")" --dangerously-skip-permissions 2>&1' _ "$BIN" "$prompt"
-  # safety net: syntax-check each launcher after the agent's changes, restore broken ones from backup (guards against breaking the fleet unattended)
-  local f broke=0
-  for f in "$BIN"/{deepseek,glm,kimi,qwen,doubao,minimax,mimo,stepfun,longcat}-code; do
-    [ -f "$f" ] || continue
-    bash -n "$f" 2>/dev/null || { echo "[research] ⚠️ $(basename "$f") syntax broken → restoring from backup"; cp "$bk/$(basename "$f")" "$f" 2>/dev/null; broke=1; }
-  done
-  bash -n "$BIN/cc-sync" 2>/dev/null || true
-  [ "$broke" = 0 ] && echo "[research] ✅ all launchers syntax OK after changes" || echo "[research] ⚠️ some launchers were restored (see above), backup in $bk"
-}
-
-case "${1:-all}" in
-  cli)      sync_cli ;;
-  models)   sync_models "$([ "${2:-}" = --apply ] && echo 1 || echo 0)" ;;
-  research) research ;;
-  all|"")   sync_cli; echo; sync_models "$([ "${2:-}" = --apply ] && echo 1 || echo 0)" ;;
-  *) echo "Usage: cc-sync {cli|models [--apply]|research|all [--apply]}" >&2; exit 1 ;;
-esac

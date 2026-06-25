@@ -20,6 +20,7 @@ const bashSyntax = (file) => {
 };
 
 syntax(join(root, "bin", "cc-models"));
+syntax(join(root, "bin", "cc-sync"));
 bashSyntax(join(root, "bin", "cc-model-lib.sh"));
 
 for (const file of readdirSync(join(root, "bin")).sort()) {
