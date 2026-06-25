@@ -752,6 +752,8 @@ describe('fugue CLI', () => {
     });
 
     afterEach(async () => {
+      delete process.env.FUGUE_CC_BIN;
+      delete process.env.FUGUE_CC_WORK;
       await rm(dir, { recursive: true, force: true });
     });
 
@@ -1507,6 +1509,35 @@ describe('fugue CLI', () => {
       expect(ignored.code).toBe(0);
       expect(ignored.out).toContain('gitignored');
     });
+
+    it('uses env-backed bin and work defaults when CLI options are omitted', async () => {
+      const work = join(dir, 'provider-work-env');
+      const bin = join(dir, 'fugue-cc');
+      await mkdir(join(work, '.fugue-cc'), { recursive: true });
+      await new NodeCommandRunner().run('git', ['-C', work, 'init', '-q']);
+      await writeFile(join(work, '.gitignore'), '.fugue-cc/\n', 'utf8');
+      await writeFile(
+        join(work, '.fugue-cc/provider.config'),
+        await readFile(clean, 'utf8'),
+        'utf8',
+      );
+      await writeFile(
+        bin,
+        '#!/usr/bin/env bash\n[ "$1" = "ping" ] && [ "$2" = "daemon" ] && echo "mount_state: mounted"\n',
+        'utf8',
+      );
+      await chmod(bin, 0o755);
+      process.env.FUGUE_CC_BIN = bin;
+      process.env.FUGUE_CC_WORK = work;
+
+      const result = await run(['preflight']);
+
+      expect(result.code).toBe(0);
+      expect(result.out).toContain('fuguectl-cache.sh');
+      expect(result.out).toContain(`provider mounted (${work})`);
+      expect(result.out).toContain('no-Gemini guard passed');
+      expect(result.out).toContain('gitignored');
+    });
   });
 
   describe('runtime commands', () => {
@@ -1552,6 +1583,11 @@ describe('fugue CLI', () => {
     });
 
     afterEach(async () => {
+      delete process.env.FUGUE_CC_BIN;
+      delete process.env.FUGUE_STATE;
+      delete process.env.FUGUE_CC_INSTALL;
+      delete process.env.FUGUE_CC_WORK;
+      delete process.env.FUGUE_DRIVER_NAME;
       await rm(dir, { recursive: true, force: true });
     });
 
@@ -1628,6 +1664,27 @@ describe('fugue CLI', () => {
       expect(killCalls).toContain('/work');
       expect(check2.out).toContain('no drift');
       expect(missingGrafting.out).toContain('api_shortcuts.py is gone');
+    });
+
+    it('uses env-backed runtime defaults when CLI options are omitted', async () => {
+      process.env.FUGUE_CC_BIN = bin;
+      process.env.FUGUE_STATE = state;
+      process.env.FUGUE_CC_INSTALL = install;
+      process.env.FUGUE_CC_WORK = work;
+      process.env.FUGUE_DRIVER_NAME = 'fctl';
+
+      const check = await run(['runtime', 'check']);
+      const apply = await run(['runtime', 'adapt', '--apply', '--preflight-script', preflight]);
+      const stamp = await readFile(join(state, 'runtime-version'), 'utf8');
+      const killCalls = await readFile(calls, 'utf8');
+
+      expect(check.code).toBe(0);
+      expect(check.out).toContain("run 'fctl runtime adapt --apply'");
+      expect(check.out).toContain('grafting api_shortcuts.py present');
+      expect(apply.out).toContain(`stopped provider daemon @ ${work}`);
+      expect(apply.out).toContain('config validation');
+      expect(stamp.trim()).toBe('v9.9.9');
+      expect(killCalls).toContain('/work');
     });
   });
 

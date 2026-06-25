@@ -11,14 +11,9 @@
 set -uo pipefail
 # shellcheck source=/dev/null
 . "$(dirname "${BASH_SOURCE[0]}")/fuguectl-lib.sh"
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FUGUE_CC="${FUGUE_CC_BIN:-fugue-cc}"
-WORK_ROOT="${FUGUE_CC_WORK:-}"
 
 case "${1:-}" in
   -h|--help) sed -n '2,9p' "$0"; exit 0;;
 esac
 
-args=(preflight --bin "$FUGUE_CC" --cache-script "$HERE/fuguectl-cache.sh")
-[ -n "$WORK_ROOT" ] && args+=(--work "$WORK_ROOT")
-fx_run_engine "${args[@]}" "$@"
+fx_run_engine preflight "$@"

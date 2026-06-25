@@ -48,7 +48,7 @@ printf '%s\n' \
   "} else {" \
   "  warn('provider config not located - skip config checks (pass a path or set FUGUE_CC_WORK)');" \
   "}" \
-  "const work = opt('--work');" \
+  "const work = opt('--work', process.env.FUGUE_CC_WORK || '');" \
   "if (work) {" \
   "  const gitignore = path.join(work, '.gitignore');" \
   "  if (fs.existsSync(gitignore) && fs.readFileSync(gitignore, 'utf8').includes('.fugue-cc/')) {" \
@@ -119,6 +119,6 @@ out_ok="$(FUGUE_CC_WORK="$GW" bash "$P" --config-only "$TMP/clean.config" 2>&1)"
 ok ".fugue-cc/ gitignored → ok" 'case "$out_ok" in *"gitignored"*) true;; *) false;; esac'
 FUGUE_CC_WORK="$GW" bash "$P" --config-only "$TMP/clean.config" >/dev/null 2>&1
 ok ".fugue-cc gitignore check is warn level, does not block GO" '[ "$?" -eq 0 ]'
-ok "shell delegates to engine CLI" 'grep -q "^preflight --bin .* --cache-script .* --config-only " "$FUGUE_PREFLIGHT_CALLS"'
+ok "shell delegates to engine CLI" 'grep -q "^preflight --config-only " "$FUGUE_PREFLIGHT_CALLS"'
 
 tdone

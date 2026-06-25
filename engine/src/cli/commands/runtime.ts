@@ -11,8 +11,12 @@ import type { CommandRunner } from '../../infra/command-runner.js';
 import type { FileSystem } from '../../infra/file-system.js';
 import { NodeCommandRunner } from '../../infra/node-command-runner.js';
 import { NodeFileSystem } from '../../infra/node-file-system.js';
+import { defaultStateDir, fuguectlScript } from '../default-paths.js';
 
 const fs = (): NodeFileSystem => new NodeFileSystem();
+
+const nonEmptyEnv = (value: string | undefined): string | undefined =>
+  value !== undefined && value.length > 0 ? value : undefined;
 
 const stampPath = (state: string): string => joinPath(state, 'runtime-version');
 
@@ -49,10 +53,14 @@ const indent = (text: string): string =>
     .join('\n');
 
 abstract class RuntimeCommand extends Command {
-  bin = Option.String('--bin', 'fugue-cc');
-  state = Option.String('--state', { required: true });
+  bin = Option.String('--bin', process.env.FUGUE_CC_BIN ?? 'fugue-cc');
+  state = Option.String('--state', defaultStateDir());
   install = Option.String('--install');
-  driverName = Option.String('--driver-name', 'fuguectl');
+  driverName = Option.String('--driver-name', process.env.FUGUE_DRIVER_NAME ?? 'fuguectl');
+
+  protected installOverride(): string | undefined {
+    return this.install ?? nonEmptyEnv(process.env.FUGUE_CC_INSTALL);
+  }
 
   protected sync(fileSystem: FileSystem, runner: CommandRunner): RuntimeSync {
     return new RuntimeSync(fileSystem, runner, {
@@ -87,7 +95,7 @@ export class RuntimeCheckCommand extends RuntimeCommand {
       lines.push('  ✓ no drift');
     }
 
-    const installPath = resolveInstallPath(output, this.install);
+    const installPath = resolveInstallPath(output, this.installOverride());
     if (await graftingPresent(fileSystem, installPath)) {
       lines.push(`  ✓ grafting api_shortcuts.py present (${installPath})`);
     } else {
@@ -106,7 +114,10 @@ export class RuntimeAdaptCommand extends RuntimeCommand {
   apply = Option.Boolean('--apply', false);
   work = Option.String('--work');
   claude = Option.String('--claude');
-  preflightScript = Option.String('--preflight-script');
+  preflightScript = Option.String(
+    '--preflight-script',
+    fuguectlScript(import.meta.url, 'preflight'),
+  );
 
   override async execute(): Promise<number> {
     const fileSystem = fs();
@@ -123,7 +134,7 @@ export class RuntimeAdaptCommand extends RuntimeCommand {
       `── fugue-cc runtime adapt (${last.length > 0 ? last : 'none'} → ${current})${this.apply ? '' : ' [dry-run]'} ──`,
     ];
 
-    const installPath = resolveInstallPath(output, this.install);
+    const installPath = resolveInstallPath(output, this.installOverride());
     if (await graftingPresent(fileSystem, installPath)) {
       lines.push('  ✓ grafting api_shortcuts.py present');
     } else {
@@ -132,7 +143,9 @@ export class RuntimeAdaptCommand extends RuntimeCommand {
       );
     }
 
-    const projects = [this.work, this.claude].filter(nonEmpty);
+    const work = this.work ?? nonEmptyEnv(process.env.FUGUE_CC_WORK);
+    const claude = this.claude ?? nonEmptyEnv(process.env.FUGUE_CC_CLAUDE);
+    const projects = [work, claude].filter(nonEmpty);
     for (const project of projects) {
       if (this.apply) {
         try {
@@ -157,7 +170,7 @@ export class RuntimeAdaptCommand extends RuntimeCommand {
       );
     }
 
-    lines.push(...(await this.runPreflightIfNeeded(fileSystem, runner)));
+    lines.push(...(await this.runPreflightIfNeeded(fileSystem, runner, work)));
 
     if (this.apply) {
       await this.sync(fileSystem, runner).record(current);
@@ -172,9 +185,10 @@ export class RuntimeAdaptCommand extends RuntimeCommand {
   private async runPreflightIfNeeded(
     fileSystem: FileSystem,
     runner: CommandRunner,
+    work: string | undefined,
   ): Promise<readonly string[]> {
-    if (!this.apply || this.work === undefined || this.preflightScript === undefined) return [];
-    const config = joinPath(this.work, '.fugue-cc/provider.config');
+    if (!this.apply || work === undefined) return [];
+    const config = joinPath(work, '.fugue-cc/provider.config');
     if (!(await existingFile(fileSystem, config))) return [];
     const lines = ['  config validation (no-Gemini + sound):'];
     try {

@@ -15,28 +15,10 @@
 set -uo pipefail
 # shellcheck source=/dev/null
 . "$(dirname "${BASH_SOURCE[0]}")/fuguectl-lib.sh"
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_NAME="${FUGUE_DRIVER_NAME:-fuguectl}"
-FUGUE_CC="${FUGUE_CC_BIN:-fugue-cc}"
-STATE="${FUGUE_STATE:-$HOME/.config/fugue}"
-WORK_ROOT="${FUGUE_CC_WORK:-}"
-CLAUDE_ROOT="${FUGUE_CC_CLAUDE:-}"
-
-runtime_args(){
-  local args=(runtime "$1" --bin "$FUGUE_CC" --state "$STATE" --driver-name "$CLI_NAME")
-  [ -n "${FUGUE_CC_INSTALL:-}" ] && args+=(--install "$FUGUE_CC_INSTALL")
-  [ -n "$WORK_ROOT" ] && args+=(--work "$WORK_ROOT")
-  [ -n "$CLAUDE_ROOT" ] && args+=(--claude "$CLAUDE_ROOT")
-  [ "$1" = "adapt" ] && args+=(--preflight-script "$HERE/fuguectl-preflight.sh")
-  printf '%s\0' "${args[@]}"
-}
 
 sub="${1:-}"; shift || true
 case "$sub" in
-  check|adapt)
-    mapfile -d '' -t args < <(runtime_args "$sub")
-    fx_run_engine "${args[@]}" "$@"
-    ;;
+  check|adapt) fx_run_engine runtime "$sub" "$@";;
   ''|-h|--help) sed -n '2,14p' "$0";;
   *) die "unknown subcommand '$sub' (check|adapt)";;
 esac

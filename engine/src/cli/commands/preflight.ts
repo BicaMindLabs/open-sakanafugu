@@ -9,6 +9,7 @@ import type { GateCheck } from '../../domain/gate.js';
 import { NodeCommandRunner } from '../../infra/node-command-runner.js';
 import { NodeFileSystem } from '../../infra/node-file-system.js';
 import type { CommandRunner } from '../../infra/command-runner.js';
+import { fuguectlScript } from '../default-paths.js';
 
 interface MutableStatus {
   fail: boolean;
@@ -22,6 +23,9 @@ interface ProbeTarget {
 }
 
 const fs = (): NodeFileSystem => new NodeFileSystem();
+
+const nonEmptyEnv = (value: string | undefined): string | undefined =>
+  value !== undefined && value.length > 0 ? value : undefined;
 
 const shellQuote = (value: string): string => `'${value.replace(/'/gu, "'\\''")}'`;
 
@@ -147,20 +151,20 @@ export class PreflightCommand extends Command {
   configOnly = Option.Boolean('--config-only', false);
   probe = Option.Boolean('--probe', false);
   work = Option.String('--work');
-  bin = Option.String('--bin', 'fugue-cc');
-  cacheScript = Option.String('--cache-script');
+  bin = Option.String('--bin', process.env.FUGUE_CC_BIN ?? 'fugue-cc');
+  cacheScript = Option.String('--cache-script', fuguectlScript(import.meta.url, 'cache'));
 
   override async execute(): Promise<number> {
     const runner = new NodeCommandRunner();
     const fileSystem = fs();
     const status: MutableStatus = { fail: false, warn: false };
     const lines = ['── parallel dispatch preflight ──'];
+    const work = this.work ?? nonEmptyEnv(process.env.FUGUE_CC_WORK);
 
-    if (!this.configOnly) await this.runDependencyChecks(lines, status, runner);
+    if (!this.configOnly) await this.runDependencyChecks(lines, status, runner, work);
 
     const configPath =
-      this.config ??
-      (this.work !== undefined ? joinPath(this.work, '.fugue-cc/provider.config') : undefined);
+      this.config ?? (work !== undefined ? joinPath(work, '.fugue-cc/provider.config') : undefined);
     if (configPath !== undefined) {
       const configText = await fileSystem.read(configPath);
       if (configText !== null) {
@@ -183,7 +187,7 @@ export class PreflightCommand extends Command {
       );
     }
 
-    await this.runGitignoreCheck(lines, status, runner);
+    await this.runGitignoreCheck(lines, status, runner, work);
 
     lines.push(
       '',
@@ -199,6 +203,7 @@ export class PreflightCommand extends Command {
     lines: string[],
     status: MutableStatus,
     runner: CommandRunner,
+    work: string | undefined,
   ): Promise<void> {
     if (await commandExists(runner, this.bin)) ok(lines, this.bin);
     else fail(lines, status, `missing ${this.bin}`);
@@ -218,28 +223,27 @@ export class PreflightCommand extends Command {
     if (await commandExists(runner, 'tmux')) ok(lines, 'tmux');
     else warn(lines, status, 'no tmux (fugue-cc panes need it)');
 
-    if (this.cacheScript !== undefined && (await executable(this.cacheScript))) {
+    if (await executable(this.cacheScript)) {
       ok(lines, 'fuguectl-cache.sh');
-    } else if (this.cacheScript !== undefined) {
+    } else {
       fail(lines, status, 'missing fuguectl-cache.sh (join barrier depends on it)');
     }
 
-    if (this.work !== undefined) {
+    if (work !== undefined) {
       try {
-        const ping = await runner.run(this.bin, ['ping', 'daemon'], { cwd: this.work });
-        if (/^mount_state:\s*mounted/mu.test(ping.stdout))
-          ok(lines, `provider mounted (${this.work})`);
+        const ping = await runner.run(this.bin, ['ping', 'daemon'], { cwd: work });
+        if (/^mount_state:\s*mounted/mu.test(ping.stdout)) ok(lines, `provider mounted (${work})`);
         else
           fail(
             lines,
             status,
-            `provider not mounted/unreachable (${this.work}) — cd project && fugue-cc to mount (or fuguectl fleet up)`,
+            `provider not mounted/unreachable (${work}) — cd project && fugue-cc to mount (or fuguectl fleet up)`,
           );
       } catch {
         fail(
           lines,
           status,
-          `provider not mounted/unreachable (${this.work}) — cd project && fugue-cc to mount (or fuguectl fleet up)`,
+          `provider not mounted/unreachable (${work}) — cd project && fugue-cc to mount (or fuguectl fleet up)`,
         );
       }
     } else {
@@ -274,13 +278,14 @@ export class PreflightCommand extends Command {
     lines: string[],
     status: MutableStatus,
     runner: CommandRunner,
+    work: string | undefined,
   ): Promise<void> {
-    if (this.work === undefined) return;
+    if (work === undefined) return;
     try {
-      if ((await runner.run('git', ['-C', this.work, 'rev-parse', '--git-dir'])).code !== 0) return;
+      if ((await runner.run('git', ['-C', work, 'rev-parse', '--git-dir'])).code !== 0) return;
       const ignored = await runner.run('git', [
         '-C',
-        this.work,
+        work,
         'check-ignore',
         '-q',
         '.fugue-cc/provider.config',
@@ -291,7 +296,7 @@ export class PreflightCommand extends Command {
         warn(
           lines,
           status,
-          `.fugue-cc/ not gitignored — on integrate the main repo git may absorb the worktree(embedded repo); fix: echo '.fugue-cc/' >> ${this.work}/.gitignore`,
+          `.fugue-cc/ not gitignored — on integrate the main repo git may absorb the worktree(embedded repo); fix: echo '.fugue-cc/' >> ${work}/.gitignore`,
         );
     } catch {
       return;

@@ -30,10 +30,10 @@ printf '%s\n' \
   "const root = args[0];" \
   "const sub = args[1];" \
   "if (root !== 'runtime') die('expected runtime');" \
-  "const bin = opt('--bin', 'fugue-cc');" \
-  "const state = opt('--state');" \
-  "const driver = opt('--driver-name', 'fuguectl');" \
-  "const install = opt('--install', path.join(process.env.HOME || '', '.local/share/codex-dual'));" \
+  "const bin = opt('--bin', process.env.FUGUE_CC_BIN || 'fugue-cc');" \
+  "const state = opt('--state', process.env.FUGUE_STATE || path.join(process.env.HOME || '', '.config/fugue'));" \
+  "const driver = opt('--driver-name', process.env.FUGUE_DRIVER_NAME || 'fuguectl');" \
+  "const install = opt('--install', process.env.FUGUE_CC_INSTALL || path.join(process.env.HOME || '', '.local/share/codex-dual'));" \
   "const stamp = path.join(state, 'runtime-version');" \
   "const current = versionOf(versionOutput(bin));" \
   "if (sub === 'check') {" \
@@ -48,8 +48,8 @@ printf '%s\n' \
   "  const last = fs.existsSync(stamp) ? fs.readFileSync(stamp, 'utf8').trim() : '';" \
   "  process.stdout.write('fugue-cc runtime adapt (' + (last || 'none') + ' -> ' + current + ')' + (apply ? '' : ' [dry-run]') + '\\n');" \
   "  process.stdout.write(graftingOk(install) ? '  grafting api_shortcuts.py present\\n' : '  grafting dependency lost - new fugue-cc may have changed provider_profiles, grafting scheme needs manual adaptation\\n');" \
-  "  const work = opt('--work');" \
-  "  const claude = opt('--claude');" \
+  "  const work = opt('--work', process.env.FUGUE_CC_WORK || '');" \
+  "  const claude = opt('--claude', process.env.FUGUE_CC_CLAUDE || '');" \
   "  const projects = [work, claude].filter(Boolean);" \
   "  if (projects.length === 0) process.stdout.write('  FUGUE_CC_WORK/FUGUE_CC_CLAUDE unset - skip provider restart (set them and re-run)\\n');" \
   "  for (const project of projects) {" \
@@ -115,6 +115,6 @@ ok "adapt with FUGUE_CC_WORK runs config validation" 'grep -q "config validation
 ok "adapt with FUGUE_CC_WORK still records stamp" 'grep -q "v9.9.9" "$FUGUE_STATE/runtime-version"'
 
 bash "$S" nope >/dev/null 2>&1; ok "unknown subcommand → nonzero" '[ "$?" -ne 0 ]'
-ok "shell delegates to engine CLI" 'grep -q "^runtime check --bin .* --state .* --driver-name fuguectl --install " "$FUGUE_RUNTIME_CALLS"'
+ok "shell delegates to engine CLI" 'grep -q "^runtime check$" "$FUGUE_RUNTIME_CALLS"'
 
 tdone

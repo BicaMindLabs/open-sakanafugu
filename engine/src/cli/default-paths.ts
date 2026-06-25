@@ -38,6 +38,9 @@ export const repoRoot = (metaUrl: string): string => {
 export const fuguectlDir = (metaUrl: string): string =>
   joinPath(repoRoot(metaUrl), 'orchestration', 'fuguectl');
 
+export const fuguectlScript = (metaUrl: string, name: string): string =>
+  joinPath(fuguectlDir(metaUrl), `fuguectl-${name}.sh`);
+
 export const defaultTemplatesDir = (metaUrl: string): string =>
   process.env.FUGUE_TEMPLATES ?? joinPath(fuguectlDir(metaUrl), 'templates');
 
