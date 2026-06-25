@@ -10,88 +10,64 @@ export FUGUE_RUNTIME_CALLS="$TMP/runtime-calls.txt"
 # shellcheck source=/dev/null
 . "$HERE/fuguectl-testlib.sh"
 
-cat > "$FUGUE_ENGINE_CLI" <<'EOF'
-const cp = require('node:child_process');
-const fs = require('node:fs');
-const path = require('node:path');
-
-fs.appendFileSync(process.env.FUGUE_RUNTIME_CALLS, `${process.argv.slice(2).join(' ')}\n`);
-
-const args = process.argv.slice(2);
-const die = (message) => {
-  console.error(message);
-  process.exit(2);
-};
-const opt = (name, fallback = '') => {
-  const index = args.indexOf(name);
-  return index === -1 ? fallback : args[index + 1] || fallback;
-};
-const has = (name) => args.includes(name);
-const versionOutput = (bin) => {
-  try {
-    return cp.execFileSync(bin, ['version'], { encoding: 'utf8' });
-  } catch {
-    return '';
-  }
-};
-const versionOf = (text) => text.match(/v[0-9]+\.[0-9]+\.[0-9]+/u)?.[0] || '';
-const graftingOk = (install) => fs.existsSync(path.join(install, 'lib/provider_profiles/api_shortcuts.py'));
-
-const [root, sub] = args;
-if (root !== 'runtime') die('expected runtime');
-const bin = opt('--bin', 'fugue-cc');
-const state = opt('--state');
-const driver = opt('--driver-name', 'fuguectl');
-const install = opt('--install', path.join(process.env.HOME || '', '.local/share/codex-dual'));
-const stamp = path.join(state, 'runtime-version');
-const current = versionOf(versionOutput(bin));
-
-if (sub === 'check') {
-  const last = fs.existsSync(stamp) ? fs.readFileSync(stamp, 'utf8').trim() : '(none)';
-  process.stdout.write(`fugue-cc provider current: ${current || 'unknown'}   last recorded: ${last}\n`);
-  if (!current) process.exit(0);
-  process.stdout.write(
-    current !== last
-      ? `  → version drift (${last} → ${current}): run '${driver} runtime adapt --apply' to adapt\n`
-      : '  ✓ no drift\n',
-  );
-  process.stdout.write(
-    graftingOk(install)
-      ? `  ✓ grafting api_shortcuts.py present (${install})\n`
-      : '  ✗ grafting api_shortcuts.py is gone — claude+url grafting may break, check the new fugue-cc version manually\n',
-  );
-} else if (sub === 'adapt') {
-  if (!current) die('cannot get fugue-cc provider version');
-  const apply = has('--apply');
-  const last = fs.existsSync(stamp) ? fs.readFileSync(stamp, 'utf8').trim() : '';
-  process.stdout.write(`── fugue-cc runtime adapt (${last || 'none'} → ${current})${apply ? '' : ' [dry-run]'} ──\n`);
-  process.stdout.write(
-    graftingOk(install)
-      ? '  ✓ grafting api_shortcuts.py present\n'
-      : '  ✗ grafting dependency lost — new fugue-cc may have changed provider_profiles, grafting scheme needs manual adaptation\n',
-  );
-  const work = opt('--work');
-  const claude = opt('--claude');
-  const projects = [work, claude].filter(Boolean);
-  if (projects.length === 0) process.stdout.write('  ⚠ FUGUE_CC_WORK/FUGUE_CC_CLAUDE unset — skip provider restart (set them and re-run)\n');
-  for (const project of projects) {
-    if (apply) process.stdout.write(`  ✓ stopped provider daemon @ ${project} — next 'cd ${project} && fugue-cc' starts it and loads new code (claude-only uses env CLAUDE_START_CMD=claude)\n`);
-    else process.stdout.write(`  [dry] need to restart provider daemon @ ${project} (provider update does not auto-restart, old code keeps running)\n`);
-  }
-  if (apply && work && fs.existsSync(path.join(work, '.fugue-cc/provider.config'))) {
-    process.stdout.write('  config validation (no-Gemini + sound):\n    config OK\n');
-  }
-  if (apply) {
-    fs.mkdirSync(state, { recursive: true });
-    fs.writeFileSync(stamp, `${current}\n`);
-    process.stdout.write(`  ✓ recorded ${current} → ${stamp}\n`);
-  } else {
-    process.stdout.write('  [dry] stamp not written; add --apply to commit\n');
-  }
-} else {
-  die(`unknown runtime command ${sub}`);
-}
-EOF
+printf '%s\n' \
+  "const cp = require('node:child_process');" \
+  "const fs = require('node:fs');" \
+  "const path = require('node:path');" \
+  "const args = process.argv.slice(2);" \
+  "fs.appendFileSync(process.env.FUGUE_RUNTIME_CALLS, args.join(' ') + '\\n');" \
+  "const die = (message) => { console.error(message); process.exit(2); };" \
+  "const opt = (name, fallback = '') => {" \
+  "  const index = args.indexOf(name);" \
+  "  return index === -1 ? fallback : args[index + 1] || fallback;" \
+  "};" \
+  "const has = (name) => args.includes(name);" \
+  "const versionOutput = (bin) => {" \
+  "  try { return cp.execFileSync(bin, ['version'], { encoding: 'utf8' }); } catch { return ''; }" \
+  "};" \
+  "const versionOf = (text) => (text.match(/v[0-9]+\\.[0-9]+\\.[0-9]+/u) || [''])[0];" \
+  "const graftingOk = (install) => fs.existsSync(path.join(install, 'lib/provider_profiles/api_shortcuts.py'));" \
+  "const root = args[0];" \
+  "const sub = args[1];" \
+  "if (root !== 'runtime') die('expected runtime');" \
+  "const bin = opt('--bin', 'fugue-cc');" \
+  "const state = opt('--state');" \
+  "const driver = opt('--driver-name', 'fuguectl');" \
+  "const install = opt('--install', path.join(process.env.HOME || '', '.local/share/codex-dual'));" \
+  "const stamp = path.join(state, 'runtime-version');" \
+  "const current = versionOf(versionOutput(bin));" \
+  "if (sub === 'check') {" \
+  "  const last = fs.existsSync(stamp) ? fs.readFileSync(stamp, 'utf8').trim() : '(none)';" \
+  "  process.stdout.write('fugue-cc provider current: ' + (current || 'unknown') + '   last recorded: ' + last + '\\n');" \
+  "  if (!current) process.exit(0);" \
+  "  process.stdout.write(current !== last ? '  version drift (' + last + ' -> ' + current + '): run \\'' + driver + ' runtime adapt --apply\\' to adapt\\n' : '  no drift\\n');" \
+  "  process.stdout.write(graftingOk(install) ? '  grafting api_shortcuts.py present (' + install + ')\\n' : '  grafting api_shortcuts.py is gone - claude+url grafting may break, check the new fugue-cc version manually\\n');" \
+  "} else if (sub === 'adapt') {" \
+  "  if (!current) die('cannot get fugue-cc provider version');" \
+  "  const apply = has('--apply');" \
+  "  const last = fs.existsSync(stamp) ? fs.readFileSync(stamp, 'utf8').trim() : '';" \
+  "  process.stdout.write('fugue-cc runtime adapt (' + (last || 'none') + ' -> ' + current + ')' + (apply ? '' : ' [dry-run]') + '\\n');" \
+  "  process.stdout.write(graftingOk(install) ? '  grafting api_shortcuts.py present\\n' : '  grafting dependency lost - new fugue-cc may have changed provider_profiles, grafting scheme needs manual adaptation\\n');" \
+  "  const work = opt('--work');" \
+  "  const claude = opt('--claude');" \
+  "  const projects = [work, claude].filter(Boolean);" \
+  "  if (projects.length === 0) process.stdout.write('  FUGUE_CC_WORK/FUGUE_CC_CLAUDE unset - skip provider restart (set them and re-run)\\n');" \
+  "  for (const project of projects) {" \
+  "    if (apply) process.stdout.write('  stopped provider daemon @ ' + project + ' - next cd starts it and loads new code\\n');" \
+  "    else process.stdout.write('  [dry] need to restart provider daemon @ ' + project + ' (provider update does not auto-restart, old code keeps running)\\n');" \
+  "  }" \
+  "  if (apply && work && fs.existsSync(path.join(work, '.fugue-cc/provider.config'))) process.stdout.write('  config validation (no-Gemini + sound):\\n    config OK\\n');" \
+  "  if (apply) {" \
+  "    fs.mkdirSync(state, { recursive: true });" \
+  "    fs.writeFileSync(stamp, current + '\\n');" \
+  "    process.stdout.write('  recorded ' + current + ' -> ' + stamp + '\\n');" \
+  "  } else {" \
+  "    process.stdout.write('  [dry] stamp not written; add --apply to commit\\n');" \
+  "  }" \
+  "} else {" \
+  "  die('unknown runtime command ' + sub);" \
+  "}" \
+  > "$FUGUE_ENGINE_CLI"
 
 # stub fugue-cc: version → fake version + Install path; others(kill) → no-op
 cat > "$TMP/fugue-cc" <<EOF

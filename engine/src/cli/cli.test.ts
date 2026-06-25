@@ -139,6 +139,23 @@ describe('fugue CLI', () => {
       expect(code).toBe(0);
       expect(out).toContain('TASK-');
     });
+
+    it('accepts the legacy positional priority', async () => {
+      const { code, out } = await run(['task', 'new', 'legacy priority', 'P0']);
+      expect(code).toBe(0);
+      const file = out.trim();
+      expect(await readFile(file, 'utf8')).toContain('Priority: P0');
+    });
+
+    it('joins split log words into one message', async () => {
+      const created = await run(['task', 'new', 'log target']);
+      const file = created.out.trim();
+
+      const { code } = await run(['task', 'log', file, 'first', 'second']);
+
+      expect(code).toBe(0);
+      expect(await readFile(file, 'utf8')).toContain('first second');
+    });
   });
 
   describe('template rendering', () => {
@@ -611,6 +628,7 @@ describe('fugue CLI', () => {
     beforeEach(async () => {
       dir = await mkdtemp(join(tmpdir(), 'fugue-summary-'));
       cache = join(dir, 'cache');
+      process.env.FUGUE_CACHE = cache;
       const round = join(cache, 'round-1');
       await mkdir(round, { recursive: true });
       await writeFile(join(round, 'manifest.tsv'), 't1\tcc-deepseek\nt2\tcc-glm\n', 'utf8');
@@ -623,13 +641,14 @@ describe('fugue CLI', () => {
       await writeFile(join(round, 't2.status'), 'fail\n', 'utf8');
     });
     afterEach(async () => {
+      delete process.env.FUGUE_CACHE;
       await rm(dir, { recursive: true, force: true });
     });
 
     it('renders a legacy cache summary and appends it to a task file', async () => {
       const task = join(dir, 'TASK.md');
       await writeFile(task, '## Log\n', 'utf8');
-      const summary = await run(['summary', '1', '--cache', cache, '--task', task]);
+      const summary = await run(['summary', '1', '--task', task]);
       const taskContent = await readFile(task, 'utf8');
 
       expect(summary.code).toBe(0);
@@ -642,7 +661,7 @@ describe('fugue CLI', () => {
     });
 
     it('returns non-zero when the round was not initialized', async () => {
-      const summary = await run(['summary', '9', '--cache', cache]);
+      const summary = await run(['summary', '9']);
 
       expect(summary.code).toBe(2);
       expect(summary.err).toContain('round-9 not init');
@@ -1284,14 +1303,23 @@ describe('fugue CLI', () => {
       expect(prompt).toContain(`write to ${join(out, 'cc-a.plan.md')}`);
     });
 
-    it('uses the cross-family default model set', async () => {
-      await run(['plan', 'default models test', '--out', out, '--bin', bin]);
+    it('uses the cross-family default model set and env-backed command defaults', async () => {
+      process.env.FUGUE_CACHE = join(dir, 'cache');
+      process.env.FUGUE_CC_BIN = bin;
+      try {
+        await run(['plan', 'default models test']);
+      } finally {
+        delete process.env.FUGUE_CACHE;
+        delete process.env.FUGUE_CC_BIN;
+      }
       const called = await readFile(calls, 'utf8');
+      const prompt = await readFile(prompts, 'utf8');
 
       expect(called.trim().split(/\r?\n/u)).toHaveLength(3);
       expect(called).toContain('cc-deepseek');
       expect(called).toContain('cc-kimi');
       expect(called).toContain('coder');
+      expect(prompt).toContain(join(dir, 'cache', 'plans', 'cc-deepseek.plan.md'));
     });
   });
 

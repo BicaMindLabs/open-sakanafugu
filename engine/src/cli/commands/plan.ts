@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { join as joinPath } from 'node:path';
 
@@ -13,6 +14,23 @@ const parseModels = (raw: string): readonly string[] =>
     .split(',')
     .map((model) => model.trim())
     .filter((model) => model.length > 0);
+
+const gitRoot = (): string | null => {
+  try {
+    const output = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return output.length > 0 ? output : null;
+  } catch {
+    return null;
+  }
+};
+
+const defaultCacheRoot = (): string =>
+  process.env.FUGUE_CACHE ?? joinPath(gitRoot() ?? process.cwd(), '.fuguectl-cache');
+
+const defaultPlanOut = (): string => joinPath(defaultCacheRoot(), 'plans');
 
 const promptFor = (model: string, goal: string, outfile: string): string =>
   [
@@ -34,8 +52,8 @@ export class PlanCommand extends Command {
 
   goal = Option.String();
   models = Option.String('--models', DEFAULT_PLAN_AGENTS.join(','));
-  out = Option.String('--out', { required: true });
-  bin = Option.String('--bin', 'fugue-cc');
+  out = Option.String('--out');
+  bin = Option.String('--bin', process.env.FUGUE_CC_BIN ?? 'fugue-cc');
 
   override async execute(): Promise<number> {
     const agents = parseModels(this.models);
@@ -43,12 +61,13 @@ export class PlanCommand extends Command {
       this.context.stderr.write('no planning models specified\n');
       return 2;
     }
-    await mkdir(this.out, { recursive: true });
+    const outDir = this.out ?? defaultPlanOut();
+    await mkdir(outDir, { recursive: true });
 
     const harness = new FugueCcHarness(new NodeCommandRunner(), { bin: this.bin });
     const requests = agents.map((agent) => ({
       agent,
-      outfile: joinPath(this.out, `${agent}.plan.md`),
+      outfile: joinPath(outDir, `${agent}.plan.md`),
     }));
     const results = await Promise.all(
       requests.map(async ({ agent, outfile }) => {

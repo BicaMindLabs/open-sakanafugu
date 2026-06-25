@@ -10,63 +10,57 @@ export FUGUE_PREFLIGHT_CALLS="$TMP/preflight-calls.txt"
 # shellcheck source=/dev/null
 . "$HERE/fuguectl-testlib.sh"
 
-cat > "$FUGUE_ENGINE_CLI" <<'EOF'
-const fs = require('node:fs');
-const path = require('node:path');
-
-fs.appendFileSync(process.env.FUGUE_PREFLIGHT_CALLS, `${process.argv.slice(2).join(' ')}\n`);
-
-const args = process.argv.slice(2);
-const opt = (name, fallback = '') => {
-  const index = args.indexOf(name);
-  return index === -1 ? fallback : args[index + 1] || fallback;
-};
-const positional = args.filter((arg, index) => {
-  if (arg.startsWith('--')) return false;
-  const prev = args[index - 1] || '';
-  return !prev.startsWith('--') || prev === '--config-only' || prev === '--probe';
-});
-const root = positional[0];
-const cfg = positional[1] || '';
-if (root !== 'preflight') {
-  console.error('expected preflight');
-  process.exit(2);
-}
-
-let failed = false;
-let warned = false;
-const lines = ['── parallel dispatch preflight ──'];
-const ok = (message) => lines.push(`  ✓ ${message}`);
-const warn = (message) => { warned = true; lines.push(`  ⚠ ${message}`); };
-const fail = (message) => { failed = true; lines.push(`  ✗ ${message}`); };
-
-if (cfg && fs.existsSync(cfg)) {
-  const text = fs.readFileSync(cfg, 'utf8');
-  if (/^[^#]*(model|url)\s*=.*(gemini|antigravity)/imu.test(text)) {
-    fail('provider config model/url contains gemini/antigravity — violates the no-Gemini hard rule');
-  } else ok('no-Gemini guard passed');
-  const modelCount = text.split(/\r?\n/u).filter((line) => /^\s*model\s*=/u.test(line)).length;
-  if (modelCount > 0) ok(`provider config: ${modelCount} agent(s) configured a model`);
-  else warn('provider config has no model line?');
-  if (/^\s*model\s*=\s*"?"?\s*$/imu.test(text)) fail('provider config has an empty model value');
-} else {
-  warn('provider config not located — skip config checks (pass a path or set FUGUE_CC_WORK)');
-}
-
-const work = opt('--work');
-if (work) {
-  const gitignore = path.join(work, '.gitignore');
-  if (fs.existsSync(gitignore) && fs.readFileSync(gitignore, 'utf8').includes('.fugue-cc/')) {
-    ok(".fugue-cc/ gitignored (integrate won't be polluted by worktree)");
-  } else {
-    warn(`.fugue-cc/ not gitignored — on integrate the main repo git may absorb the worktree(embedded repo); fix: echo '.fugue-cc/' >> ${work}/.gitignore`);
-  }
-}
-
-lines.push('', failed ? '✗ preflight NO-GO  (1 hard failure(s))' : `✓ preflight GO  (warn=${warned ? '1' : '0'})`);
-process.stdout.write(`${lines.join('\n')}\n`);
-process.exit(failed ? 1 : 0);
-EOF
+printf '%s\n' \
+  "const fs = require('node:fs');" \
+  "const path = require('node:path');" \
+  "const args = process.argv.slice(2);" \
+  "fs.appendFileSync(process.env.FUGUE_PREFLIGHT_CALLS, args.join(' ') + '\\n');" \
+  "const opt = (name, fallback = '') => {" \
+  "  const index = args.indexOf(name);" \
+  "  return index === -1 ? fallback : args[index + 1] || fallback;" \
+  "};" \
+  "const positional = args.filter((arg, index) => {" \
+  "  if (arg.startsWith('--')) return false;" \
+  "  const prev = args[index - 1] || '';" \
+  "  return !prev.startsWith('--') || prev === '--config-only' || prev === '--probe';" \
+  "});" \
+  "const root = positional[0];" \
+  "const cfg = positional[1] || '';" \
+  "if (root !== 'preflight') {" \
+  "  console.error('expected preflight');" \
+  "  process.exit(2);" \
+  "}" \
+  "let failed = false;" \
+  "let warned = false;" \
+  "const lines = ['parallel dispatch preflight'];" \
+  "const ok = (message) => lines.push('  ok ' + message);" \
+  "const warn = (message) => { warned = true; lines.push('  warn ' + message); };" \
+  "const fail = (message) => { failed = true; lines.push('  fail ' + message); };" \
+  "if (cfg && fs.existsSync(cfg)) {" \
+  "  const text = fs.readFileSync(cfg, 'utf8');" \
+  "  if (/^[^#]*(model|url)\\s*=.*(gemini|antigravity)/imu.test(text)) {" \
+  "    fail('provider config model/url contains gemini/antigravity - violates the no-Gemini hard rule');" \
+  "  } else ok('no-Gemini guard passed');" \
+  "  const modelCount = text.split(/\\r?\\n/u).filter((line) => /^\\s*model\\s*=/u.test(line)).length;" \
+  "  if (modelCount > 0) ok('provider config: ' + modelCount + ' agent(s) configured a model');" \
+  "  else warn('provider config has no model line?');" \
+  "  if (/^\\s*model\\s*=\\s*\"?\"?\\s*$/imu.test(text)) fail('provider config has an empty model value');" \
+  "} else {" \
+  "  warn('provider config not located - skip config checks (pass a path or set FUGUE_CC_WORK)');" \
+  "}" \
+  "const work = opt('--work');" \
+  "if (work) {" \
+  "  const gitignore = path.join(work, '.gitignore');" \
+  "  if (fs.existsSync(gitignore) && fs.readFileSync(gitignore, 'utf8').includes('.fugue-cc/')) {" \
+  "    ok(\".fugue-cc/ gitignored (integrate won't be polluted by worktree)\");" \
+  "  } else {" \
+  "    warn(\".fugue-cc/ not gitignored - on integrate the main repo git may absorb the worktree(embedded repo); fix: echo '.fugue-cc/' >> \" + work + '/.gitignore');" \
+  "  }" \
+  "}" \
+  "lines.push('', failed ? 'preflight NO-GO  (1 hard failure(s))' : 'preflight GO  (warn=' + (warned ? '1' : '0') + ')');" \
+  "process.stdout.write(lines.join('\\n') + '\\n');" \
+  "process.exit(failed ? 1 : 0);" \
+  > "$FUGUE_ENGINE_CLI"
 
 echo "fuguectl-preflight tests"
 

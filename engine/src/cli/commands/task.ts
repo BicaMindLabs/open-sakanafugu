@@ -20,10 +20,14 @@ export class TaskNewCommand extends Command {
   static override paths = [['task', 'new']];
 
   title = Option.String();
+  legacyPriority = Option.String({ required: false });
   priority = Option.String('--priority', { description: 'P0 | P1 | P2 (default P1)' });
 
   override async execute(): Promise<void> {
-    const ref = await store().create(this.title, asPriority(this.priority));
+    if (this.priority !== undefined && this.legacyPriority !== undefined) {
+      throw new UsageError('pass priority either as P0|P1|P2 or --priority, not both');
+    }
+    const ref = await store().create(this.title, asPriority(this.priority ?? this.legacyPriority));
     this.context.stdout.write(`${ref.path}\n`);
   }
 }
@@ -33,10 +37,10 @@ export class TaskLogCommand extends Command {
   static override paths = [['task', 'log']];
 
   file = Option.String();
-  message = Option.String();
+  messageParts = Option.Rest({ name: 'message', required: 1 });
 
   override async execute(): Promise<void> {
-    await store().log(this.file, this.message);
+    await store().log(this.file, this.messageParts.join(' '));
     this.context.stdout.write(`logged → ${this.file}\n`);
   }
 }

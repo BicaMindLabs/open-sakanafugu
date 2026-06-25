@@ -48,7 +48,7 @@ bash "$A" feed --from-ledger --result ok --fail cc-zeta >/dev/null
 ok "allocate shim preserves feed flags" 'grep -q "^allocate --table $FUGUE_ALLOCATION --stats $FUGUE_ALLOCATION_STATS --ledger $FUGUE_ALLOCATION_LEDGER --kappa 7 feed --from-ledger --result ok --fail cc-zeta$" "$FUGUE_ALLOCATE_CALLS"'
 
 help="$(bash "$A" --help)"
-ok "help prints allocate commands" 'echo "$help" | grep -q "record <task-type>"'
+ok "help prints allocate commands" 'case "$help" in *"record <task-type>"*) true;; *) false;; esac'
 ok "help does not call engine" '[ "$(grep -c . "$FUGUE_ALLOCATE_CALLS")" -eq 2 ]'
 
 tdone

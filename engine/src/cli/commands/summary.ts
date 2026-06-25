@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { join as joinPath } from 'node:path';
 
 import { Command, Option } from 'clipanion';
@@ -18,6 +19,21 @@ interface SummarySnapshot {
 }
 
 const fs = (): NodeFileSystem => new NodeFileSystem();
+
+const gitRoot = (): string | null => {
+  try {
+    const output = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return output.length > 0 ? output : null;
+  } catch {
+    return null;
+  }
+};
+
+const defaultCacheRoot = (): string =>
+  process.env.FUGUE_CACHE ?? joinPath(gitRoot() ?? process.cwd(), '.fuguectl-cache');
 
 const parseManifest = (content: string): readonly Omit<SummaryRow, 'status'>[] => {
   const rows: Omit<SummaryRow, 'status'>[] = [];
@@ -73,11 +89,11 @@ export class SummaryCommand extends Command {
   static override paths = [['summary']];
 
   round = Option.String();
-  cache = Option.String('--cache', { required: true });
+  cache = Option.String('--cache');
   task = Option.String('--task');
 
   override async execute(): Promise<number> {
-    const snapshot = await loadSummary(this.cache, this.round);
+    const snapshot = await loadSummary(this.cache ?? defaultCacheRoot(), this.round);
     if (snapshot === null) {
       this.context.stderr.write(`round-${this.round} not init\n`);
       return 2;

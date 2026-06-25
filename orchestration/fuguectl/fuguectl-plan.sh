@@ -10,19 +10,7 @@ set -uo pipefail
 # shellcheck source=/dev/null
 . "$(dirname "${BASH_SOURCE[0]}")/fuguectl-lib.sh"
 
-goal="${1:-}"; shift || true
-case "$goal" in
-  '') die "usage: \"<goal>\" [--models m1,m2,..] [--out <dir>]";;
-  -h|--help) sed -n '2,8p' "$0"; exit 0;;
+case "${1:-}" in
+  -h|--help) sed -n '2,8p' "$0";;
+  *) fx_run_engine plan "$@";;
 esac
-models="cc-deepseek,cc-kimi,coder"
-CACHE_ROOT="$(fx_cache_root)"
-out="$CACHE_ROOT/plans"
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    --models) models="${2:-}"; shift 2;;
-    --out) out="${2:-}"; shift 2;;
-    *) die "unknown arg '$1'";;
-  esac
-done
-fx_run_engine plan "$goal" --models "$models" --out "$out" --bin "${FUGUE_CC_BIN:-fugue-cc}"

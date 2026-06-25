@@ -40,7 +40,7 @@ bash "$CACHE" barrier 1 --require-success >/dev/null
 ok "cache shim preserves barrier flags" 'grep -q "^cache --cache $FUGUE_CACHE barrier 1 --require-success$" "$FUGUE_CACHE_CALLS"'
 
 help="$(bash "$CACHE" --help)"
-ok "help prints cache commands" 'echo "$help" | grep -q "barrier <round>"'
+ok "help prints cache commands" 'case "$help" in *"barrier <round>"*) true;; *) false;; esac'
 ok "help does not call engine" '[ "$(grep -c . "$FUGUE_CACHE_CALLS")" -eq 2 ]'
 
 tdone

@@ -9,51 +9,43 @@ export FUGUE_TEMPLATE_CALLS="$TMP/template-calls.txt"
 # shellcheck source=/dev/null
 . "$HERE/fuguectl-testlib.sh"
 
-cat > "$FUGUE_ENGINE_CLI" <<'EOF'
-const fs = require('node:fs');
-const path = require('node:path');
-
-fs.appendFileSync(process.env.FUGUE_TEMPLATE_CALLS, `${process.argv.slice(2).join(' ')}\n`);
-
-const [root, name, ...args] = process.argv.slice(2);
-if (root !== 'template') {
-  console.error('expected template');
-  process.exit(9);
-}
-
-const die = (message) => {
-  console.error(message);
-  process.exit(1);
-};
-
-let dir = '';
-const vars = {};
-for (let i = 0; i < args.length; i += 1) {
-  const arg = args[i];
-  if (arg === '--dir') {
-    dir = args[i + 1] ?? '';
-    i += 1;
-  } else if (arg === '--set') {
-    const raw = args[i + 1] ?? '';
-    i += 1;
-    const eq = raw.indexOf('=');
-    if (eq <= 0) die(`--set format should be KEY=VALUE, got '${raw}'`);
-    vars[raw.slice(0, eq)] = raw.slice(eq + 1);
-  } else {
-    die(`unknown arg '${arg}'`);
-  }
-}
-
-if (!name) die('missing template name');
-const file = path.join(dir, `${name}.md`);
-if (!fs.existsSync(file)) die(`no template '${name}'`);
-
-let content = fs.readFileSync(file, 'utf8');
-for (const [key, value] of Object.entries(vars)) {
-  content = content.split(`{{${key}}}`).join(value);
-}
-process.stdout.write(`${content.replace(/\n?$/u, '')}\n`);
-EOF
+printf '%s\n' \
+  "const fs = require('node:fs');" \
+  "const path = require('node:path');" \
+  "const argv = process.argv.slice(2);" \
+  "fs.appendFileSync(process.env.FUGUE_TEMPLATE_CALLS, argv.join(' ') + '\\n');" \
+  "const root = argv[0];" \
+  "const name = argv[1];" \
+  "const args = argv.slice(2);" \
+  "if (root !== 'template') {" \
+  "  console.error('expected template');" \
+  "  process.exit(9);" \
+  "}" \
+  "const die = (message) => { console.error(message); process.exit(1); };" \
+  "let dir = '';" \
+  "const vars = {};" \
+  "for (let i = 0; i < args.length; i += 1) {" \
+  "  const arg = args[i];" \
+  "  if (arg === '--dir') {" \
+  "    dir = args[i + 1] || '';" \
+  "    i += 1;" \
+  "  } else if (arg === '--set') {" \
+  "    const raw = args[i + 1] || '';" \
+  "    i += 1;" \
+  "    const eq = raw.indexOf('=');" \
+  "    if (eq <= 0) die('--set format should be KEY=VALUE, got ' + raw);" \
+  "    vars[raw.slice(0, eq)] = raw.slice(eq + 1);" \
+  "  } else {" \
+  "    die('unknown arg ' + arg);" \
+  "  }" \
+  "}" \
+  "if (!name) die('missing template name');" \
+  "const file = path.join(dir, name + '.md');" \
+  "if (!fs.existsSync(file)) die('no template ' + name);" \
+  "let content = fs.readFileSync(file, 'utf8');" \
+  "for (const [key, value] of Object.entries(vars)) content = content.split('{{' + key + '}}').join(value);" \
+  "process.stdout.write(content.replace(/\\n?$/u, '') + '\\n');" \
+  > "$FUGUE_ENGINE_CLI"
 
 echo "fuguectl-template tests"
 

@@ -10,5 +10,5 @@ set -uo pipefail
 round="${1:-}"; shift || true
 case "$round" in
   ''|-h|--help) sed -n '2,5p' "$0";;
-  *) fx_run_engine summary "$round" --cache "$(fx_cache_root)" "$@";;
+  *) fx_run_engine summary "$round" "$@";;
 esac
