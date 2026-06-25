@@ -32,13 +32,13 @@ test-engine-ci: ## Clean-install engine deps, then run TypeScript engine checks
 	npm run test:engine:ci
 
 scan: ## Secret-leak scan (local gate)
-	bash scripts/scan-secrets.sh
+	npm run scan
 
 lint: ## Script syntax (bash -n) + shellcheck
-	bash scripts/check-shell.sh
+	npm run lint:shell
 
 check-docs: ## Docs-drift gate (fuguectl README + Self-Harness guide == actual code)
-	bash scripts/check-docs.sh
+	npm run check:docs
 
 ci: scan lint check-docs test test-engine ## Full local CI using installed deps
 

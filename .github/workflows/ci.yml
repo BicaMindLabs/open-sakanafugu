@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
 
 permissions:
@@ -20,8 +20,11 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
       - name: Custom secret gate (placeholder + fingerprint)
-        run: bash scripts/scan-secrets.sh
+        run: npm run scan
       - name: gitleaks (full history)
         uses: gitleaks/gitleaks-action@v2
         env:
@@ -33,6 +36,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
       - name: Ensure shellcheck (preinstalled on ubuntu-latest; binary fallback)
         run: |
           if ! command -v shellcheck >/dev/null 2>&1; then
@@ -42,9 +48,9 @@ jobs:
           fi
           shellcheck --version
       - name: bash -n + shellcheck
-        run: bash scripts/check-shell.sh
-      - name: Docs match code (README ↔ fanout subcommands/counts)
-        run: bash scripts/check-docs.sh
+        run: npm run lint:shell
+      - name: Docs match code (README ↔ fuguectl subcommands/counts)
+        run: npm run check:docs
 
   node:
     name: Plugin tests
@@ -53,7 +59,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: "20"
       - name: npm test
         run: npm test
 
@@ -64,7 +70,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: "20"
       - name: install
         run: npm ci
         working-directory: engine

@@ -1,4 +1,4 @@
-# pre-commit local gate — same source as CI (reuses scripts/*.sh, no duplicated logic)
+# pre-commit local gate — same source as CI (reuses scripts/*.ts, no duplicated logic)
 #   install: pipx install pre-commit && pre-commit install
 minimum_pre_commit_version: "3.5.0"
 repos:
@@ -22,13 +22,13 @@ repos:
     hooks:
       - id: scan-secrets
         name: scan-secrets (placeholder + fingerprint gate)
-        entry: bash scripts/scan-secrets.sh
+        entry: node scripts/run-ts.mjs scripts/scan-secrets.ts
         language: system
         pass_filenames: false
 
       - id: check-shell
         name: shell syntax + shellcheck
-        entry: bash scripts/check-shell.sh
+        entry: node scripts/run-ts.mjs scripts/check-shell.ts
         language: system
         pass_filenames: false
         files: '(-code|\.sh)$'
@@ -38,4 +38,4 @@ repos:
         entry: npm test
         language: system
         pass_filenames: false
-        files: '^orchestration/cn-plugin/'
+        files: "^orchestration/cn-plugin/"

@@ -20,9 +20,9 @@
     "test:engine": "cd engine && npm run check",
     "test:engine:ci": "cd engine && npm ci && npm run check",
     "test": "npm run test:plugin && npm run test:fuguectl",
-    "scan": "bash scripts/scan-secrets.sh",
-    "lint:shell": "bash scripts/check-shell.sh",
-    "check:docs": "bash scripts/check-docs.sh",
+    "scan": "node scripts/run-ts.mjs scripts/scan-secrets.ts",
+    "lint:shell": "node scripts/run-ts.mjs scripts/check-shell.ts",
+    "check:docs": "node scripts/run-ts.mjs scripts/check-docs.ts",
     "ci": "npm run scan && npm run lint:shell && npm run check:docs && npm test && npm run test:engine",
     "ci:clean": "npm run scan && npm run lint:shell && npm run check:docs && npm test && npm run test:engine:ci"
   }
