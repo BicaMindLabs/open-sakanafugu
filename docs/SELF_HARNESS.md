@@ -14,7 +14,7 @@ The implementation is split into pure domain logic, live adapters, and a CLI:
 | ----------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | 1. Mine     | `RunWeaknessMiner`               | Read failed `RunEvent`s, tag failures with model-backed signatures, cluster via the pure `clusterWeaknesses` function. |
 | 2. Propose  | `HarnessBackedProposer`          | Prompt a configured harness agent for strict JSON replacement edits, then parse and sanitize them.                     |
-| 3. Validate | `TaskListHarnessValidator`       | Re-run fixed held-in and held-out evaluation cases; shell gates decide pass/fail.                                      |
+| 3. Validate | `TaskListHarnessValidator`       | Re-run fixed held-in and held-out cases (optionally `samples` times to denoise); a `verify` predicate decides pass/fail. |
 | Accept      | `acceptEdit` / `SelfHarnessLoop` | Promote only if `deltaIn >= 0`, `deltaOut >= 0`, and at least one delta is positive.                                   |
 
 ## CLI
@@ -49,6 +49,7 @@ The spec is strict JSON:
   "harness": "fugue-cc",
   "k": 2,
   "rounds": 1,
+  "samples": 2,
   "runId": "source-run-id-mined-each-round",
   "config": {
     "system-prompt": "<system-prompt replacement text>",
@@ -85,6 +86,14 @@ Validation rules:
 - `harness`, if present, must be `fugue-cc`, `codex`, or `opencode`; when
   omitted, CLI wiring dispatches through `fugue-cc`.
 - `k` and `rounds` must be positive integers.
+- `samples` (optional, default `1`) is how many times each eval case is re-run
+  per scoring. Pass counts and totals both scale by it, so the acceptance gate
+  aggregates across repeats — raise it to denoise non-deterministic models (a
+  single noisy sample can otherwise flip a split and reject a real improvement).
+- `harnessArgs` (optional) is a string array spliced into every harness dispatch:
+  e.g. `["-c", "mcp_servers={}"]` keeps `codex exec` from hanging on a host whose
+  codex config points at a flaky remote MCP, and `["-s", "workspace-write"]` lets
+  a codex agent write the files a gate checks.
 - The top-level object is strict: unknown fields are rejected.
 - `config` must contain exactly the editable surfaces declared by
   `EDITABLE_SURFACES`, all strings; unknown surfaces are rejected.
@@ -110,6 +119,24 @@ checks, so one candidate cannot accidentally satisfy the next candidate's gate.
 
 Treat a Self-Harness spec as trusted executable input: each `gate` runs through
 `sh -c` in the selected working directory.
+
+## Eval paths: tool-capable vs chat-only agents
+
+The CLI's `verify` is a shell gate (`sh -c <gate>`), so it judges the *side
+effects* a dispatch produced — typically a file the agent was asked to create.
+That requires a **tool-capable** agent:
+
+- `fugue-cc` agents (Claude Code instances) edit files directly.
+- `codex` needs `"harnessArgs": ["-s", "workspace-write"]` so `codex exec` may
+  write inside the workspace.
+
+A **chat-only** model (most `opencode run -m <provider/model>` targets) can still
+mine and propose — both stages only need JSON back — but it cannot satisfy a
+file-side-effect gate. To score a chat model, skip the CLI and construct
+`TaskListHarnessValidator` directly with a `verify` that inspects
+`DispatchResult.output` (the model's text) instead of a shell gate, e.g. a
+deterministic format check; pair it with `samples > 1` to absorb model variance.
+See `src/adapters/self-harness/self-harness-e2e.test.ts` for a wired example.
 
 ## Run Evidence
 
