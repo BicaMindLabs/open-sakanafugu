@@ -8,6 +8,12 @@ import {
   AgentRegistryValidateCommand,
 } from './commands/agent-registry.js';
 import { DoctorCommand } from './commands/doctor.js';
+import {
+  ExperienceAddCommand,
+  ExperienceListCommand,
+  ExperienceRecallCommand,
+  ExperienceShowCommand,
+} from './commands/experience.js';
 import { GoalCheckCommand, GoalShowCommand, GoalTemplateCommand } from './commands/goal.js';
 import { SelfHarnessRunCommand, SelfHarnessTemplateCommand } from './commands/self-harness.js';
 import { TaskDoneCommand, TaskLogCommand, TaskNewCommand } from './commands/task.js';
@@ -34,6 +40,10 @@ export const buildCli = (): Cli => {
   cli.register(Builtins.VersionCommand);
   cli.register(VersionCommand);
   cli.register(DoctorCommand);
+  cli.register(ExperienceAddCommand);
+  cli.register(ExperienceListCommand);
+  cli.register(ExperienceRecallCommand);
+  cli.register(ExperienceShowCommand);
   cli.register(TaskNewCommand);
   cli.register(TaskLogCommand);
   cli.register(TaskDoneCommand);

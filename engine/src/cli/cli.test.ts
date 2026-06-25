@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Writable } from 'node:stream';
+import { Readable, Writable } from 'node:stream';
 
 import { Cli } from 'clipanion';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -27,11 +27,13 @@ const collector = (): { stream: Writable; text: () => string } => {
 
 const run = async (
   argv: readonly string[],
+  options: { readonly stdin?: Readable } = {},
 ): Promise<{ code: number; out: string; err: string }> => {
   const out = collector();
   const err = collector();
   const code = await buildCli().run([...argv], {
     ...Cli.defaultContext,
+    ...(options.stdin !== undefined ? { stdin: options.stdin } : {}),
     stdout: out.stream,
     stderr: err.stream,
   });
@@ -162,6 +164,57 @@ describe('fugue CLI', () => {
 
       expect(code).not.toBe(0);
       expect(out).toContain('--set format should be KEY=VALUE');
+    });
+  });
+
+  describe('experience commands', () => {
+    let dir: string;
+    let store: string;
+    beforeEach(async () => {
+      dir = await mkdtemp(join(tmpdir(), 'fugue-experience-'));
+      store = join(dir, 'experience');
+    });
+    afterEach(async () => {
+      await rm(dir, { recursive: true, force: true });
+    });
+
+    it('adds from stdin, lists, recalls, and shows an experience', async () => {
+      const add = await run(['experience', 'add', '--store', store, 'code', 'cache first'], {
+        stdin: Readable.from(['check cache before curl']),
+      });
+      const list = await run(['experience', 'list', '--store', store, 'code']);
+      const recall = await run(['experience', 'recall', '--store', store, 'code']);
+      const show = await run(['experience', 'show', '--store', store, 'code', 'cache-first']);
+
+      expect(add.code).toBe(0);
+      expect(add.out).toContain('cache-first.md');
+      expect(list.out).toContain('cache first');
+      expect(recall.out).toContain('[experience] cache first');
+      expect(recall.out).toContain('check cache before curl');
+      expect(show.out).toContain('workspace: code');
+      expect(show.out).toContain('title: cache first');
+    });
+
+    it('adds from --from and rejects suspected secrets', async () => {
+      const source = join(dir, 'source.txt');
+      await writeFile(source, 'qwen SQL window', 'utf8');
+      const fromFile = await run([
+        'experience',
+        'add',
+        '--store',
+        store,
+        'sql',
+        'sql date window',
+        '--from',
+        source,
+      ]);
+      const rejected = await run(['experience', 'add', '--store', store, 'code', 'bad'], {
+        stdin: Readable.from([`token sk-${'a'.repeat(25)}`]),
+      });
+
+      expect(fromFile.code).toBe(0);
+      expect(rejected.code).toBe(1);
+      expect(rejected.err).toContain('suspected key');
     });
   });
 
