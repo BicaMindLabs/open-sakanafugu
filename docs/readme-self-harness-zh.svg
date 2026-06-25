@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 520" role="img" aria-labelledby="title desc">
+  <title id="title">fugue 的 Self-Harness</title>
+  <desc id="desc">fugue 如何挖掘弱点并验证 harness 改动。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#eef2ff"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 800 38px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; fill: #111827; letter-spacing: 0; }
+      .tag { font: 500 17px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; fill: #475569; letter-spacing: 0; }
+      .step { font: 750 20px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; fill: #111827; letter-spacing: 0; }
+      .text { font: 500 14px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; fill: #475569; letter-spacing: 0; }
+      .mono { font: 600 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #334155; letter-spacing: 0; }
+    </style>
+  </defs>
+  <rect width="1120" height="520" rx="28" fill="url(#bg)"/>
+  <rect x="34" y="34" width="1052" height="452" rx="24" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="72" y="92" class="title">Self-Harness</text>
+  <text x="72" y="124" class="tag">改进 harness 配置，而不是改底层模型。</text>
+  <text x="72" y="150" class="tag">借鉴上海人工智能实验室论文 “Self-Harness: Harnesses That Improve Themselves”。</text>
+
+  <rect x="72" y="214" width="200" height="116" rx="18" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="172" y="255" text-anchor="middle" class="step">1. 挖失败</text>
+  <text x="172" y="283" text-anchor="middle" class="text">verifier-grounded</text>
+  <text x="172" y="306" text-anchor="middle" class="mono">RunEvent[]</text>
+
+  <rect x="326" y="214" width="200" height="116" rx="18" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="426" y="255" text-anchor="middle" class="step">2. 聚类弱点</text>
+  <text x="426" y="283" text-anchor="middle" class="text">cause + mechanism</text>
+  <text x="426" y="306" text-anchor="middle" class="mono">WeaknessCluster[]</text>
+
+  <rect x="580" y="214" width="200" height="116" rx="18" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="680" y="255" text-anchor="middle" class="step">3. 提出改动</text>
+  <text x="680" y="283" text-anchor="middle" class="text">有界 surface</text>
+  <text x="680" y="306" text-anchor="middle" class="mono">HarnessEdit[]</text>
+
+  <rect x="834" y="214" width="200" height="116" rx="18" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="934" y="255" text-anchor="middle" class="step">4. 验证提升</text>
+  <text x="934" y="283" text-anchor="middle" class="text">held-in + held-out</text>
+  <text x="934" y="306" text-anchor="middle" class="mono">安全才 promote</text>
+
+  <line x1="272" y1="272" x2="324" y2="272" stroke="#475569" stroke-width="2.4" marker-end="url(#arrow)"/>
+  <line x1="526" y1="272" x2="578" y2="272" stroke="#475569" stroke-width="2.4" marker-end="url(#arrow)"/>
+  <line x1="780" y1="272" x2="832" y2="272" stroke="#475569" stroke-width="2.4" marker-end="url(#arrow)"/>
+  <path d="M934 332 C880 410, 226 410, 172 334" fill="none" stroke="#64748b" stroke-width="2.3" stroke-dasharray="8 7" marker-end="url(#arrow)"/>
+
+  <rect x="150" y="396" width="820" height="64" rx="14" fill="#f8fafc" stroke="#dbe4ee"/>
+  <text x="560" y="423" text-anchor="middle" class="text">可编辑 surfaces：system prompt · memory sources · subagents · skills · bootstrap</text>
+  <text x="560" y="446" text-anchor="middle" class="text">execution · verification · recovery · runtime policy</text>
+</svg>

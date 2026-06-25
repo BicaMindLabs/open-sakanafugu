@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 640" role="img" aria-labelledby="title desc">
+  <title id="title">fugue overview</title>
+  <desc id="desc">A polished overview of the fugue multi-agent coding workflow.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="0.5" stop-color="#111827"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" x2="1">
+      <stop offset="0" stop-color="#f8fafc" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#e0f2fe" stop-opacity="0.08"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#94a3b8"/>
+    </marker>
+    <style>
+      .title { font: 800 56px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #f8fafc; letter-spacing: 0; }
+      .tag { font: 500 19px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #cbd5e1; letter-spacing: 0; }
+      .cardTitle { font: 750 22px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #f8fafc; letter-spacing: 0; }
+      .cardText { font: 500 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #cbd5e1; letter-spacing: 0; }
+      .tiny { font: 600 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #a5b4fc; letter-spacing: 0; }
+      .chip { font: 700 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #dbeafe; letter-spacing: 0; }
+    </style>
+  </defs>
+
+  <rect width="1120" height="640" rx="28" fill="url(#bg)"/>
+  <path d="M72 108 H1048 M72 208 H1048 M72 308 H1048 M72 408 H1048 M72 508 H1048 M172 68 V572 M372 68 V572 M572 68 V572 M772 68 V572 M972 68 V572" stroke="#1e293b" stroke-width="1"/>
+  <rect x="34" y="34" width="1052" height="572" rx="24" fill="none" stroke="#334155"/>
+
+  <text x="80" y="112" class="title">fugue</text>
+  <text x="80" y="148" class="tag">Governed multi-agent coding without training a coordinator.</text>
+  <text x="80" y="178" class="tag">Specialist workers implement. Reviewers judge.</text>
+  <text x="80" y="206" class="tag">Harnesses improve from failures.</text>
+
+  <rect x="778" y="82" width="246" height="112" rx="18" fill="url(#panel)" stroke="#475569"/>
+  <text x="812" y="124" class="chip">fuguectl</text>
+  <text x="812" y="151" class="cardText">18 subcommands</text>
+  <text x="812" y="174" class="cardText">18 test suites · 322 assertions</text>
+
+  <rect x="78" y="256" width="174" height="132" rx="18" fill="#172554" stroke="#3b82f6"/>
+  <text x="110" y="302" class="cardTitle">Plan</text>
+  <text x="110" y="332" class="cardText">preflight</text>
+  <text x="110" y="354" class="cardText">TASK file</text>
+  <text x="110" y="376" class="cardText">ownership split</text>
+
+  <rect x="294" y="256" width="174" height="132" rx="18" fill="#052e2b" stroke="#14b8a6"/>
+  <text x="326" y="302" class="cardTitle">Dispatch</text>
+  <text x="326" y="332" class="cardText">Claude Code clones</text>
+  <text x="326" y="354" class="cardText">scoped workspaces</text>
+  <text x="326" y="376" class="cardText">selected skills</text>
+
+  <rect x="510" y="256" width="174" height="132" rx="18" fill="#2e1065" stroke="#a855f7"/>
+  <text x="542" y="302" class="cardTitle">Join</text>
+  <text x="542" y="332" class="cardText">cache first</text>
+  <text x="542" y="354" class="cardText">N sent, N back</text>
+  <text x="542" y="376" class="cardText">durable rounds</text>
+
+  <rect x="726" y="256" width="174" height="132" rx="18" fill="#431407" stroke="#fb923c"/>
+  <text x="758" y="302" class="cardTitle">Review</text>
+  <text x="758" y="332" class="cardText">independent judge</text>
+  <text x="758" y="354" class="cardText">ACCEPTED</text>
+  <text x="758" y="376" class="cardText">or NEEDS FIX</text>
+
+  <rect x="942" y="256" width="100" height="132" rx="18" fill="#0f2f1d" stroke="#22c55e"/>
+  <text x="966" y="302" class="cardTitle">Ship</text>
+  <text x="966" y="332" class="cardText">or</text>
+  <text x="966" y="354" class="cardText">loop</text>
+
+  <line x1="252" y1="322" x2="292" y2="322" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="468" y1="322" x2="508" y2="322" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="684" y1="322" x2="724" y2="322" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="900" y1="322" x2="940" y2="322" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <rect x="78" y="450" width="964" height="90" rx="20" fill="#020617" stroke="#334155"/>
+  <text x="112" y="486" class="tiny">MODEL FLEET</text>
+  <text x="112" y="517" class="cardText">cc-deepseek · cc-glm · cc-kimi · cc-qwen · cc-doubao · cc-minimax · cc-mimo · cc-stepfun · cc-longcat · optional cc-claude</text>
+  <text x="112" y="558" class="tiny">SAFETY CONTRACT</text>
+  <text x="250" y="558" class="cardText">generation is not review · main is the source of truth · deterministic gates fail first · secrets stay outside git</text>
+</svg>

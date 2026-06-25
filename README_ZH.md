@@ -7,40 +7,39 @@
 
 **[English](README.md) | 简体中文**
 
-**fugue** 是一个免训练、可自托管的多 agent 编码 harness。它把一组 AI worker 放进同一个可治理 loop：实现、审查、整合、自我改进都分开跑，所以系统能被检查、能被测试，也能在错的时候停下来。
-
-日常操作面是 `fuguectl`。Claude Code skill 是 `/fugue`。
-
 <p align="center">
-  <img src="docs/readme-overview.svg" alt="fugue overview" width="900">
+  <strong>免训练的多 agent 编码编排，把模型 fleet 变成可治理 loop。</strong>
 </p>
 
-## 为什么需要 Fugue
+<p align="center">
+  fugue 负责规划、派发、缓存、整合、审查、修复，并让 harness 自己从失败中改进。
+</p>
 
-单 agent 编码适合窄任务；一旦任务需要并行实现、独立审查或可复现的修复路径，就需要工程化编排。fugue 把这些问题显式化：
+<p align="center">
+  <a href="#快速开始">快速开始</a> ·
+  <a href="docs/WORKFLOW.md">工作流</a> ·
+  <a href="docs/SELF_HARNESS.md">Self-Harness</a> ·
+  <a href="docs/PARITY.md">Engine 迁移</a> ·
+  <a href="NOTICE">归属说明</a>
+</p>
 
-- **多个 worker，一个控制面** - 专长不同的 Claude Code clones 都通过 `fuguectl` 调度。
-- **生成不是审查** - implementer 负责写，Codex 或配置好的独立 reviewer 负责 verdict。
-- **先缓存再相信** - 一轮派出 N 个任务，就必须收回 N 个终态结果才能整合。
-- **有界修复** - review-fix loop 有 keep-best、二次确认、询问用户、升级和非收敛状态。
-- **刻意缩小 context** - workspace 和 skill injection 只给 worker 看必要信息。
-- **免训练学习** - allocation 用 benchmark prior 加 live review outcome 更新路由。
-- **Harness 自改进** - typed engine 能从失败 run 里挖弱点，并测试有界 harness 改动。
+<p align="center">
+  <img src="docs/readme-overview-zh.svg" alt="fugue 多 agent 编码总览" width="920">
+</p>
 
-## 你会得到什么
+## 亮点
 
-| 层 | 状态 | 用途 |
-| --- | --- | --- |
-| `orchestration/fuguectl/` | 生产可用 shell 操作层：`fuguectl`、18 个子命令、18 套测试、322 个断言 | 日常多 agent 编码 |
-| `engine/` | 严格 TypeScript ports-and-adapters engine | 类型化集成、`fugue` CLI、Self-Harness |
-| `orchestration/fugue-cc/` | 脱敏 provider runtime 模板 | 通过模型 provider 运行 Claude Code clones |
-| `orchestration/cn-plugin/` | Claude Code `/cn:*` 插件 | 轻量单机模型调度 |
-
-shell 操作层保持全绿，能力逐步迁移到 typed engine。迁移状态见 [docs/PARITY.md](docs/PARITY.md)。
+- **一个操作面** - `fuguectl` 驱动 preflight、dispatch、cache、integration、review、loop state、routing、skills 和 runtime maintenance。
+- **真实隔离** - worker 在独立 worktree 中编辑，配合 scoped workspace、按需 skills 和 ownership enforcement。
+- **审查保持独立** - implementer 写代码，Codex 或另一个配置好的非 Gemini reviewer 给出 `ACCEPTED` / `NEEDS FIX`。
+- **输出不会丢** - 每个派发任务都先落 cache；join barrier 强制“派出 N 个，收回 N 个”。
+- **修复有边界** - keep-best、二次确认、询问用户、升级和非收敛状态避免无限循环。
+- **免训练学习** - allocation 用 benchmark prior 加 live review outcome 迭代路由。
+- **Self-Harness 就绪** - TypeScript engine 能挖失败 run、提出有界 harness edits，并只 promote 不回退的改动。
 
 ## 快速开始
 
-要求：macOS 或 Linux、Node.js >= 18.18、`git`、`tmux`，以及你选择配置的模型/API 凭证。推荐用 Codex 做 review。
+要求：macOS 或 Linux、Node.js >= 18.18、`git`、`tmux`，以及你选择使用的模型/API 凭证。推荐用 Codex 做 review。
 
 ```bash
 git clone https://github.com/BicaMindLabs/open-sakanafugu fugue
@@ -59,7 +58,7 @@ mkdir -p ~/.config
 $EDITOR ~/.config/cc-model-secrets.env
 ```
 
-完整 `fugue-cc` fleet 需要把脱敏 provider config 放到实际要编辑的项目里：
+完整 `fugue-cc` fleet 需要把 provider config 放到实际要编辑的项目里：
 
 ```bash
 cp orchestration/fugue-cc/provider.config.example /path/to/project/.fugue-cc/provider.config
@@ -67,33 +66,26 @@ cd /path/to/project
 fugue-cc
 ```
 
-然后在另一个 shell 里运行 operator：
+然后在另一个 shell 中运行 operator：
 
 ```bash
 /path/to/fugue/orchestration/fuguectl/fuguectl preflight
 /path/to/fugue/orchestration/fuguectl/fuguectl fleet status
 ```
 
-## 安装 Claude Code Skill
+## Claude Code Skill
 
 ```bash
 make install-skill
 ```
 
-这会安装到 `~/.claude/skills/fugue`。重启 Claude Code 后，用 `/fugue` 唤醒，或直接描述一个多 agent 编码任务。安装后可这样冒烟测试：
+这会把 `/fugue` 安装到 `~/.claude/skills/fugue`。重启 Claude Code 后，用 `/fugue` 唤醒，或直接描述一个多 agent 编码任务。安装后可冒烟测试：
 
 ```bash
 ~/.claude/skills/fugue/fuguectl selftest
 ```
 
-## Operator Loop
-
-1. **Plan** - preflight，打开 TASK 文件，划分 ownership，选择 worker。
-2. **Dispatch** - 通过 `fuguectl dispatch` 发送 scoped prompt。
-3. **Gather** - 缓存每个结果，并等待 join barrier。
-4. **Integrate** - 把通过审查的 worktree cherry-pick 到 `main`；隔离冲突和 ownership violation。
-5. **Review** - 得到独立 ACCEPTED / NEEDS FIX verdict。
-6. **Fix or finish** - 用有界 loop 状态机直到 accepted 或 escalated。
+## Loop 如何工作
 
 ```bash
 fuguectl preflight
@@ -105,11 +97,20 @@ fuguectl loop record --verdict NEEDS_FIX --round 1
 fuguectl loop decide
 ```
 
+| 阶段 | fugue 做什么 |
+| --- | --- |
+| Plan | 运行 preflight，创建 TASK 文件，划分 ownership，选择 worker。 |
+| Dispatch | 通过 `fuguectl dispatch` 发送 scoped prompts。 |
+| Gather | 缓存每个终态结果，并等待 join barrier。 |
+| Integrate | 把通过审查的 worktree cherry-pick 到 `main`；隔离冲突和 ownership violation。 |
+| Review | 请求独立 reviewer 给出 `ACCEPTED` / `NEEDS FIX` verdict。 |
+| Repair | 用有界 loop 状态机直到 accepted 或 escalated。 |
+
 完整流程见 [docs/WORKFLOW.md](docs/WORKFLOW.md)。
 
-## 命令地图
+## 命令面
 
-`orchestration/fuguectl/fuguectl` 是主操作入口。精确语法看 `fuguectl help`。
+`orchestration/fuguectl/fuguectl` 是生产操作入口。当前有 18 个子命令和 18 套测试。
 
 | 区域 | 命令 |
 | --- | --- |
@@ -120,11 +121,9 @@ fuguectl loop decide
 | Integration and loop | `fuguectl integrate --work <repo>`、`fuguectl loop init\|record\|decide\|status`、`fuguectl run set\|round\|status\|next\|clear`、`fuguectl summary <round>` |
 | Memory and maintenance | `fuguectl experience add\|list\|recall\|show`、`fuguectl runtime check\|adapt`、`fuguectl selftest` |
 
-当前 operator 有 18 个子命令和 18 套测试。
-
 ## TypeScript Engine
 
-`engine/` 包是 fugue 编排模型的 typed 实现：严格 TypeScript、ports-and-adapters 分层、纯 domain policy，以及真实 harness / store adapters。
+`engine/` 是 typed 实现：严格 TypeScript、ports-and-adapters 分层、纯 domain policy，以及真实 harness / storage adapters。
 
 ```bash
 cd engine
@@ -133,7 +132,7 @@ npm run build
 node dist/cli/main.js version
 ```
 
-目前 engine CLI 暴露：
+当前 engine CLI 暴露：
 
 ```bash
 fugue version
@@ -148,7 +147,7 @@ fugue self-harness template|run
 Self-Harness 改进的是 harness 配置，不是底层模型。fugue 的实现是对上海人工智能实验室论文 [Self-Harness: Harnesses That Improve Themselves](https://arxiv.org/abs/2606.09498) 的 engine-native 抽象。
 
 <p align="center">
-  <img src="docs/readme-self-harness.svg" alt="Self-Harness loop" width="900">
+  <img src="docs/readme-self-harness-zh.svg" alt="fugue Self-Harness loop" width="920">
 </p>
 
 ```bash
@@ -163,13 +162,13 @@ node dist/cli/main.js self-harness run \
 
 严格 JSON spec、editable surfaces、验证规则和 smoke tests 见 [docs/SELF_HARNESS.md](docs/SELF_HARNESS.md)。
 
-## 仓库导览
+## 仓库地图
 
 | 路径 | 内容 |
 | --- | --- |
 | `backends/bin/` | 模型启动器、registry、`cc-models` 和 `cc-sync`。 |
 | `backends/{install,verify}.sh` | 本地安装和 launcher 验证。 |
-| `orchestration/fuguectl/` | `fuguectl`、共享 shell libraries、templates、workspaces、skill bundle 和测试。 |
+| `orchestration/fuguectl/` | `fuguectl`、shell libraries、templates、workspaces、skill bundle 和测试。 |
 | `orchestration/fugue-cc/` | runtime bridge 使用的脱敏 provider 配置模板。 |
 | `orchestration/cn-plugin/` | Claude Code `/cn:*` 插件和 dispatch agent。 |
 | `orchestration/agent-team/` | 更高层多模型规划示例。 |
@@ -212,7 +211,7 @@ npm run test:engine
 
 ## 安全报告
 
-见 [SECURITY.md](SECURITY.md)。简短版：仓库只放脱敏 examples，CI 会扫泄漏，漏洞请通过 GitHub Security Advisory 私下报告。
+见 [SECURITY.md](SECURITY.md)。仓库只放脱敏 examples，CI 会扫泄漏，漏洞请通过 GitHub Security Advisory 私下报告。
 
 ## 致谢
 

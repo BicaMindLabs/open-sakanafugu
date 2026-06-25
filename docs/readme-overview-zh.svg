@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 640" role="img" aria-labelledby="title desc">
+  <title id="title">fugue 总览</title>
+  <desc id="desc">fugue 多 agent 编码工作流中文总览图。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="0.5" stop-color="#111827"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" x2="1">
+      <stop offset="0" stop-color="#f8fafc" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#e0f2fe" stop-opacity="0.08"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#94a3b8"/>
+    </marker>
+    <style>
+      .title { font: 800 56px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; fill: #f8fafc; letter-spacing: 0; }
+      .tag { font: 500 19px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; fill: #cbd5e1; letter-spacing: 0; }
+      .cardTitle { font: 750 22px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; fill: #f8fafc; letter-spacing: 0; }
+      .cardText { font: 500 14px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; fill: #cbd5e1; letter-spacing: 0; }
+      .tiny { font: 600 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #a5b4fc; letter-spacing: 0; }
+      .chip { font: 700 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #dbeafe; letter-spacing: 0; }
+    </style>
+  </defs>
+
+  <rect width="1120" height="640" rx="28" fill="url(#bg)"/>
+  <path d="M72 108 H1048 M72 208 H1048 M72 308 H1048 M72 408 H1048 M72 508 H1048 M172 68 V572 M372 68 V572 M572 68 V572 M772 68 V572 M972 68 V572" stroke="#1e293b" stroke-width="1"/>
+  <rect x="34" y="34" width="1052" height="572" rx="24" fill="none" stroke="#334155"/>
+
+  <text x="80" y="112" class="title">fugue</text>
+  <text x="80" y="148" class="tag">免训练的多 agent 编码编排，把模型 fleet 变成可治理 loop。</text>
+  <text x="80" y="178" class="tag">worker 实现，reviewer 决策。</text>
+  <text x="80" y="206" class="tag">harness 从失败中改进。</text>
+
+  <rect x="778" y="82" width="246" height="112" rx="18" fill="url(#panel)" stroke="#475569"/>
+  <text x="812" y="124" class="chip">fuguectl</text>
+  <text x="812" y="151" class="cardText">18 个子命令</text>
+  <text x="812" y="174" class="cardText">18 套测试 · 322 个断言</text>
+
+  <rect x="78" y="256" width="174" height="132" rx="18" fill="#172554" stroke="#3b82f6"/>
+  <text x="110" y="302" class="cardTitle">规划</text>
+  <text x="110" y="332" class="cardText">preflight</text>
+  <text x="110" y="354" class="cardText">TASK 文件</text>
+  <text x="110" y="376" class="cardText">ownership 拆分</text>
+
+  <rect x="294" y="256" width="174" height="132" rx="18" fill="#052e2b" stroke="#14b8a6"/>
+  <text x="326" y="302" class="cardTitle">派发</text>
+  <text x="326" y="332" class="cardText">Claude Code clones</text>
+  <text x="326" y="354" class="cardText">隔离 workspace</text>
+  <text x="326" y="376" class="cardText">按需注入 skills</text>
+
+  <rect x="510" y="256" width="174" height="132" rx="18" fill="#2e1065" stroke="#a855f7"/>
+  <text x="542" y="302" class="cardTitle">汇合</text>
+  <text x="542" y="332" class="cardText">先缓存</text>
+  <text x="542" y="354" class="cardText">派出 N，收回 N</text>
+  <text x="542" y="376" class="cardText">round 可恢复</text>
+
+  <rect x="726" y="256" width="174" height="132" rx="18" fill="#431407" stroke="#fb923c"/>
+  <text x="758" y="302" class="cardTitle">审查</text>
+  <text x="758" y="332" class="cardText">独立 reviewer</text>
+  <text x="758" y="354" class="cardText">ACCEPTED</text>
+  <text x="758" y="376" class="cardText">或 NEEDS FIX</text>
+
+  <rect x="942" y="256" width="100" height="132" rx="18" fill="#0f2f1d" stroke="#22c55e"/>
+  <text x="966" y="302" class="cardTitle">交付</text>
+  <text x="966" y="332" class="cardText">或</text>
+  <text x="966" y="354" class="cardText">循环</text>
+
+  <line x1="252" y1="322" x2="292" y2="322" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="468" y1="322" x2="508" y2="322" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="684" y1="322" x2="724" y2="322" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="900" y1="322" x2="940" y2="322" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <rect x="78" y="450" width="964" height="90" rx="20" fill="#020617" stroke="#334155"/>
+  <text x="112" y="486" class="tiny">MODEL FLEET</text>
+  <text x="112" y="517" class="cardText">cc-deepseek · cc-glm · cc-kimi · cc-qwen · cc-doubao · cc-minimax · cc-mimo · cc-stepfun · cc-longcat · 可选 cc-claude</text>
+  <text x="112" y="558" class="tiny">SAFETY CONTRACT</text>
+  <text x="250" y="558" class="cardText">生成不是审查 · main 是真相源 · 确定性 gate 先失败 · 密钥不进 git</text>
+</svg>
