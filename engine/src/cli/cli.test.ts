@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable, Writable } from 'node:stream';
@@ -215,6 +215,50 @@ describe('fugue CLI', () => {
       expect(fromFile.code).toBe(0);
       expect(rejected.code).toBe(1);
       expect(rejected.err).toContain('suspected key');
+    });
+  });
+
+  describe('summary command', () => {
+    let dir: string;
+    let cache: string;
+    beforeEach(async () => {
+      dir = await mkdtemp(join(tmpdir(), 'fugue-summary-'));
+      cache = join(dir, 'cache');
+      const round = join(cache, 'round-1');
+      await mkdir(round, { recursive: true });
+      await writeFile(join(round, 'manifest.tsv'), 't1\tcc-deepseek\nt2\tcc-glm\n', 'utf8');
+      await writeFile(
+        join(round, '.started'),
+        `${String(Math.floor(Date.now() / 1000) - 5)}\n`,
+        'utf8',
+      );
+      await writeFile(join(round, 't1.status'), 'done\n', 'utf8');
+      await writeFile(join(round, 't2.status'), 'fail\n', 'utf8');
+    });
+    afterEach(async () => {
+      await rm(dir, { recursive: true, force: true });
+    });
+
+    it('renders a legacy cache summary and appends it to a task file', async () => {
+      const task = join(dir, 'TASK.md');
+      await writeFile(task, '## Log\n', 'utf8');
+      const summary = await run(['summary', '1', '--cache', cache, '--task', task]);
+      const taskContent = await readFile(task, 'utf8');
+
+      expect(summary.code).toBe(0);
+      expect(summary.out).toContain('### Round 1 summary');
+      expect(summary.out).toContain('round-1: total=2 done=1 fail=1 pending=0');
+      expect(summary.out).toContain('t1');
+      expect(summary.out).toContain('cc-glm');
+      expect(summary.err).toContain('written to');
+      expect(taskContent).toContain('Round 1 summary');
+    });
+
+    it('returns non-zero when the round was not initialized', async () => {
+      const summary = await run(['summary', '9', '--cache', cache]);
+
+      expect(summary.code).toBe(2);
+      expect(summary.err).toContain('round-9 not init');
     });
   });
 

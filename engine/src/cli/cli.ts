@@ -16,6 +16,7 @@ import {
 } from './commands/experience.js';
 import { GoalCheckCommand, GoalShowCommand, GoalTemplateCommand } from './commands/goal.js';
 import { SelfHarnessRunCommand, SelfHarnessTemplateCommand } from './commands/self-harness.js';
+import { SummaryCommand } from './commands/summary.js';
 import { TaskDoneCommand, TaskLogCommand, TaskNewCommand } from './commands/task.js';
 import { TemplateRenderCommand } from './commands/template.js';
 import { VersionCommand } from './commands/version.js';
@@ -61,5 +62,6 @@ export const buildCli = (): Cli => {
   cli.register(AgentRegistryResolveCommand);
   cli.register(SelfHarnessTemplateCommand);
   cli.register(SelfHarnessRunCommand);
+  cli.register(SummaryCommand);
   return cli;
 };
