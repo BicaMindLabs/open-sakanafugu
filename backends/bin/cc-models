@@ -229,15 +229,19 @@ const audit = async () => {
   );
   if (nodeCheck.status !== 0) failed = true;
 
-  const libCheck = spawnSync("bash", ["-n", join(root, "cc-model-lib.sh")], {
-    stdio: "inherit",
-  });
-  if (libCheck.status !== 0) failed = true;
+  const runtimeCheck = spawnSync(
+    process.execPath,
+    ["--check", join(root, "cc-model-launcher.mjs")],
+    { stdio: "inherit" },
+  );
+  if (runtimeCheck.status !== 0) failed = true;
 
   for (const cmd of commands) {
     const script = await scriptPathFor(cmd);
     if (existsSync(script)) {
-      const result = spawnSync("bash", ["-n", script], { stdio: "inherit" });
+      const result = spawnSync(process.execPath, ["--check", script], {
+        stdio: "inherit",
+      });
       if (result.status !== 0) failed = true;
     } else if (process.env.CC_MODELS_AUDIT_REQUIRE_ALL === "1") {
       warn(`missing script for ${cmd}: ${script}`);

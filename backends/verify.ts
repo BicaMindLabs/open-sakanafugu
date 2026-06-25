@@ -14,18 +14,13 @@ const syntax = (file) => {
   if (result.status !== 0) failed = true;
 };
 
-const bashSyntax = (file) => {
-  const result = spawnSync("bash", ["-n", file], { stdio: "inherit" });
-  if (result.status !== 0) failed = true;
-};
-
 syntax(join(root, "bin", "cc-models"));
 syntax(join(root, "bin", "cc-sync"));
-bashSyntax(join(root, "bin", "cc-model-lib.sh"));
+syntax(join(root, "bin", "cc-model-launcher.mjs"));
 
 for (const file of readdirSync(join(root, "bin")).sort()) {
   if (!file.endsWith("-code")) continue;
-  bashSyntax(join(root, "bin", file));
+  syntax(join(root, "bin", file));
 }
 
 for (const prompt of readdirSync(join(root, "prompts")).sort()) {

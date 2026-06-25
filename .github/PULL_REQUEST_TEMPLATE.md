@@ -16,7 +16,7 @@
 
 - [ ] `make ci` passes locally (`make ci-clean` on a fresh clone)
 - [ ] **No real key entered the repo** (provider config `key=` values are all `<PLACEHOLDER>`)
-- [ ] If you touched the launcher, shared logic went into `cc-model-lib.sh`, not copied into a head
+- [ ] If you touched the launcher, shared logic went into `cc-model-launcher.mjs`, not copied into a head
 - [ ] User-facing changes are recorded in the CHANGELOG
 - [ ] No Gemini dependency introduced
 

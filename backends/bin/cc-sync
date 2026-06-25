@@ -149,13 +149,32 @@ const syncCli = () => {
 };
 
 const launcherModels = (provider) => {
-  try {
-    const text = readFileSync(join(bin, `${provider}-code`), "utf8");
-    const match = /MODELS=\(([^)]*)\)/u.exec(text);
-    return match?.[1]?.split(/\s+/u).filter((item) => item.length > 0) ?? [];
-  } catch {
-    return [];
-  }
+  const result = run(join(bin, `${provider}-code`), ["--list"], {
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  if (result.status !== 0) return [];
+  return result.stdout.split(/\r?\n/u).filter((item) => item.length > 0);
+};
+
+const appendLauncherModels = (provider, models) => {
+  const runtime = join(bin, "cc-model-launcher.mjs");
+  const text = readFileSync(runtime, "utf8");
+  const pattern = new RegExp(
+    `(const models = \\[)([^\\]]*)(\\];\\n\\s*const profile = get\\("${provider.toUpperCase()}_PROFILE)`,
+    "u",
+  );
+  const match = pattern.exec(text);
+  if (match === null) return false;
+  const current = [...match[2].matchAll(/"([^"]+)"/gu)].map((item) => item[1]);
+  const next = [
+    ...current,
+    ...models.filter((model) => !current.includes(model)),
+  ];
+  const replacement = `${match[1]}${next
+    .map((model) => JSON.stringify(model))
+    .join(", ")}${match[3]}`;
+  writeFileSync(runtime, text.replace(pattern, replacement));
+  return true;
 };
 
 const endpointModels = (body, filter) => {
@@ -221,20 +240,17 @@ const syncModels = (apply) => {
     );
     if (!apply) continue;
 
-    const launcher = join(bin, `${provider}-code`);
-    const text = readFileSync(launcher, "utf8");
-    const match = /MODELS=\(([^)]*)\)/u.exec(text);
-    if (match === null) continue;
-    const current = match[1].split(/\s+/u).filter((item) => item.length > 0);
-    const add = foundNew.filter((model) => !current.includes(model));
+    const add = foundNew.filter((model) => !have.has(model));
     if (add.length === 0) continue;
-    writeFileSync(
-      launcher,
-      text.replace(match[0], `MODELS=(${[...current, ...add].join(" ")})`),
-    );
-    console.log(
-      `[models] ${provider}: ✅ appended ${add.length} into MODELS (default profile untouched, manually promote flagship when needed)`,
-    );
+    if (appendLauncherModels(provider, add)) {
+      console.log(
+        `[models] ${provider}: ✅ appended ${add.length} into launcher runtime (default profile untouched, manually promote flagship when needed)`,
+      );
+    } else {
+      console.log(
+        `[models] ${provider}: ⚠️  could not auto-edit launcher runtime; add manually`,
+      );
+    }
   }
   console.log(
     `[models] needs human check (no clean endpoint list): ${noProbe}`,

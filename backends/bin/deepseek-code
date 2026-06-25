@@ -1,45 +1,4 @@
-#!/usr/bin/env bash
-# DeepSeek Code — Claude Code → DeepSeek Anthropic-compatible API
-# Endpoint: https://api.deepseek.com/anthropic | Models: deepseek-v4-pro[1m]/pro/flash
-# Shared tail in cc-model-lib.sh: cc_model_launch
-REAL_HOME="$HOME"
-source "$REAL_HOME/bin/cc-model-lib.sh"
-export HOME="$REAL_HOME/.claude-envs/deepseek"
-mkdir -p "$HOME/.claude"
-cc_model_unset_proxies
+#!/usr/bin/env node
+import { launchProvider } from "./cc-model-launcher.mjs";
 
-export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
-export ANTHROPIC_AUTH_TOKEN="${DEEPSEEK_API_KEY:-}"
-unset ANTHROPIC_API_KEY ANTHROPIC_API_BASE
-
-MODELS=(deepseek-v4-pro[1m] deepseek-v4-pro deepseek-v4-flash)
-[[ "${1:-}" == "-l" || "${1:-}" == "--list" ]] && { printf '%s\n' "${MODELS[@]}"; exit 0; }
-
-case "${DEEPSEEK_PROFILE:-agent}" in
-  flash|cheap) CC_DEF=deepseek-v4-flash; CC_OPUS=$CC_DEF; CC_SONNET=$CC_DEF; CC_HAIKU=$CC_DEF; DS_EFFORT=auto; DS_MAX=65536 ;;
-  instant)     CC_DEF=deepseek-v4-flash; CC_OPUS=$CC_DEF; CC_SONNET=$CC_DEF; CC_HAIKU=$CC_DEF; DS_EFFORT=none; DS_MAX=65536 ;;
-  pro|agent|*) CC_DEF="deepseek-v4-pro[1m]"; CC_OPUS="deepseek-v4-pro[1m]"; CC_SONNET="deepseek-v4-pro"; CC_HAIKU="deepseek-v4-flash"; DS_EFFORT=max; DS_MAX=262144 ;;
-esac
-MODEL="${DEEPSEEK_MODEL:-$CC_DEF}"
-[[ "${1:-}" == "-m" || "${1:-}" == "--model" ]] && [[ -n "${2:-}" ]] && { MODEL="$2"; shift 2; }
-CC_OPUS="${DEEPSEEK_OPUS:-$CC_OPUS}"; CC_SONNET="${DEEPSEEK_SONNET:-$CC_SONNET}"; CC_HAIKU="${DEEPSEEK_HAIKU:-$CC_HAIKU}"
-CC_FAST="${DEEPSEEK_FAST:-$CC_HAIKU}"; CC_SUBAGENT="${DEEPSEEK_SUBAGENT:-$CC_HAIKU}"
-
-# ===== DeepSeek quirks (official Claude Code guidance) =====
-export CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK=1
-export CLAUDE_CODE_EFFORT_LEVEL="${DEEPSEEK_REASONING:-$DS_EFFORT}"
-export CLAUDE_CODE_MAX_OUTPUT_TOKENS="${DEEPSEEK_MAX_OUTPUT:-$DS_MAX}"
-export API_TIMEOUT_MS="${DEEPSEEK_API_TIMEOUT_MS:-3000000}"
-if [[ -n "${DEEPSEEK_NO_THINKING:-}" || "${DEEPSEEK_PROFILE:-agent}" == "instant" ]]; then
-  export MAX_THINKING_TOKENS=0 CLAUDE_CODE_DISABLE_THINKING=1 ANTHROPIC_THINKING=disabled CLAUDE_CODE_EFFORT_LEVEL=none
-  export CLAUDE_CODE_EXTRA_BODY='{"thinking":{"type":"disabled"}}'
-elif [[ "${DEEPSEEK_FORCE_THINKING_BODY:-0}" = "1" ]]; then
-  export CLAUDE_CODE_EXTRA_BODY="{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":\"$CLAUDE_CODE_EFFORT_LEVEL\"}}"
-fi
-
-# ===== meta + launch =====
-CC_MODEL_DISPLAY="DeepSeek Code"
-export CC_MODEL_COMMAND="cc-deepseek" CC_MODEL_PROVIDER="deepseek" CC_MODEL_PATCH_MARKER="DeepSeek Code"
-export CC_MODEL_PROMPT_FILE="$HOME/prompts/deepseek-proactive-tools.md"
-export CC_MODEL_AUTH_LABEL="DEEPSEEK_API_KEY" CC_MODEL_AUTH_VALUE="${DEEPSEEK_API_KEY:-}"
-cc_model_launch "$@"
+launchProvider("deepseek", process.argv.slice(2));

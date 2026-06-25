@@ -44,9 +44,9 @@ installFile(
 );
 installFile(join(root, "bin", "cc-sync"), join(targetBin, "cc-sync"), 0o755);
 installFile(
-  join(root, "bin", "cc-model-lib.sh"),
-  join(targetBin, "cc-model-lib.sh"),
-  0o644,
+  join(root, "bin", "cc-model-launcher.mjs"),
+  join(targetBin, "cc-model-launcher.mjs"),
+  0o755,
 );
 installFile(
   join(root, "bin", "cc-model-registry.tsv"),

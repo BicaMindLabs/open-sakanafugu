@@ -1,46 +1,4 @@
-#!/usr/bin/env bash
-# Claude Code → MiniMax Coding clone
-# Endpoint: MINIMAX_REGION=cn→api.minimaxi.com/anthropic | global→api.minimax.io/anthropic
-# Models: M3/M2.7/M2.7-hs/M2.5/M2.5-hs/M2.1/M2.1-hs/M2. Shared tail in cc_model_launch
-REAL_HOME="$HOME"
-source "$REAL_HOME/bin/cc-model-lib.sh"
-export HOME="$REAL_HOME/.claude-envs/minimax"
-mkdir -p "$HOME/.claude"
-cc_model_unset_proxies
+#!/usr/bin/env node
+import { launchProvider } from "./cc-model-launcher.mjs";
 
-case "${MINIMAX_REGION:-cn}" in
-  global|intl|io) MM_BURL="https://api.minimax.io/anthropic" ;;
-  cn|*)           MM_BURL="https://api.minimaxi.com/anthropic" ;;
-esac
-export ANTHROPIC_BASE_URL="${MINIMAX_BASE_URL:-$MM_BURL}"
-export ANTHROPIC_AUTH_TOKEN="${MINIMAX_API_KEY:-}"
-unset ANTHROPIC_API_KEY ANTHROPIC_API_BASE
-
-MODELS=(MiniMax-M3 MiniMax-M2.7 MiniMax-M2.7-highspeed MiniMax-M2.5 MiniMax-M2.5-highspeed MiniMax-M2.1 MiniMax-M2.1-highspeed MiniMax-M2)
-[[ "${1:-}" == "-l" || "${1:-}" == "--list" ]] && { printf '%s\n' "${MODELS[@]}"; exit 0; }
-
-case "${MINIMAX_PROFILE:-stable}" in
-  highspeed|payg) CC_DEF=MiniMax-M2.7-highspeed; CC_OPUS=MiniMax-M2.7; CC_SONNET=MiniMax-M2.7-highspeed; CC_HAIKU=MiniMax-M2.5-highspeed; CC_SUB=MiniMax-M2.7-highspeed ;;
-  cheap|lite)     CC_DEF=MiniMax-M2.5-highspeed; CC_OPUS=MiniMax-M2.7; CC_SONNET=MiniMax-M2.5-highspeed; CC_HAIKU=MiniMax-M2.5-highspeed; CC_SUB=MiniMax-M2.5-highspeed ;;
-  stable|token|*) CC_DEF=MiniMax-M3;             CC_OPUS=MiniMax-M3;  CC_SONNET=MiniMax-M2.7;            CC_HAIKU=MiniMax-M2.5-highspeed; CC_SUB=MiniMax-M2.7 ;;
-esac
-MODEL="${MINIMAX_MODEL:-$CC_DEF}"
-[[ "${1:-}" == "-m" || "${1:-}" == "--model" ]] && [[ -n "${2:-}" ]] && { MODEL="$2"; shift 2; }
-case "$MODEL" in MiniMax-*) ;; M*) MODEL="MiniMax-$MODEL" ;; [0-9]*) MODEL="MiniMax-M$MODEL" ;; esac
-CC_OPUS="${MINIMAX_OPUS:-$CC_OPUS}"; CC_SONNET="${MINIMAX_SONNET:-$CC_SONNET}"; CC_HAIKU="${MINIMAX_HAIKU:-$CC_HAIKU}"
-CC_FAST="${MINIMAX_FAST:-$CC_HAIKU}"; CC_SUBAGENT="${MINIMAX_SUBAGENT:-$CC_SUB}"
-
-# ===== MiniMax quirks =====
-export CLAUDE_CODE_MAX_OUTPUT_TOKENS="${MINIMAX_MAX_OUTPUT:-64000}"   # Anthropic-compatible max_tokens<=64000
-export CLAUDE_CODE_MAX_RETRIES="${MINIMAX_MAX_RETRIES:-5}"            # 529 cluster overload exponential backoff
-[ -n "$MINIMAX_THINKING_BUDGET" ] && export MAX_THINKING_TOKENS="$MINIMAX_THINKING_BUDGET"
-MM_EB=""; MM_SEP=""
-[ "${MINIMAX_PARALLEL_TOOLS:-0}" = "1" ] && { MM_EB="\"parallel_tool_calls\":true"; MM_SEP=","; }
-[ -n "${MINIMAX_TEMPERATURE:-}" ] && { MM_EB="${MM_EB}${MM_SEP}\"temperature\":${MINIMAX_TEMPERATURE}"; MM_SEP=","; }
-[ -n "$MM_EB" ] && export CLAUDE_CODE_EXTRA_BODY="{$MM_EB}"
-
-CC_MODEL_DISPLAY="MiniMax Coding"
-export CC_MODEL_COMMAND="cc-minimax" CC_MODEL_PROVIDER="minimax" CC_MODEL_PATCH_MARKER="MiniMax Coding"
-export CC_MODEL_PROMPT_FILE="$HOME/prompts/minimax-proactive-tools.md"
-export CC_MODEL_AUTH_LABEL="MINIMAX_API_KEY" CC_MODEL_AUTH_VALUE="${MINIMAX_API_KEY:-}"
-cc_model_launch "$@"
+launchProvider("minimax", process.argv.slice(2));

@@ -1,36 +1,4 @@
-#!/usr/bin/env bash
-# Claude Code → Kimi Coding clone
-# Endpoint: https://api.kimi.com/coding/ (Anthropic-compatible); single model kimi-for-coding, server-side routed to the latest backend
-# Plan: Allegretto — 300-1200 reqs/5h. Shared tail in cc-model-lib.sh: cc_model_launch
-REAL_HOME="$HOME"
-source "$REAL_HOME/bin/cc-model-lib.sh"
-export HOME="$REAL_HOME/.claude-envs/kimi"
-mkdir -p "$HOME/.claude"
-cc_model_unset_proxies
+#!/usr/bin/env node
+import { launchProvider } from "./cc-model-launcher.mjs";
 
-# ===== API =====
-export ANTHROPIC_BASE_URL="https://api.kimi.com/coding/"
-export ANTHROPIC_API_KEY="$KIMI_API_KEY"
-unset ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_BASE
-
-# ===== model (single ID, server auto-maps to the latest Kimi Code; four-tier same-model handled by cc_model_launch defaults) =====
-MODELS=(kimi-for-coding)
-[[ "${1:-}" == "-l" || "${1:-}" == "--list" ]] && { printf '%s\n' "${MODELS[@]}"; exit 0; }
-MODEL="${KIMI_MODEL:-kimi-for-coding}"
-[[ "${1:-}" == "-m" || "${1:-}" == "--model" ]] && [[ -n "${2:-}" ]] && { MODEL="$2"; shift 2; }
-
-# ===== Kimi quirks =====
-[ -n "$KIMI_NO_CACHE" ] && export DISABLE_PROMPT_CACHING="1"   # cache_control on by default, saves 75-85% cost
-export CLAUDE_CODE_MAX_OUTPUT_TOKENS="${KIMI_MAX_OUTPUT:-65535}"  # K2.6 64K output
-[ -n "$KIMI_SAFETY" ] && export CLAUDE_CODE_EXTRA_METADATA="{\"safety_level\":\"$KIMI_SAFETY\"}"
-[ -n "$KIMI_THINKING_BUDGET" ] && export MAX_THINKING_TOKENS="$KIMI_THINKING_BUDGET"
-
-# ===== meta + launch =====
-CC_MODEL_DISPLAY="Kimi Coding"
-export CC_MODEL_COMMAND="cc-kimi"
-export CC_MODEL_PROVIDER="kimi"
-export CC_MODEL_PATCH_MARKER="Kimi Coding"
-export CC_MODEL_PROMPT_FILE="$HOME/prompts/kimi-proactive-tools.md"
-export CC_MODEL_AUTH_LABEL="KIMI_API_KEY"
-export CC_MODEL_AUTH_VALUE="${KIMI_API_KEY:-}"
-cc_model_launch "$@"
+launchProvider("kimi", process.argv.slice(2));
