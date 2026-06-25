@@ -2,13 +2,55 @@
 # fuguectl-run.test.sh — run status facade: set/round/clear + aggregate JSON(cache+loop) + JSON validity
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-R="$HERE/fuguectl-run.sh"; CACHE="$HERE/fuguectl-cache.sh"; LOOP="$HERE/fuguectl-loop.sh"
+R="$HERE/fuguectl-run.sh"; LOOP="$HERE/fuguectl-loop.sh"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 export FUGUE_CACHE="$TMP/cache"
+export FUGUE_ENGINE_CLI="$TMP/fugue-engine"
 cd "$TMP" || exit 1
 # shellcheck source=/dev/null
 . "$HERE/fuguectl-testlib.sh"
 js(){ bash "$R" status; }   # JSON
+
+cat > "$FUGUE_ENGINE_CLI" <<'EOF'
+const fs = require('node:fs');
+const path = require('node:path');
+
+const args = process.argv.slice(2);
+const opt = (name) => {
+  const index = args.indexOf(name);
+  return index === -1 ? '' : args[index + 1] || '';
+};
+const withoutCache = () => {
+  const out = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === '--cache') {
+      i += 1;
+    } else {
+      out.push(args[i]);
+    }
+  }
+  return out;
+};
+const [root, sub, round] = withoutCache();
+if (root !== 'cache' || sub !== 'status' || !round) process.exit(2);
+const cache = opt('--cache');
+const dir = path.join(cache, `round-${round}`);
+const manifest = path.join(dir, 'manifest.tsv');
+if (!fs.existsSync(manifest)) process.exit(2);
+const rows = fs.readFileSync(manifest, 'utf8').trim().split(/\n/u).filter(Boolean);
+let done = 0;
+let fail = 0;
+for (const row of rows) {
+  const id = row.split('\t')[0];
+  const status = fs.existsSync(path.join(dir, `${id}.status`))
+    ? fs.readFileSync(path.join(dir, `${id}.status`), 'utf8').trim()
+    : '';
+  if (status === 'done') done += 1;
+  if (status === 'fail') fail += 1;
+}
+process.stdout.write(`round-${round}: total=${rows.length} done=${done} fail=${fail} pending=${rows.length - done - fail}\n`);
+EOF
+chmod +x "$FUGUE_ENGINE_CLI"
 
 echo "fuguectl-run tests"
 
@@ -29,9 +71,11 @@ ok "initialized=false when no cache/loop" 'js | grep -q "\"initialized\": false"
 ok "status output is valid JSON" 'js | python3 -c "import sys,json; json.load(sys.stdin)"'
 
 # start cache round 2: declare 2 tasks, put 1 → pending=1, barrier open
-echo r1 > "$TMP/a.md"
-bash "$CACHE" init 2 t1:cc-deepseek t2:cc-glm >/dev/null
-bash "$CACHE" put 2 t1 "$TMP/a.md" >/dev/null
+ROUND="$FUGUE_CACHE/round-2"
+mkdir -p "$ROUND"
+printf 't1\tcc-deepseek\nt2\tcc-glm\n' > "$ROUND/manifest.tsv"
+printf 'r1\n' > "$ROUND/t1.result"
+printf 'done\n' > "$ROUND/t1.status"
 ok "cache reflects: total=2" 'js | grep -q "\"total\": 2"'
 ok "cache reflects: pending=1" 'js | grep -q "\"pending\": 1"'
 ok "cache reflects: barrier open" 'js | grep -q "\"barrier\": \"open\""'
@@ -39,7 +83,8 @@ ok "next hints waiting on barrier" 'bash "$R" next | grep -q barrier'
 ok "JSON still valid(incl cache)" 'js | python3 -c "import sys,json; json.load(sys.stdin)"'
 
 # all collected → barrier passed
-bash "$CACHE" fail 2 t2 "x" >/dev/null
+printf 'fail\n' > "$ROUND/t2.status"
+printf 'x\n' > "$ROUND/t2.reason"
 ok "all returned → barrier passed" 'js | grep -q "\"barrier\": \"passed\""'
 
 # loop: init + record NEEDSFIX → decision CONTINUE into JSON

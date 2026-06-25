@@ -263,6 +263,94 @@ describe('fugue CLI', () => {
     });
   });
 
+  describe('cache command', () => {
+    let dir: string;
+    let cache: string;
+    let a: string;
+    let b: string;
+    let c: string;
+
+    beforeEach(async () => {
+      dir = await mkdtemp(join(tmpdir(), 'fugue-cache-'));
+      cache = join(dir, 'cache');
+      a = join(dir, 'a.md');
+      b = join(dir, 'b.md');
+      c = join(dir, 'c.md');
+      await writeFile(a, 'r1\n', 'utf8');
+      await writeFile(b, 'r2\n', 'utf8');
+      await writeFile(c, 'r3\n', 'utf8');
+    });
+
+    afterEach(async () => {
+      await rm(dir, { recursive: true, force: true });
+    });
+
+    const args = (...rest: readonly string[]): readonly string[] => [
+      'cache',
+      '--cache',
+      cache,
+      ...rest,
+    ];
+
+    it('stores round results and enforces the join barrier', async () => {
+      const init = await run(args('init', '1', 't1:cc-deepseek', 't2:cc-glm', 't3:agy'));
+      const earlyBarrier = await run(args('barrier', '1'));
+      const put1 = await run(args('put', '1', 't1', a));
+      await run(args('put', '1', 't2', b));
+      const resume = await run(args('resume', '1'));
+      const list = await run(args('list', '1'));
+      const rejected = await run(args('put', '1', 't9', c));
+      const failed = await run(args('fail', '1', 't3', 'agy', 'timeout'));
+      const barrier = await run(args('barrier', '1'));
+      const requireSuccess = await run(args('barrier', '1', '--require-success'));
+      const collect = await run(args('collect', '1'));
+      const status = await run(args('status', '1'));
+
+      expect(init.code).toBe(0);
+      expect(await readFile(join(cache, 'round-1', 'manifest.tsv'), 'utf8')).toContain(
+        't1\tcc-deepseek',
+      );
+      expect(earlyBarrier.code).toBe(1);
+      expect(earlyBarrier.out).toContain('only 0/3 returned');
+      expect(earlyBarrier.err).toContain('pending=3');
+      expect(put1.out).toContain('cached t1');
+      expect(await readFile(join(cache, 'round-1', 't1.result'), 'utf8')).toBe('r1\n');
+      expect(resume.out).toBe('t3\tagy\n');
+      expect(list.out).toContain('t3');
+      expect(list.out).toContain('pending');
+      expect(rejected.code).toBe(2);
+      expect(rejected.err).toContain("task 't9' not in manifest");
+      expect(failed.out).toContain('failed t3: agy timeout');
+      expect(await readFile(join(cache, 'round-1', 't3.reason'), 'utf8')).toBe('agy timeout\n');
+      expect(barrier.code).toBe(0);
+      expect(requireSuccess.code).toBe(1);
+      expect(requireSuccess.out).toContain('1 failed');
+      expect(collect.out.trim().split(/\r?\n/u)).toHaveLength(2);
+      expect(status.out).toContain('done=2 fail=1 pending=0');
+    });
+
+    it('passes --require-success when every task is done', async () => {
+      await run(args('init', '2', 'x:cc-mimo'));
+      await run(args('put', '2', 'x', a));
+      const barrier = await run(args('barrier', '2', '--require-success'));
+
+      expect(barrier.code).toBe(0);
+      expect(barrier.out).toContain('all returned');
+    });
+
+    it('prints non-zero usage errors for bad invocations', async () => {
+      const missingRound = await run(args('status'));
+      const missingFile = await run(args('init', '3', 'x:cc-mimo')).then(() =>
+        run(args('put', '3', 'x', join(dir, 'missing.md'))),
+      );
+
+      expect(missingRound.code).toBe(2);
+      expect(missingRound.err).toContain('usage: status <round>');
+      expect(missingFile.code).toBe(2);
+      expect(missingFile.err).toContain('result file does not exist');
+    });
+  });
+
   describe('plan command', () => {
     let dir: string;
     let bin: string;

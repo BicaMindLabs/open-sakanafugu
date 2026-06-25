@@ -2,7 +2,7 @@
 # fuguectl-summary.test.sh
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-S="$HERE/fuguectl-summary.sh"; C="$HERE/fuguectl-cache.sh"
+S="$HERE/fuguectl-summary.sh"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 export FUGUE_CACHE="$TMP/cache"
 export FUGUE_ENGINE_CLI="$TMP/fugue-engine"
@@ -57,11 +57,15 @@ if (task) {
 EOF
 
 echo "fuguectl-summary tests"
-echo r > "$TMP/a.md"
 
-bash "$C" init 1 t1:cc-deepseek t2:cc-glm >/dev/null
-bash "$C" put 1 t1 "$TMP/a.md" >/dev/null
-bash "$C" fail 1 t2 "timeout" >/dev/null
+ROUND="$FUGUE_CACHE/round-1"
+mkdir -p "$ROUND"
+printf 't1\tcc-deepseek\nt2\tcc-glm\n' > "$ROUND/manifest.tsv"
+date +%s > "$ROUND/.started"
+printf 'r\n' > "$ROUND/t1.result"
+printf 'done\n' > "$ROUND/t1.status"
+printf 'fail\n' > "$ROUND/t2.status"
+printf 'timeout\n' > "$ROUND/t2.reason"
 
 out="$(bash "$S" 1)"
 ok "summary has Round 1 title" 'echo "$out" | grep -q "Round 1 summary"'
