@@ -19,7 +19,12 @@ export interface VcsPort {
   ): Promise<Result<string, VcsError>>;
   /**
    * Cherry-pick `sha` onto the repo's current branch as `identity`. On conflict,
-   * aborts (leaving the repo clean) and resolves with a `conflict` error.
+   * aborts by default (leaving the repo clean) and resolves with a `conflict` error.
    */
-  cherryPick(repo: string, sha: string, identity: Identity): Promise<Result<void, VcsError>>;
+  cherryPick(
+    repo: string,
+    sha: string,
+    identity: Identity,
+    options?: { readonly abortOnConflict?: boolean },
+  ): Promise<Result<void, VcsError>>;
 }

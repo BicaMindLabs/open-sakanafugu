@@ -376,6 +376,63 @@ describe('fugue CLI', () => {
     });
   });
 
+  describe('integrate command', () => {
+    let dir: string;
+    let work: string;
+    const runner = new NodeCommandRunner();
+    const gitArgs = [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=t',
+      '-c',
+      'commit.gpgsign=false',
+      '-c',
+      'init.defaultBranch=main',
+    ];
+
+    beforeEach(async () => {
+      dir = await mkdtemp(join(tmpdir(), 'fugue-integrate-'));
+      work = join(dir, 'work');
+      await mkdir(work, { recursive: true });
+    });
+
+    afterEach(async () => {
+      await rm(dir, { recursive: true, force: true });
+    });
+
+    const git = async (...args: readonly string[]): Promise<string> => {
+      const result = await runner.run('git', [...gitArgs, ...args]);
+      if (result.code !== 0) throw new Error(result.stderr || result.stdout);
+      return result.stdout.trim();
+    };
+
+    it('dry-runs and integrates a real agent worktree through the CLI', async () => {
+      await git('-C', work, 'init', '-q');
+      await writeFile(join(work, '.gitignore'), '.fugue-cc/\n', 'utf8');
+      await writeFile(join(work, 'base.txt'), 'base\n', 'utf8');
+      await git('-C', work, 'add', '-A');
+      await git('-C', work, 'commit', '-qm', 'init');
+      await git('-C', work, 'branch', '-M', 'main');
+
+      const wt = join(work, '.fugue-cc', 'workspaces', 'cc-a');
+      await git('-C', work, 'worktree', 'add', '-q', '-b', 'br-cc-a', wt, 'main');
+      await writeFile(join(wt, 'a.ts'), 'export const a = 1;\n', 'utf8');
+
+      const headBefore = await git('-C', work, 'rev-parse', 'HEAD');
+      const dry = await run(['integrate', '--work', work, '--agents', 'cc-a', '--dry']);
+      const headAfterDry = await git('-C', work, 'rev-parse', 'HEAD');
+      const integrated = await run(['integrate', '--work', work, '--agents', 'cc-a']);
+
+      expect(dry.code).toBe(0);
+      expect(dry.out).toContain('would-pick cc-a');
+      expect(headAfterDry).toBe(headBefore);
+      expect(integrated.code).toBe(0);
+      expect(integrated.out).toContain('1 picked');
+      expect(await readFile(join(work, 'a.ts'), 'utf8')).toContain('export const a');
+    });
+  });
+
   describe('experience commands', () => {
     let dir: string;
     let store: string;

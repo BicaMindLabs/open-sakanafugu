@@ -26,7 +26,7 @@ export class GitVcsPort implements VcsPort {
   }
 
   async changedFiles(worktree: string): Promise<readonly string[]> {
-    const result = await this.run(worktree, ['status', '--porcelain']);
+    const result = await this.run(worktree, ['status', '--porcelain', '--untracked-files=all']);
     return result.stdout
       .split('\n')
       .filter((line) => line.trim().length > 0)
@@ -51,10 +51,17 @@ export class GitVcsPort implements VcsPort {
     return ok(head.stdout.trim());
   }
 
-  async cherryPick(repo: string, sha: string, identity: Identity): Promise<Result<void, VcsError>> {
+  async cherryPick(
+    repo: string,
+    sha: string,
+    identity: Identity,
+    options: { readonly abortOnConflict?: boolean } = {},
+  ): Promise<Result<void, VcsError>> {
     const picked = await this.run(repo, ['cherry-pick', sha], identity);
     if (picked.code === 0) return ok(undefined);
-    await this.run(repo, ['cherry-pick', '--abort']); // isolate: keep the repo clean
+    if (options.abortOnConflict !== false) {
+      await this.run(repo, ['cherry-pick', '--abort']); // isolate: keep the repo clean
+    }
     return err({ kind: 'conflict', detail: picked.stderr || picked.stdout });
   }
 }

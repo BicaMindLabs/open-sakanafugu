@@ -21,17 +21,20 @@ export class DefaultIntegrator implements Integrator {
   ): Promise<IntegrationReport> {
     const { ownership } = options;
     const prefix = options.messagePrefix ?? 'fuguectl: integrate';
+    const abortOnConflict = options.onConflict !== 'skip';
     const results: AgentIntegration[] = [];
 
     for (const wt of worktrees) {
+      const changedFiles = await this.vcs.changedFiles(wt.path);
       // 1) ownership (on the still-uncommitted change set, before we commit it)
       if (ownership !== undefined) {
-        const bad = checkOwnership(ownership, wt.agent, await this.vcs.changedFiles(wt.path));
+        const bad = checkOwnership(ownership, wt.agent, changedFiles);
         if (bad.length > 0) {
           results.push({
             agent: wt.agent,
             outcome: 'violation',
             detail: `out-of-bounds: ${bad.join(' ')}`,
+            changedFiles,
             violatingFiles: bad,
           });
           continue;
@@ -44,21 +47,36 @@ export class DefaultIntegrator implements Integrator {
         results.push(
           committed.error.kind === 'no-commit'
             ? { agent: wt.agent, outcome: 'nochange', detail: 'no changes to integrate' }
-            : { agent: wt.agent, outcome: 'error', detail: committed.error.detail },
+            : {
+                agent: wt.agent,
+                outcome: 'error',
+                detail: committed.error.detail,
+                changedFiles,
+              },
         );
         continue;
       }
 
       // 3) cherry-pick onto main; a conflict is aborted and isolated
-      const picked = await this.vcs.cherryPick(repo, committed.value, this.identity);
+      const picked = await this.vcs.cherryPick(repo, committed.value, this.identity, {
+        abortOnConflict,
+      });
       results.push(
         isErr(picked)
           ? {
               agent: wt.agent,
               outcome: picked.error.kind === 'conflict' ? 'conflict' : 'error',
               detail: picked.error.detail,
+              commitSha: committed.value,
+              changedFiles,
             }
-          : { agent: wt.agent, outcome: 'picked', detail: committed.value },
+          : {
+              agent: wt.agent,
+              outcome: 'picked',
+              detail: committed.value,
+              commitSha: committed.value,
+              changedFiles,
+            },
       );
     }
 

@@ -18,6 +18,7 @@ import {
   ExperienceShowCommand,
 } from './commands/experience.js';
 import { GoalCheckCommand, GoalShowCommand, GoalTemplateCommand } from './commands/goal.js';
+import { IntegrateCommand } from './commands/integrate.js';
 import { LoopCommand } from './commands/loop.js';
 import { PlanCommand } from './commands/plan.js';
 import { PreflightCommand } from './commands/preflight.js';
@@ -61,6 +62,7 @@ export const buildCli = (): Cli => {
   cli.register(GoalTemplateCommand);
   cli.register(GoalShowCommand);
   cli.register(GoalCheckCommand);
+  cli.register(IntegrateCommand);
   cli.register(LoopCommand);
   cli.register(PlanCommand);
   cli.register(PreflightCommand);

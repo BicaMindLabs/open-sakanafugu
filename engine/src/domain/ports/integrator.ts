@@ -3,6 +3,7 @@ import type { IntegrationReport, Worktree } from '../vcs.js';
 
 export interface IntegrateOptions {
   readonly ownership?: Ownership;
+  readonly onConflict?: 'abort' | 'skip';
   /** Commit message prefix per agent (the agent name is appended). */
   readonly messagePrefix?: string;
 }

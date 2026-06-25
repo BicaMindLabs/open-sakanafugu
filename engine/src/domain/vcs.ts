@@ -23,6 +23,8 @@ export interface AgentIntegration {
   readonly agent: string;
   readonly outcome: IntegrationOutcome;
   readonly detail: string;
+  readonly commitSha?: string;
+  readonly changedFiles?: readonly string[];
   readonly violatingFiles?: readonly string[];
 }
 
