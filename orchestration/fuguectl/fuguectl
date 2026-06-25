@@ -1,65 +1,84 @@
-#!/usr/bin/env bash
-# fuguectl — fugue workflow control-plane entrypoint.
-#
-#   fuguectl doctor              env recon + workflow recommendation
-#   fuguectl fleet status|up [--pty]|down  bring up/view/stop fugue-cc fleet (strip CLAUDE_CODE_* + detached tmux; --pty fallback)
-#   fuguectl preflight [cfg]     pre-run go/no-go gate (deps/provider mount/no-Gemini/config)
-#   fuguectl task new|log|done   TASK file scaffold/log/finalize
-#   fuguectl template <n> [--set K=V]   render prompt template (impl|analysis|review)
-#   fuguectl dispatch <agent> --template <n>|--prompt-file <f> [--task <file>]
-#                              wraps selected harness: render prompt → dispatch → log
-#   fuguectl cache ...           result cache + join barrier (init|put|fail|barrier|collect|resume|...)
-#   fuguectl integrate --work <repo> --agents "a b" [--onconflict abort|skip]  Phase3 worktree→main cherry-pick(conflict isolation)
-#   fuguectl allocate <task-type> [--top]|record|stats|reset   recommend model (bench prior + live posterior mix)
-#   fuguectl skills index|list|match|show|inject   local skills catalog(mother dir)+ inject agent on demand
-#   fuguectl workspace list|show|model|context <name>   workspace context isolation (Zleap-inspired)
-#   fuguectl agents template|validate|list|resolve      Agent Runtime Registry helper
-#   fuguectl experience add|list|recall|show <ws>   experience memory: done→extract method→redact store→reuse
-#   fuguectl plan "<goal>" [--models a,b,c]   multi-model planning panel (each writes a plan)
-#   fuguectl goal template|show|check <spec>  goal mode: declarative goal + deterministic acceptance gate
-#   fuguectl loop init|record|decide|status   Phase 5 review-fix state machine (exit-state decision+keep-best)
-#   fuguectl run set|round|status|next|clear   cross-phase run status facade (aggregate TASK/cache/loop → JSON, axi-inspired)
-#   fuguectl summary <round> [--task <file>]   round observability summary (incl. elapsed)
-#   fuguectl runtime check|adapt [--apply]     post-provider update sync adapt
-#   fuguectl selftest            run all *.test.sh
-#   fuguectl help                this help
-set -uo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=/dev/null
-. "$HERE/fuguectl-lib.sh"
-CLI_NAME="fuguectl"
-print_help(){ sed -n '2,25p' "$0"; }
+#!/usr/bin/env node
+import { existsSync, readdirSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
+import { runEngine } from "./fuguectl-node-bridge.mjs";
 
-sub="${1:-help}"; shift || true
-case "$sub" in
-  doctor)    fx_run_engine doctor "$@";;
-  preflight) fx_run_engine preflight "$@";;
-  fleet)     fx_run_engine fleet "$@";;
-  task)      fx_run_engine task "$@";;
-  template)  fx_run_engine template "$@";;
-  dispatch)  fx_run_engine dispatch "$@";;
-  cache)     fx_run_engine cache "$@";;
-  integrate) fx_run_engine integrate "$@";;
-  allocate)  fx_run_engine allocate "$@";;
-  skills)    fx_run_engine skills "$@";;
-  workspace) fx_run_engine workspace "$@";;
-  agents)    fx_run_engine agent-registry "$@";;
-  experience) fx_run_engine experience "$@";;
-  plan)      fx_run_engine plan "$@";;
-  goal)      fx_run_engine goal "$@";;
-  loop)      fx_run_engine loop "$@";;
-  run)       fx_run_engine run "$@";;
-  summary|round-summary) fx_run_engine summary "$@";;
-  runtime) fx_run_engine runtime "$@";;
-  selftest)
-    ec=0
-    for t in "$HERE"/*.test.sh; do
-      [ -f "$t" ] || continue
-      echo "── $(basename "$t") ──"
-      ( bash "$t" ) || ec=1
-    done
-    [ "$ec" -eq 0 ] && echo "✓ selftest all passed" || echo "✗ selftest had failures"
-    exit "$ec";;
-  help|-h|--help) print_help;;
-  *) echo "$CLI_NAME: unknown subcommand '$sub' (doctor|fleet|preflight|task|template|dispatch|cache|integrate|allocate|skills|workspace|agents|experience|plan|goal|loop|run|summary|runtime|selftest|help)" >&2; exit 2;;
-esac
+const here = dirname(fileURLToPath(import.meta.url));
+
+const help = `fuguectl — fugue workflow control-plane entrypoint.
+
+  fuguectl doctor              env recon + workflow recommendation
+  fuguectl fleet status|up [--pty]|down  bring up/view/stop fugue-cc fleet
+  fuguectl preflight [cfg]     pre-run go/no-go gate
+  fuguectl task new|log|done   TASK file scaffold/log/finalize
+  fuguectl template <n> [--set K=V]   render prompt template
+  fuguectl dispatch <agent> --template <n>|--prompt-file <f> [--task <file>]
+  fuguectl cache ...           result cache + join barrier
+  fuguectl integrate --work <repo> --agents "a b" [--onconflict abort|skip]
+  fuguectl allocate <task-type> [--top]|record|stats|reset
+  fuguectl skills index|list|match|show|inject
+  fuguectl workspace list|show|model|context <name>
+  fuguectl agents template|validate|list|resolve
+  fuguectl experience add|list|recall|show <ws>
+  fuguectl plan "<goal>" [--models a,b,c]
+  fuguectl goal template|show|check <spec>
+  fuguectl loop init|record|decide|status
+  fuguectl run set|round|status|next|clear
+  fuguectl summary <round> [--task <file>]
+  fuguectl runtime check|adapt [--apply]
+  fuguectl selftest            run all *.test.sh
+  fuguectl help                this help`;
+
+const selftest = () => {
+  let failed = false;
+  for (const file of readdirSync(here).sort()) {
+    if (!file.endsWith(".test.sh")) continue;
+    const test = join(here, file);
+    if (!existsSync(test)) continue;
+    console.log(`── ${basename(test)} ──`);
+    const result = spawnSync("bash", [test], { stdio: "inherit" });
+    if (result.status !== 0) failed = true;
+  }
+  console.log(failed ? "✗ selftest had failures" : "✓ selftest all passed");
+  process.exit(failed ? 1 : 0);
+};
+
+const args = process.argv.slice(2);
+const [subcommand = "help", ...rest] = args;
+const commandMap = new Map([
+  ["doctor", "doctor"],
+  ["preflight", "preflight"],
+  ["fleet", "fleet"],
+  ["task", "task"],
+  ["template", "template"],
+  ["dispatch", "dispatch"],
+  ["cache", "cache"],
+  ["integrate", "integrate"],
+  ["allocate", "allocate"],
+  ["skills", "skills"],
+  ["workspace", "workspace"],
+  ["agents", "agent-registry"],
+  ["experience", "experience"],
+  ["plan", "plan"],
+  ["goal", "goal"],
+  ["loop", "loop"],
+  ["run", "run"],
+  ["summary", "summary"],
+  ["round-summary", "summary"],
+  ["runtime", "runtime"],
+]);
+
+if (subcommand === "help" || subcommand === "-h" || subcommand === "--help") {
+  console.log(help);
+} else if (subcommand === "selftest") {
+  selftest();
+} else if (commandMap.has(subcommand)) {
+  runEngine([commandMap.get(subcommand), ...rest]);
+} else {
+  console.error(
+    `fuguectl: unknown subcommand '${subcommand}' (doctor|fleet|preflight|task|template|dispatch|cache|integrate|allocate|skills|workspace|agents|experience|plan|goal|loop|run|summary|runtime|selftest|help)`,
+  );
+  process.exit(2);
+}

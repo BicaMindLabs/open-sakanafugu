@@ -40,12 +40,22 @@ console.log("── check-docs: docs vs code ──");
 
 const text = (file) => readFileSync(file, "utf8");
 const driver = text(fuguectl);
-const subcommands = [...driver.matchAll(/^[ \t]+([a-z][a-z0-9|_-]*)\)/gmu)]
+const bashSubcommands = [...driver.matchAll(/^[ \t]+([a-z][a-z0-9|_-]*)\)/gmu)]
   .map((match) => (match[1] ?? "").replace(/\|.*$/u, ""))
   .filter(
     (command) =>
       command.length > 0 && command !== "help" && command !== "selftest",
   );
+
+const nodeSubcommands = [
+  ...driver.matchAll(/\["([a-z][a-z0-9_-]*)",\s*"[^"]+"\]/gu),
+]
+  .map((match) => match[1] ?? "")
+  .filter((command) => command.length > 0 && command !== "round-summary");
+
+const subcommands = [
+  ...new Set(bashSubcommands.length > 0 ? bashSubcommands : nodeSubcommands),
+];
 
 if (subcommands.length === 0)
   die("check-docs: parsed no subcommands from the driver");
