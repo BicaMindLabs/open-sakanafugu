@@ -4,8 +4,8 @@
   role="img"
   aria-labelledby="title desc"
 >
-  <title id="title">Fugunano 总览</title>
-  <desc id="desc">Fugunano 多 agent 编码工作流中文总览图。</desc>
+  <title id="title">FuguNano 总览</title>
+  <desc id="desc">FuguNano 多 agent 编码工作流中文总览图。</desc>
   <defs>
     <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0" stop-color="#0b1020" />
@@ -111,7 +111,7 @@
     stroke="#334155"
   />
 
-  <text x="80" y="112" class="title">Fugunano</text>
+  <text x="80" y="112" class="title">FuguNano</text>
   <text x="80" y="148" class="tag">
     免训练的多 agent 编码编排，把模型 fleet 变成可治理 loop。
   </text>

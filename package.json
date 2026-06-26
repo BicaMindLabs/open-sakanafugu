@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Fugunano multi-runtime agent coding workflow: fuguectl + typed engine + bounded review-fix loop",
+  "description": "FuguNano multi-runtime agent coding workflow: fuguectl + typed engine + bounded review-fix loop",
   "license": "Apache-2.0",
   "author": "BicaMind Labs",
-  "homepage": "https://github.com/BicaMindLabs/Fugunano",
+  "homepage": "https://github.com/BicaMindLabs/FuguNano",
   "repository": {
     "type": "git",
-    "url": "https://github.com/BicaMindLabs/Fugunano.git"
+    "url": "https://github.com/BicaMindLabs/FuguNano.git"
   },
   "engines": {
     "node": ">=18.18.0"

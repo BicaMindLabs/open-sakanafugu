@@ -4,9 +4,9 @@
   role="img"
   aria-labelledby="title desc"
 >
-  <title id="title">Fugunano overview</title>
+  <title id="title">FuguNano overview</title>
   <desc id="desc">
-    A polished overview of the Fugunano multi-agent coding workflow.
+    A polished overview of the FuguNano multi-agent coding workflow.
   </desc>
   <defs>
     <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
@@ -105,7 +105,7 @@
     stroke="#334155"
   />
 
-  <text x="80" y="112" class="title">Fugunano</text>
+  <text x="80" y="112" class="title">FuguNano</text>
   <text x="80" y="148" class="tag">
     Governed multi-agent coding without training a coordinator.
   </text>
