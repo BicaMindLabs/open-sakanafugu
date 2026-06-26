@@ -151,10 +151,10 @@ describe('Coordinator.dispatchRound', () => {
     expect(report.manifest && stateOf(report.manifest, 'b')).toBe('done');
   });
 
-  it('blocks (no-go) on a policy violation and dispatches nothing', async () => {
+  it('blocks (no-go) on a retired CLI policy violation and dispatches nothing', async () => {
     const harness = new FakeHarness();
     const report = await new Coordinator(deps({ harness })).dispatchRound('run-2', 1, [
-      task('a', 'gemini-pro'),
+      task('a', 'gemini'),
     ]);
     expect(report.status).toBe('no-go');
     expect(harness.dispatched).toHaveLength(0);
@@ -270,7 +270,7 @@ describe('Coordinator.dispatchRound', () => {
     expect(fugueCc.dispatched).toEqual(['legacy-agent']);
   });
 
-  it('evaluates policy against registry model families', async () => {
+  it('evaluates policy against registry labels', async () => {
     const codex = new FakeHarness(new Set(), 'codex');
     const report = await new Coordinator(
       deps({
@@ -282,7 +282,7 @@ describe('Coordinator.dispatchRound', () => {
               id: 'fast-review',
               harness: 'codex',
               target: 'model/latest',
-              modelFamily: 'gemini',
+              modelFamily: 'gemini-cli',
             },
           ],
         },

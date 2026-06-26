@@ -1,12 +1,13 @@
 import type { GateResult } from './gate.js';
 import type { Policy, PolicyResult, PolicyViolation, Selection } from './policy.js';
 
-/** Banned backend families (the no-Gemini hard rule). */
-const isBanned = (name: string): boolean => /gemini|antigravity/iu.test(name);
+/** Retired CLI entrypoints. Model names such as gemini-3.x are not banned here. */
+const isRetiredGeminiCli = (name: string): boolean =>
+  /(?:^|[/\s:])gemini-cli(?:$|[/\s:])/iu.test(name) || /^gemini$/iu.test(name);
 
-/** No implementer / reviewer / harness may be a Gemini-family backend. */
-export const noGeminiPolicy: Policy = {
-  id: 'no-gemini',
+/** Legacy Gemini CLI should be replaced by Antigravity (`agy`) or another configured runtime. */
+export const legacyGeminiCliPolicy: Policy = {
+  id: 'legacy-gemini-cli',
   evaluate(selection): readonly PolicyViolation[] {
     const named: ReadonlyArray<readonly [role: string, name: string]> = [
       ...selection.implementers.map((name) => ['implementer', name] as const),
@@ -14,11 +15,11 @@ export const noGeminiPolicy: Policy = {
       ...(selection.harness !== undefined ? [['harness', selection.harness] as const] : []),
     ];
     return named
-      .filter(([, name]) => isBanned(name))
+      .filter(([, name]) => isRetiredGeminiCli(name))
       .map(([role, name]) => ({
-        policy: 'no-gemini',
+        policy: 'legacy-gemini-cli',
         severity: 'fail' as const,
-        detail: `${role} "${name}" is a banned Gemini/Antigravity backend (no-Gemini hard rule)`,
+        detail: `${role} "${name}" uses the retired Gemini CLI; use agy/Antigravity or another configured runtime`,
       }));
   },
 };
@@ -58,7 +59,7 @@ export const reviewerRequiredPolicy: Policy = {
 };
 
 export const DEFAULT_POLICIES: readonly Policy[] = [
-  noGeminiPolicy,
+  legacyGeminiCliPolicy,
   generationNotReviewPolicy,
   reviewerRequiredPolicy,
 ];

@@ -52,7 +52,7 @@ export type { GateSeverity, GateCheck, GateResult } from './domain/gate.js';
 export { isGo, failures, warnings, mergeGates } from './domain/gate.js';
 export type { Selection, PolicyViolation, PolicyResult, Policy } from './domain/policy.js';
 export {
-  noGeminiPolicy,
+  legacyGeminiCliPolicy,
   generationNotReviewPolicy,
   reviewerRequiredPolicy,
   DEFAULT_POLICIES,

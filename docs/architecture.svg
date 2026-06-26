@@ -37,7 +37,7 @@
   <text x="385" y="300" text-anchor="middle" font-size="10.5" fill="#9a6a3a">agy · Antigravity</text>
   <text x="385" y="315" text-anchor="middle" font-size="10.5" fill="#9a6a3a">manual / agy --print</text>
   <text x="385" y="333" text-anchor="middle" font-size="9.5" fill="#b45309">frontend-only · never reviews</text>
-  <text x="385" y="346" text-anchor="middle" font-size="9.5" fill="#b45309">(backend = Gemini → off review path)</text>
+  <text x="385" y="346" text-anchor="middle" font-size="9.5" fill="#b45309">(supported implementer · review stays independent)</text>
 
   <!-- Reviewer -->
   <rect x="484" y="262" width="244" height="90" rx="9" fill="#ffedd5" stroke="#ea580c"/>
@@ -61,7 +61,7 @@
   <text x="390" y="496" text-anchor="middle" font-weight="600" fill="#424a53">maintenance (launchd, off the request path)</text>
   <text x="390" y="510" text-anchor="middle" font-size="10.5" fill="#656d76">cc-sync — follow Claude Code + model updates   ·   runtime sync — adapt providers</text>
 
-  <text x="390" y="544" text-anchor="middle" font-size="10.5" fill="#8c959f">main branch = single source of truth · keys only in ~/.config/cc-model-secrets.env · no Gemini in the review path</text>
+  <text x="390" y="544" text-anchor="middle" font-size="10.5" fill="#8c959f">main branch = single source of truth · keys only in ~/.config/cc-model-secrets.env · independent review path</text>
 
   <defs>
     <marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto"><path d="M0,0 L7,3.2 L0,6.4 z" fill="#8c959f"/></marker>

@@ -47,7 +47,7 @@ writeFileSync(
     "  const taskIndex = args.indexOf('--task');",
     "  const task = taskIndex === -1 ? '' : args[taskIndex + 1] || '';",
     "  const taskBlock = task.length > 0 ? '### Task\\n' + task + '\\n\\n' : '';",
-    "  process.stdout.write('## Context - workspace: code\\n\\n### System Prompt\\nDo not call Gemini.\\n\\n### Workspace Prompt\\ncode station\\n\\n### Tools\\nread edit write bash  (only this station enabled, the rest not exposed)\\n\\n### Memory\\nscope: event,experience  (only memory relevant to this scope, not the full archive)\\n\\n### History\\nlast few conversation rounds + key execution trace (not the full transcript)\\n\\n' + taskBlock + '> suggested model(bench): minimax,doubao,glm\\n');",
+    "  process.stdout.write('## Context - workspace: code\\n\\n### System Prompt\\nKeep review independent from implementation.\\n\\n### Workspace Prompt\\ncode station\\n\\n### Tools\\nread edit write bash  (only this station enabled, the rest not exposed)\\n\\n### Memory\\nscope: event,experience  (only memory relevant to this scope, not the full archive)\\n\\n### History\\nlast few conversation rounds + key execution trace (not the full transcript)\\n\\n' + taskBlock + '> suggested model(bench): minimax,doubao,glm\\n');",
     "} else {",
     "  console.error('no workspace ' + (name || ''));",
     "  process.exit(1);",
@@ -86,8 +86,8 @@ for (const section of [
 ]) {
   suite.ok(`context has [${section}]`, () => ctx.includes(section));
 }
-suite.ok("context carries global no-Gemini rule", () =>
-  ctx.includes("Do not call Gemini"),
+suite.ok("context carries global review independence rule", () =>
+  ctx.includes("Keep review independent"),
 );
 suite.ok("context code exposes only this station tools(incl edit)", () =>
   ctx.includes("edit"),

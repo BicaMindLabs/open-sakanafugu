@@ -30,7 +30,7 @@ pipx install pre-commit && pre-commit install   # scans automatically on commit
 - **Launcher changes**: `backends/bin/*-code` stay as thin Node heads; shared logic goes into `cc-model-launcher.mjs`, don't copy it into each head. `make lint` must pass after editing.
 - **Model upgrades**: edit `provider.config.example` + `cc-model-registry.tsv`, don't just change a string in the docs. Default/flagship profile changes must justify their reasoning in the PR (fit/cost need human judgment).
 - **launcher runtime**: provider model tables and per-provider quirks live in `cc-model-launcher.mjs`; keep the entrypoint files tiny and executable.
-- **Don't introduce Gemini**: second opinion/review goes through Codex or another configured non-Gemini backend (an established workflow convention).
+- **Keep review independent**: second opinion/review goes through Codex or another configured independent backend. Antigravity (`agy`) can implement; legacy `gemini` CLI should not be reintroduced.
 
 ## Commit Conventions
 

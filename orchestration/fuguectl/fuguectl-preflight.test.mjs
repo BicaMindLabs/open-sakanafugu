@@ -42,9 +42,9 @@ writeFileSync(
     "const fail = (message) => { failed = true; lines.push('  fail ' + message); };",
     "if (cfg && fs.existsSync(cfg)) {",
     "  const text = fs.readFileSync(cfg, 'utf8');",
-    "  if (/^[^#]*(model|url)\\s*=.*(gemini|antigravity)/imu.test(text)) {",
-    "    fail('provider config model/url contains gemini/antigravity - violates the no-Gemini hard rule');",
-    "  } else ok('no-Gemini guard passed');",
+    "  if (/^[^#]*(command|cli|bin)\\s*=.*(\\bgemini-cli\\b|\\bgemini\\b)/imu.test(text)) {",
+    "    fail('provider config points at the retired Gemini CLI - use agy/Antigravity or another configured runtime');",
+    "  } else ok('legacy Gemini CLI guard passed');",
     "  const modelCount = text.split(/\\r?\\n/u).filter((line) => /^\\s*model\\s*=/u.test(line)).length;",
     "  if (modelCount > 0) ok('provider config: ' + modelCount + ' agent(s) configured a model');",
     "  else warn('provider config has no model line?');",
@@ -85,10 +85,10 @@ suite.ok(
   () => run(preflight, ["--config-only", clean]).status === 0,
 );
 
-const gemini = join(tmp, "gemini.config");
-writeFileSync(gemini, '[agents.cc-x]\nmodel = "gemini-3.5-flash"\n');
+const gemini = join(tmp, "legacy-gemini.config");
+writeFileSync(gemini, '[agents.cc-x]\ncommand = "gemini-cli"\nmodel = "gemini-3.5-flash"\n');
 suite.ok(
-  "model=gemini → NO-GO(exit 1)",
+  "command=gemini-cli → NO-GO(exit 1)",
   () => run(preflight, ["--config-only", gemini]).status !== 0,
 );
 
@@ -98,8 +98,8 @@ writeFileSync(
   '[agents.cc-y]\nurl = "https://antigravity.google/api"\nmodel = "x"\n',
 );
 suite.ok(
-  "url=antigravity → NO-GO",
-  () => run(preflight, ["--config-only", agy]).status !== 0,
+  "url=antigravity → GO",
+  () => run(preflight, ["--config-only", agy]).status === 0,
 );
 
 const comment = join(tmp, "comment.config");

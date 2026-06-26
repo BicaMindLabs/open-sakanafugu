@@ -67,7 +67,7 @@ writeFileSync(
     "    if (apply) process.stdout.write('  stopped provider daemon @ ' + project + ' - next cd starts it and loads new code\\n');",
     "    else process.stdout.write('  [dry] need to restart provider daemon @ ' + project + ' (provider update does not auto-restart, old code keeps running)\\n');",
     "  }",
-    "  if (apply && work && fs.existsSync(path.join(work, '.fugue-cc/provider.config'))) process.stdout.write('  config validation (no-Gemini + sound):\\n    config OK\\n');",
+    "  if (apply && work && fs.existsSync(path.join(work, '.fugue-cc/provider.config'))) process.stdout.write('  config validation (legacy CLI + sound):\\n    config OK\\n');",
     "  if (apply) {",
     "    fs.mkdirSync(state, { recursive: true });",
     "    fs.writeFileSync(stamp, current + '\\n');",

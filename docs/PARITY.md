@@ -27,7 +27,7 @@ preserved → `npx fugue`).
 | 1   | `allocate` (+ record/feed/stats/decay)                       | `AllocationStrategy`                                                     | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
 | 2   | `cache` (+ barrier/collect/resume)                           | `ResultStore` / `Barrier`                                                | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
 | 3   | `loop` (record/decide/status)                                | `ReviewLoop`                                                             | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
-| 4   | `preflight` (+ --probe)                                      | `QualityGate` + `Policy` (no-Gemini/gen≠review)                          | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
+| 4   | `preflight` (+ --probe)                                      | `QualityGate` + `Policy` (legacy CLI/gen≠review)                          | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
 | 5   | `goal` (template/show/check)                                 | `GoalSpec` + acceptance gate                                             | ✓ Node wrapper | ◐ core + cli (iter13)                 | ☑       |
 | 6   | `integrate` (+ --ownership)                                  | `Integrator` + `VcsPort` + ownership                                     | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
 | 7   | `workspace` (list/show/model/context)                        | `Workspace` / `ContextAssembler`                                         | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |

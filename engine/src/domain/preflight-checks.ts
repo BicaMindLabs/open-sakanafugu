@@ -1,11 +1,11 @@
 import type { GateCheck, GateResult } from './gate.js';
 
 // Parity with fuguectl preflight (deterministic provider config checks):
-//   no-Gemini:   ^[^#]*(model|url)[[:space:]]*=.*(gemini|antigravity)   (case-insensitive)
-//                ^[^#]* means the model/url token is not preceded by '#', so comment lines are ignored.
+//   retired CLI: ^[^#]*(command|cli|bin)[[:space:]]*=.*(gemini|gemini-cli)   (case-insensitive)
+//                ^[^#]* means the command token is not preceded by '#', so comment lines are ignored.
 //   model line:  ^[[:space:]]*model[[:space:]]*=
 //   empty model: ^[[:space:]]*model[[:space:]]*=[[:space:]]*"?"?[[:space:]]*$
-const GEMINI_CONFIG = /^[^#]*(?:model|url)\s*=.*(?:gemini|antigravity)/iu;
+const RETIRED_GEMINI_CLI_CONFIG = /^[^#]*(?:command|cli|bin)\s*=.*(?:\bgemini-cli\b|\bgemini\b)/iu;
 const MODEL_LINE = /^\s*model\s*=/u;
 const EMPTY_MODEL = /^\s*model\s*=\s*"?"?\s*$/u;
 
@@ -17,14 +17,18 @@ export const checkProviderConfig = (configText: string): GateResult => {
   const checks: GateCheck[] = [];
 
   checks.push(
-    lines.some((line) => GEMINI_CONFIG.test(line))
+    lines.some((line) => RETIRED_GEMINI_CLI_CONFIG.test(line))
       ? {
-          name: 'no-gemini',
+          name: 'legacy-gemini-cli',
           severity: 'fail',
           detail:
-            'provider config model/url contains gemini/antigravity — violates the no-Gemini hard rule',
+            'provider config points at the retired Gemini CLI — use agy/Antigravity or another configured runtime',
         }
-      : { name: 'no-gemini', severity: 'ok', detail: 'no-Gemini guard passed' },
+      : {
+          name: 'legacy-gemini-cli',
+          severity: 'ok',
+          detail: 'legacy Gemini CLI guard passed',
+        },
   );
 
   const modelCount = lines.filter((line) => MODEL_LINE.test(line)).length;

@@ -48,7 +48,7 @@ describe('recommend', () => {
     expect(recommend(r)[0]).toContain('fugue-cc fleet');
   });
 
-  it('warns to use a non-Gemini backend when codex is missing', () => {
+  it('warns to use an independent backend when codex is missing', () => {
     const r = report(
       [
         ['fugue-cc', true],
@@ -59,7 +59,7 @@ describe('recommend', () => {
         ['b', true, true],
       ],
     );
-    expect(recommend(r).some((x) => /non-Gemini/u.test(x))).toBe(true);
+    expect(recommend(r).some((x) => /independent backend/u.test(x))).toBe(true);
   });
 
   it('flags when no backend is ready', () => {

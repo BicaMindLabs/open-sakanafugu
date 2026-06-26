@@ -36,7 +36,7 @@ Rule: `domain` imports nothing outward. `app` imports only `domain`. `adapters`/
 | **Zleap** (context isolation, experience)                                                                                     | station-scoped context; reusable methods                                                                            | `ContextAssembler`→`PromptBundle` + `ExperienceStore`                                                                                                                                        |
 | **no-mistakes** (auto-fix/ask-user, run facade)                                                                               | bounded loop, finding triage, machine state                                                                         | `ReviewLoop` + `Run`/`RoundManifest` (value)                                                                                                                                                 |
 | **lavish-axi** (`build:skill --check`)                                                                                        | docs-drift gate                                                                                                     | a `QualityGate` adapter                                                                                                                                                                      |
-| our **preflight** + no-Gemini + gen≠review                                                                                    | deterministic go/no-go AND run policy                                                                               | `QualityGate` (deterministic) + `Policy`/`PolicyEvaluator` (selection-time)                                                                                                                  |
+| our **preflight** + legacy CLI guard + gen≠review                                                                             | deterministic go/no-go AND run policy                                                                               | `QualityGate` (deterministic) + `Policy`/`PolicyEvaluator` (selection-time)                                                                                                                  |
 | **Lynn** (orchestrator-side ownership)                                                                                        | enforce ownership on integration                                                                                    | `Integrator` + `VcsPort` + `OwnershipPolicy`                                                                                                                                                 |
 | our **join barrier**                                                                                                          | dispatch N ⇒ N terminal, durable, resumable                                                                         | `ResultStore` + `Barrier`/`RoundManifest`                                                                                                                                                    |
 | **skills catalog**                                                                                                            | one catalog over all sources; inject only needed                                                                    | `SkillCatalog` (search) + `SkillInjector`                                                                                                                                                    |
@@ -107,7 +107,7 @@ type Run = {
   best?: string;
   events: RunEvent[];
 };
-type Policy = { id: string; evaluate(sel: Selection): PolicyResult }; // no-Gemini, gen≠review
+type Policy = { id: string; evaluate(sel: Selection): PolicyResult }; // legacy CLI guard, gen≠review
 type AgentProfile = {
   id: string;
   harness: "fugue-cc" | "codex" | "opencode";
@@ -170,7 +170,7 @@ interface QualityGate {
 }
 interface PolicyEvaluator {
   evaluate(sel: Selection): PolicyResult[];
-} // no-Gemini, gen≠review, role rules
+} // legacy CLI guard, gen≠review, role rules
 
 // the bounded review-fix loop as an explicit state machine
 type LoopState =
@@ -267,7 +267,7 @@ The migration was done **capability by capability** (port + adapter + tests + CL
 - **Pure core, injected IO** — `Clock`/`FileSystem`/`Rng` injected and narrow, so Thompson Sampling and barrier timeouts are deterministically testable.
 - **Tests co-located** (vitest), **property tests** (fast-check) for strategies/barrier/loop invariants; Node selftests cover the operator surface after cutover.
 - **Secrets unchanged** — keys only in `~/.config/cc-model-secrets.env`; scan gate covers `engine/`.
-- **No Gemini** — a `Policy`, not a convention.
+- **Legacy Gemini CLI guard + review independence** — a `Policy`, not a convention.
 
 ## 9. Tooling (locked, Codex-reviewed)
 

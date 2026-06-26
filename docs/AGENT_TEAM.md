@@ -46,7 +46,7 @@ Top team:   planner
 1. **Native subagents usually inherit the host model by default**; for multi-model you need explicit custom agents, a Bash bridge, or fugue runtime profiles.
 2. **Some workflow engines allow only shallow nesting**. For deeper teams, use the host agent's native subagent-spawning-subagent path when it exists.
 3. **Provider nesting** (dispatching again through the fugue-cc provider from inside a fugue-cc agent) is unverified and fragile — don't use it.
-4. **Honor no-Gemini**: no team member/reviewer routes to Gemini (agy = Gemini, frontend implementation only, does not enter team review).
+4. **Keep review independent**: `agy`/Antigravity is supported for frontend implementation, but the reviewer should be a separate path such as Codex.
 
 ## Which to Pick
 
@@ -55,7 +55,7 @@ Top team:   planner
 | Real parallel **implementation** (multi-file, each with its own worktree, persistent) | **fugue runtime profiles** (`fugue-cc` worktrees plus Codex/OpenCode where useful) |
 | **Hierarchical team / sub-agent orchestration**                                       | Host-native subagents plus custom model bridges, when available                    |
 | Multi-model **planning**                                                              | Either works (`fuguectl plan` or native parallel subagents)                        |
-| Cross-model **review**                                                                | independent Codex/non-Gemini reviewer profile                                      |
+| Cross-model **review**                                                                | independent Codex or other reviewer profile                                        |
 
 > See the example in `orchestration/agent-team/team-review.workflow.mjs` (a Workflow script: plan panel -> cross-model implementation -> Codex review, deterministic orchestration).
 

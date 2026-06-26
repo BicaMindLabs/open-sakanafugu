@@ -224,7 +224,7 @@ describe('fugue CLI', () => {
       await mkdir(templates, { recursive: true });
       await mkdir(workspaces, { recursive: true });
       await writeFile(join(templates, 'impl.md'), 'Role={{ROLE}}\nScope={{SCOPE}}\n', 'utf8');
-      await writeFile(join(workspaces, '_system.md'), 'global no-Gemini rule\n', 'utf8');
+      await writeFile(join(workspaces, '_system.md'), 'global review independence rule\n', 'utf8');
       await writeFile(
         join(workspaces, 'code.workspace'),
         [
@@ -421,7 +421,7 @@ describe('fugue CLI', () => {
       expect(called).toContain('INJECTED-SKILL-DESC');
       expect(called).toContain('PLUGIN-SKILL-DESC');
       expect(called).toContain('## Context — workspace: code');
-      expect(called).toContain('global no-Gemini rule');
+      expect(called).toContain('global review independence rule');
       expect(called).toContain('Code station prompt');
       expect(called).toContain('minimax,doubao,glm');
       expect(called).toContain('custom prompt content');
@@ -1474,22 +1474,26 @@ describe('fugue CLI', () => {
     });
 
     it('runs deterministic provider config checks in config-only mode', async () => {
-      const gemini = join(dir, 'gemini.config');
+      const legacyGemini = join(dir, 'legacy-gemini.config');
       const comment = join(dir, 'comment.config');
       const empty = join(dir, 'empty.config');
-      await writeFile(gemini, '[agents.cc-x]\nmodel = "gemini-3.5-flash"\n', 'utf8');
+      await writeFile(
+        legacyGemini,
+        '[agents.cc-x]\ncommand = "gemini-cli"\nmodel = "gemini-3.5-flash"\n',
+        'utf8',
+      );
       await writeFile(comment, '# do not use gemini\n[agents.cc-z]\nmodel = "glm-5.2"\n', 'utf8');
       await writeFile(empty, '[agents.cc-w]\nmodel = ""\n', 'utf8');
 
       const cleanResult = await run(['preflight', '--config-only', clean]);
-      const geminiResult = await run(['preflight', '--config-only', gemini]);
+      const geminiResult = await run(['preflight', '--config-only', legacyGemini]);
       const commentResult = await run(['preflight', '--config-only', comment]);
       const emptyResult = await run(['preflight', '--config-only', empty]);
 
       expect(cleanResult.code).toBe(0);
       expect(cleanResult.out).toContain('preflight GO');
       expect(geminiResult.code).toBe(1);
-      expect(geminiResult.out).toContain('no-Gemini hard rule');
+      expect(geminiResult.out).toContain('retired Gemini CLI');
       expect(commentResult.code).toBe(0);
       expect(emptyResult.code).toBe(1);
       expect(emptyResult.out).toContain('empty model value');
@@ -1535,7 +1539,7 @@ describe('fugue CLI', () => {
       expect(result.code).toBe(0);
       expect(result.out).toContain('fuguectl-cache');
       expect(result.out).toContain(`provider mounted (${work})`);
-      expect(result.out).toContain('no-Gemini guard passed');
+      expect(result.out).toContain('legacy Gemini CLI guard passed');
       expect(result.out).toContain('gitignored');
     });
   });
@@ -1735,7 +1739,11 @@ describe('fugue CLI', () => {
         'prompt: review\nmodels: coder\n',
         'utf8',
       );
-      await writeFile(join(workspaces, '_system.md'), 'Do not call Gemini.\n', 'utf8');
+      await writeFile(
+        join(workspaces, '_system.md'),
+        'Keep review independent from implementation.\n',
+        'utf8',
+      );
       await writeFile(
         allocation,
         'code\tminimax,doubao,glm\nreview\tcoder\nfallback\tmimo\n',
@@ -1787,7 +1795,7 @@ describe('fugue CLI', () => {
       expect(show.out).toContain('models: @bench:code');
       expect(model.out.trim()).toBe('minimax,doubao,glm');
       expect(context.code).toBe(0);
-      expect(context.out).toContain('Do not call Gemini.');
+      expect(context.out).toContain('Keep review independent from implementation.');
       expect(context.out).toContain('[experience] Fast path');
       expect(context.out).toContain('do X');
       expect(context.out).toContain('> suggested model(bench): minimax,doubao,glm');

@@ -49,7 +49,7 @@
 - **Real isolation** - workers edit separate worktrees with scoped workspaces,
   selected skills, and optional ownership enforcement.
 - **Review stays independent** - implementers write, while Codex or another
-  configured non-Gemini reviewer returns `ACCEPTED` or `NEEDS FIX`.
+  configured independent reviewer returns `ACCEPTED` or `NEEDS FIX`.
 - **No lost outputs** - every dispatched task lands in the cache before the next
   phase; the join barrier enforces N sent, N returned.
 - **Bounded repair** - keep-best, confirmation passes, user escalation, and
@@ -259,7 +259,7 @@ The strict JSON spec, editable surfaces, validation rules, and smoke tests are i
 
 - Keep real keys in `~/.config/cc-model-secrets.env` or ignored local config.
 - Keep `.fugue-cc/` out of git.
-- Route review to Codex or another independent non-Gemini reviewer.
+- Route review to Codex or another independent reviewer. Antigravity (`agy`) is supported as an implementer runtime; legacy `gemini` CLI is retired.
 - Never advance a round until the join barrier has all terminal results.
 - Let deterministic gates fail before spending reviewer tokens.
 - Run `npm run ci` before pushing.

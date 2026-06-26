@@ -2,7 +2,7 @@
 //   ① planning panel: multiple models produce decomposition plans in parallel → synthesize
 //   ② implement→review: pipeline (each subtask implemented cross-model → reviewed by Codex, no barrier)
 // agentType uses the existing Bash-bridge custom agents: cn-dispatch (provider-backed model profiles) / codex-rescue (Codex).
-// Honor no-Gemini: review only uses codex.
+// Keep review independent: this example reviews through Codex.
 // Note: this file is executed by Claude Code's Workflow tool (with top-level return / agent() etc. injected as globals),
 //       it is not a standalone node module —— do not run it with `node` directly, and do not node --check (top-level return errors out).
 export const meta = {

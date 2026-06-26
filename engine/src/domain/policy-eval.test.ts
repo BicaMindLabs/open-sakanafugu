@@ -6,32 +6,38 @@ import {
   DEFAULT_POLICIES,
   evaluatePolicies,
   generationNotReviewPolicy,
-  noGeminiPolicy,
+  legacyGeminiCliPolicy,
   policyResultToGate,
   reviewerRequiredPolicy,
 } from './policy-eval.js';
 
-describe('noGeminiPolicy', () => {
-  it('fails any implementer / reviewer / harness in the Gemini family (case-insensitive)', () => {
+describe('legacyGeminiCliPolicy', () => {
+  it('fails retired Gemini CLI entrypoints but allows model/runtime names', () => {
     const sel: Selection = {
-      implementers: ['deepseek', 'Gemini-pro'],
+      implementers: ['deepseek', 'gemini'],
       reviewer: 'codex',
       harness: 'fugue-cc',
     };
-    const v = noGeminiPolicy.evaluate(sel);
+    const v = legacyGeminiCliPolicy.evaluate(sel);
     expect(v).toHaveLength(1);
     expect(v[0]?.severity).toBe('fail');
     expect(v[0]?.detail).toMatch(/implementer/u);
 
-    expect(noGeminiPolicy.evaluate({ implementers: ['x'], reviewer: 'antigravity' })).toHaveLength(
-      1,
-    );
-    expect(noGeminiPolicy.evaluate({ implementers: ['x'], harness: 'GEMINI' })).toHaveLength(1);
+    expect(
+      legacyGeminiCliPolicy.evaluate({ implementers: ['x'], reviewer: 'gemini-cli' }),
+    ).toHaveLength(1);
+    expect(
+      legacyGeminiCliPolicy.evaluate({
+        implementers: ['agy', 'gemini-3.5-flash'],
+        reviewer: 'codex',
+        harness: 'antigravity',
+      }),
+    ).toHaveLength(0);
   });
 
   it('passes a clean selection', () => {
     expect(
-      noGeminiPolicy.evaluate({ implementers: ['deepseek', 'glm'], reviewer: 'codex' }),
+      legacyGeminiCliPolicy.evaluate({ implementers: ['deepseek', 'glm'], reviewer: 'codex' }),
     ).toHaveLength(0);
   });
 });
@@ -77,9 +83,9 @@ describe('evaluatePolicies + policyResultToGate', () => {
     expect(isGo(policyResultToGate(result))).toBe(true);
   });
 
-  it('a no-Gemini violation makes the gate NO-GO', () => {
+  it('a retired Gemini CLI violation makes the gate NO-GO', () => {
     const result = evaluatePolicies(DEFAULT_POLICIES, {
-      implementers: ['gemini-2.5'],
+      implementers: ['gemini'],
       reviewer: 'codex',
     });
     expect(isGo(policyResultToGate(result))).toBe(false);

@@ -37,12 +37,12 @@ Reviewer (`coder`) and planner are likewise harness-agnostic.
 - **Bounded loop** — deterministic gate first, keep-best, meta-reflect on non-convergence; capped then escalate. Never loops forever, never hard-marks DONE.
 - **Join barrier** — dispatch N ⇒ N must return before the next round.
 - **Keys only in `~/.config/cc-model-secrets.env`** — never in the repo (CI + pre-commit scan blocks leaks).
-- **No Gemini in the review path** — review / second opinions go to Codex or another configured non-Gemini backend.
+- **Review stays independent** — review / second opinions go to Codex or another configured reviewer that is not the same generation path. `agy`/Antigravity is supported as an implementer runtime; legacy `gemini` CLI is retired.
 
 ## Before dispatching
 
 ```
-fuguectl preflight        # go/no-go gate (deps · provider mount/config sanity · no-Gemini guard)
+fuguectl preflight        # go/no-go gate (deps · provider mount/config sanity · legacy CLI guard)
 fuguectl fleet status     # is the backend fleet up? (if down → fuguectl fleet up)
 ```
 

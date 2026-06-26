@@ -64,14 +64,14 @@ const fail = (lines: string[], status: MutableStatus, message: string): void => 
 };
 
 const renderConfigCheck = (check: GateCheck, lines: string[], status: MutableStatus): void => {
-  if (check.name === 'no-gemini') {
+  if (check.name === 'legacy-gemini-cli') {
     if (check.severity === 'fail') {
       fail(
         lines,
         status,
-        'provider config model/url contains gemini/antigravity — violates the no-Gemini hard rule',
+        'provider config points at the retired Gemini CLI — use agy/Antigravity or another configured runtime',
       );
-    } else ok(lines, 'no-Gemini guard passed');
+    } else ok(lines, 'legacy Gemini CLI guard passed');
     return;
   }
   if (check.name === 'model-configured') {
@@ -216,7 +216,7 @@ export class PreflightCommand extends Command {
       warn(
         lines,
         status,
-        'no codex — review must fall back to another configured non-Gemini agent',
+        'no codex — review should fall back to another independent configured reviewer',
       );
     }
 

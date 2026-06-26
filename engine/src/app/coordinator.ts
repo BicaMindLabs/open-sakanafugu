@@ -58,7 +58,7 @@ interface ResolvedAgent {
 
 /**
  * "Our own thing": composes the ports into the dispatch join. Picks agents
- * (allocator), enforces run policy (no-Gemini / gen≠review), dispatches in
+ * (allocator), enforces run policy (retired CLI guard / gen≠review), dispatches in
  * parallel over runtime-selected harnesses, tracks the join barrier, and
  * records run events — the engine analogue of Fugu's coordinator, training-free.
  */

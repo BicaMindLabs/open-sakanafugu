@@ -4,7 +4,7 @@ You are the model-maintenance agent for the provider-backed CC profile fleet. Go
 
 ## Hard rules (must follow)
 
-- **Gemini disabled**: do not use gemini at any step (skip the cc-gemini row — do not research it, do not change it).
+- **Legacy Gemini CLI retired**: do not reintroduce the old `gemini` CLI path. Prefer `agy`/Antigravity for that tool family, or another configured provider runtime.
 - **Back up before changing**: first `mkdir -p ~/bin/.cc-launchers-bak.$(date +%Y%m%d-%H%M%S)` and `cp ~/bin/*-code ~/bin/cc-model-registry.tsv` into it.
 - **Verification gate**: for any model/endpoint change you intend to write, first `curl`-validate it live against that provider's Anthropic endpoint (only HTTP 200 counts). **Do not write anything that fails verification.**
 - **How to get keys**: `zsh -lic "printf %s \"\$XXX_API_KEY\""` (keys live in interactive login shell files: ~/.config/cc-model-secrets.env / .zshrc etc., with the secrets file taking highest priority). Never print keys in plaintext.

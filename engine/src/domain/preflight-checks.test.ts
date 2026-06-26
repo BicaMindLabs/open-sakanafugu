@@ -7,16 +7,17 @@ const severityOf = (text: string, name: string): string | undefined =>
   checkProviderConfig(text).checks.find((c) => c.name === name)?.severity;
 
 describe('checkProviderConfig (bash parity)', () => {
-  it('flags gemini/antigravity in a model= or url= value (case-insensitive) → NO-GO', () => {
-    expect(severityOf('model = gemini-pro', 'no-gemini')).toBe('fail');
-    expect(severityOf('url = https://api.antigravity.example/v1', 'no-gemini')).toBe('fail');
-    expect(severityOf('model = GEMINI', 'no-gemini')).toBe('fail');
-    expect(isGo(checkProviderConfig('model = gemini'))).toBe(false);
+  it('flags retired gemini CLI command values (case-insensitive) → NO-GO', () => {
+    expect(severityOf('command = gemini-cli', 'legacy-gemini-cli')).toBe('fail');
+    expect(severityOf('cli = GEMINI', 'legacy-gemini-cli')).toBe('fail');
+    expect(severityOf('bin = /usr/local/bin/gemini', 'legacy-gemini-cli')).toBe('fail');
+    expect(isGo(checkProviderConfig('command = gemini-cli'))).toBe(false);
   });
 
-  it('ignores gemini inside a comment line', () => {
-    expect(severityOf('# model = gemini (disabled)', 'no-gemini')).toBe('ok');
-    expect(severityOf('   # url = antigravity', 'no-gemini')).toBe('ok');
+  it('allows Gemini model names, Antigravity URLs, and comments', () => {
+    expect(severityOf('model = gemini-pro', 'legacy-gemini-cli')).toBe('ok');
+    expect(severityOf('url = https://api.antigravity.example/v1', 'legacy-gemini-cli')).toBe('ok');
+    expect(severityOf('# command = gemini-cli (disabled)', 'legacy-gemini-cli')).toBe('ok');
   });
 
   it('counts model lines and warns when there are none', () => {

@@ -21,7 +21,7 @@ const config: HarnessConfig = {
   execution: 'Run focused commands.',
   verification: 'Run tests.',
   'failure-recovery': 'Retry once with context.',
-  'runtime-policy': 'No Gemini.',
+  'runtime-policy': 'Keep review independent from implementation.',
 };
 
 const clusters: readonly WeaknessCluster[] = [

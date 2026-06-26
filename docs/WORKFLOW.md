@@ -12,8 +12,8 @@ Four roles, seven phases — fully replayable, interruptible, and auditable.
 | Strategy / Planner     | Human operator or a frontier planning agent                                                    | Write requirements, split tasks, set acceptance criteria                 | Does not enter a worker runtime pane, does not write bulk implementation code                              |
 | Execution + Supervisor | Any operator agent that can run fugue commands: Claude Code, Codex, OpenCode, or a human shell | Dispatch profiles, integrate, run the quality gate, run tests, log TASKs | Does not hand-write large blocks of implementation except focused Phase 5 patches                          |
 | Implementers           | Agent runtime profiles backed by `fugue-cc`, Codex, OpenCode, or future harnesses              | Write subtasks each in their own worktree or scoped runtime              | Do not read each other's code, do not touch the main branch                                                |
-| Frontend (opt-in)      | Frontend-capable implementer profile such as Antigravity (`agy` CLI), when policy permits      | Frontend/UI subtasks, manual IDE or headless `agy --print`               | **Does not enter the Phase 5 loop, never acts as reviewer** (backend = Gemini, honoring no-Gemini)         |
-| Reviewer               | Independent review profile, usually Codex or another configured non-Gemini reviewer            | Adversarial review, gives VERDICT + Findings                             | Does not write implementation (keeps generation != review independence); the review path never uses Gemini |
+| Frontend (opt-in)      | Frontend-capable implementer profile such as Antigravity (`agy` CLI), when policy permits      | Frontend/UI subtasks, manual IDE or headless `agy --print`               | **Does not enter the Phase 5 loop; normally never acts as reviewer**                                      |
+| Reviewer               | Independent review profile, usually Codex or another configured reviewer                       | Adversarial review, gives VERDICT + Findings                             | Does not write implementation (keeps generation != review independence)                                   |
 
 > The maintenance layer **cc-sync** is not on the request path; it is a background launchd daemon: CC upgrade tracking + model refresh + monthly rebuild.
 
@@ -53,7 +53,7 @@ resolves conflicts, unifies style, and runs a local sanity baseline (build/test/
 ### Phase 4 — Review (Reviewer)
 
 `fuguectl dispatch gpt-5.5 --harness codex --prompt-file <review-prompt>` or a registry-backed reviewer profile gives a `VERDICT` (ACCEPTED / NEEDS FIX) + `Findings`.
-Generation != review: implementation and review must resolve to different model families and the review path stays non-Gemini.
+Generation != review: implementation and review must resolve to independent model families / runtime paths. Antigravity (`agy`) is supported for implementation; legacy `gemini` CLI is retired.
 
 ### Phase 5 — Review-Fix Loop (bounded closed loop, upgraded per 2026-06 loop engineering research)
 
@@ -107,4 +107,4 @@ cc-sync all              # cli + models
 - Keys live only in `~/.config/cc-model-secrets.env` (read by the launcher, highest priority); the repo only has a provider config example.
 - `.gitignore` ignores `.fugue-cc/` / `**/.fugue-cc/` / `*secrets*.env` / `.env*`; a hard secret scan runs before push, only 0 hits gets pushed.
 - Personal paths are generalized into `$FUGUE_CC_WORK` / `$FUGUE_CC_CLAUDE` / `$TASKS` placeholders + the `~/...` convention — substitute for your own environment; a hard secret scan runs before commit, only 0 hits gets pushed.
-- Review/second opinion goes through **Codex or opencode**, **never Gemini** (hard rule).
+- Review/second opinion goes through **Codex or another independent reviewer**; do not collapse implementation and review into the same runtime path.

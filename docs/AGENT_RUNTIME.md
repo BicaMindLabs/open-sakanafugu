@@ -88,10 +88,10 @@ Codex reviewers, and OpenCode providers.
 
 ## Policy
 
-Policies evaluate the resolved profile label, not just the raw id. For example,
-an innocuous id with `"modelFamily": "gemini"` is still blocked by the
-no-Gemini rule. This matters because runtime-specific target strings are often
-too short or too provider-shaped to carry policy safely by themselves.
+Policies evaluate the resolved profile label, not just the raw id. The key rule
+is review independence: implementation and review should not collapse into the
+same generation path. Antigravity (`agy`) is supported as an implementer runtime;
+legacy `gemini` CLI entrypoints are treated as retired.
 
 ## Cutover Status
 

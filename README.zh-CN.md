@@ -42,7 +42,7 @@
 - **Agent runtime 中立** - 逻辑 agent profile 可以把任务路由到 Claude Code provider instance、Codex model、OpenCode provider，或未来新增的 harness，而 loop 不变。
 - **可扩展模型池** - 现有 profile 只是起点。社区可以继续接入可用的商业、开源、私有、本地或自托管模型，而不改变 FuguNano 的核心协议。
 - **真实隔离** - worker 在独立 worktree 中编辑，配合 scoped workspace、按需 skills 和 ownership enforcement。
-- **审查保持独立** - implementer 写代码，Codex 或另一个配置好的非 Gemini reviewer 给出 `ACCEPTED` / `NEEDS FIX`。
+- **审查保持独立** - implementer 写代码，Codex 或另一个配置好的独立 reviewer 给出 `ACCEPTED` / `NEEDS FIX`。
 - **输出不会丢** - 每个派发任务都先落 cache；join barrier 强制“派出 N 个，收回 N 个”。
 - **修复有边界** - keep-best、二次确认、询问用户、升级和非收敛状态避免无限循环。
 - **免训练学习** - allocation 用 benchmark prior 加 live review outcome 迭代路由。
@@ -228,7 +228,7 @@ node dist/cli/main.js self-harness run \
 
 - 真实 key 只放在 `~/.config/cc-model-secrets.env` 或已 ignore 的本地配置。
 - `.fugue-cc/` 不进 git。
-- review 路径走 Codex 或另一个独立的非 Gemini reviewer。
+- review 路径走 Codex 或另一个独立 reviewer。Antigravity（`agy`）可作为 implementer runtime；旧 `gemini` CLI 已退役。
 - join barrier 没收齐所有终态结果前，不进入下一轮。
 - 先让确定性 gate 失败，再消耗 reviewer tokens。
 - push 前跑 `npm run ci`。

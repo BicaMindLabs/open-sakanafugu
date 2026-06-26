@@ -190,7 +190,7 @@ export class RuntimeAdaptCommand extends RuntimeCommand {
     if (!this.apply || work === undefined) return [];
     const config = joinPath(work, '.fugue-cc/provider.config');
     if (!(await existingFile(fileSystem, config))) return [];
-    const lines = ['  config validation (no-Gemini + sound):'];
+    const lines = ['  config validation (legacy CLI + sound):'];
     try {
       const result = await runner.run(this.preflightScript, ['--config-only', config]);
       const output = indent(`${result.stdout}${result.stderr}`);

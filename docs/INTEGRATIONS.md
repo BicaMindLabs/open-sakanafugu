@@ -13,13 +13,13 @@ This doc is the **stable contract** downstream depends on.
 | Bench-driven model choice   | `fuguectl allocate <task-type> [--top]`                          | task-type → recommended model                                                |
 | Result cache + join barrier | `fuguectl cache …`                                               | dispatch N ⇒ return N before next round                                      |
 | Fleet lifecycle             | `fuguectl fleet status\|up\|down`                                | strips `CLAUDE_CODE_*` + detached tmux / pty.fork for the `fugue-cc` runtime |
-| Preflight gate              | `fuguectl preflight`                                             | deps · provider mount/config sanity · **no-Gemini guard**                    |
+| Preflight gate              | `fuguectl preflight`                                             | deps · provider mount/config sanity · **legacy Gemini CLI guard**            |
 
 All of the above are plain CLI commands on `$PATH` (install the skill or add `orchestration/fuguectl/` to `$PATH`) — language-agnostic, callable from a Node/Go/Python framework via `child_process`/`exec`.
 
 ## Shared policy
 
-- **No Gemini** in the review path (both projects enforce this — civagent's `engine/models/providers.json` `_policy` matches FuguNano's no-Gemini guard).
+- **Independent review path** (both projects enforce generation != review; Antigravity/`agy` can implement, while legacy `gemini` CLI is retired).
 - **Keys never in either repo** — only `~/.config/cc-model-secrets.env`.
 
 ## How CivAgent consumes it

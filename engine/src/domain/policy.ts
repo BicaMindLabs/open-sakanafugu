@@ -1,5 +1,5 @@
 /**
- * Run policies — the hard rules ("no Gemini", "generation ≠ review") as
+ * Run policies — the hard rules ("generation ≠ review", retired CLI guards) as
  * first-class objects evaluated against the chosen agents, not conventions.
  */
 

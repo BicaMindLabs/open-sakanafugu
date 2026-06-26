@@ -25,7 +25,7 @@ Three roles, five phases. Planner orchestrates, the implementer fleet writes cod
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Planner / Integrator / Fixer**                  | You (your strategic layer — e.g. Claude Desktop)                                                                                                                                            | Direct shell + `"$FO" dispatch`; **not itself in a provider pane**                                                                                                                   |
 | **Backend Implementers** (auto parallel dispatch) | `cc-claude` (Claude, in `$FUGUE_CC_CLAUDE`) + provider-backed profiles such as `cc-deepseek` `cc-glm` `cc-kimi` `cc-minimax` `cc-mimo` `cc-stepfun` `cc-doubao` `cc-ark-auto` (in `$FUGUE_CC_WORK`), plus any community-added profiles | `"$FO" dispatch cc-X --harness fugue-cc ...`                                                                                                                                         |
-| **Frontend Implementer** (opt-in)                 | **Antigravity (`agy` CLI)**                                                                                                                                                                 | manual in the IDE, or headless `agy --print "<prompt>"`; commit/paste output, integrator merges. **Frontend-only — never reviews** (backend = Gemini, must stay off the review path) |
+| **Frontend Implementer** (opt-in)                 | **Antigravity (`agy` CLI)**                                                                                                                                                                 | manual in the IDE, or headless `agy --print "<prompt>"`; commit/paste output, integrator merges. Supported implementer runtime; keep review independent.                            |
 | **Reviewer / Final Judge**                        | Codex or `coder` (an independent frontier model)                                                                                                                                            | `"$FO" dispatch <reviewer> --harness codex\|fugue-cc` → VERDICT: ACCEPTED or NEEDS FIX                                                                                               |
 
 > Generation ≠ review: implementers and the reviewer must be **different model families** (research shows ~+20% over self-review).
@@ -53,7 +53,7 @@ Three roles, five phases. Planner orchestrates, the implementer fleet writes cod
    "$FO" fleet status      # ready? (no tmux server / panes down = stuck-in-queue risk)
    "$FO" fleet up          # strips CLAUDE_CODE_* (OAuth false-401) + starts panes in detached tmux
    ```
-1. **Preflight (go/no-go gate)** — deps / provider mounted / provider config sanity + the **no-Gemini guard**, all as code:
+1. **Preflight (go/no-go gate)** — deps / provider mounted / provider config sanity + the **legacy Gemini CLI guard**, all as code:
 
    ```bash
    FUGUE_CC_WORK=<provider project> "$FO" preflight   # NO-GO → fix before dispatching (provider down → fleet up)
@@ -152,7 +152,7 @@ EOF
   ```bash
   agy --print --print-timeout 5m "<frontend task prompt>"   # add --dangerously-skip-permissions only in a sandbox
   ```
-  Commit/paste its output; the integrator merges to main. **`agy` is frontend-implement only — never in the Phase 5 review-fix loop, never the reviewer** (its backend is Gemini; the review path must stay a different model family).
+  Commit/paste its output; the integrator merges to main. **`agy` is supported as a frontend implementer runtime; keep review on an independent path such as Codex.**
 
 Dispatch is **fire-and-forget** (don't block chat).
 
@@ -312,5 +312,5 @@ The fleet's models are pinned in the provider config under `.fugue-cc/` (see `or
 - ❌ Concurrent edits to the same file — split by file or serialize.
 - ❌ Letting an implementer output chat-only (no Write) — async truncation + scrollback overwrite loses the artifact; write to `/tmp/<task-dir>/<file>.md`.
 - ❌ Trusting provider reply metadata for completion — verify by reading the file the agent wrote.
-- ❌ Routing review / second-opinion to `agy` (Antigravity) — its backend is Gemini; keep the reviewer a different family (`coder`). `agy` is **frontend-implement only**, and stays out of the Phase 5 loop.
+- ❌ Collapsing implementation and review into the same runtime path — `agy` (Antigravity) is supported for implementation, but keep the reviewer independent (`coder`/Codex by default).
 - ❌ Advancing to Integrate or the next round on **partial join** — if N tasks were dispatched, all N must be cached back (barrier exits 0) first. Never proceed with 5/8 results.
