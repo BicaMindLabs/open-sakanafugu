@@ -1,0 +1,241 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1120 620"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">Fugu, OpenFugu, and FuguNano comparison</title>
+  <desc id="desc">
+    A three-column comparison showing Fugu as a managed learned conductor,
+    OpenFugu as an open training and serving reconstruction, and FuguNano as a
+    cloneable no-training engineering loop.
+  </desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#07111f" />
+      <stop offset="0.48" stop-color="#0b1020" />
+      <stop offset="1" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="nano" x1="0" x2="1">
+      <stop offset="0" stop-color="#18d9c5" stop-opacity="0.22" />
+      <stop offset="1" stop-color="#5af0a8" stop-opacity="0.11" />
+    </linearGradient>
+    <linearGradient id="service" x1="0" x2="1">
+      <stop offset="0" stop-color="#7ad7ff" stop-opacity="0.2" />
+      <stop offset="1" stop-color="#60a5fa" stop-opacity="0.1" />
+    </linearGradient>
+    <linearGradient id="training" x1="0" x2="1">
+      <stop offset="0" stop-color="#e4b85a" stop-opacity="0.22" />
+      <stop offset="1" stop-color="#fb923c" stop-opacity="0.1" />
+    </linearGradient>
+    <marker
+      id="arrow"
+      markerWidth="14"
+      markerHeight="14"
+      refX="12"
+      refY="5"
+      orient="auto"
+    >
+      <path d="M0,0 L12,5 L0,10 Z" fill="#64748b" />
+    </marker>
+    <style>
+      .title {
+        font:
+          800 40px -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        fill: #f8fafc;
+        letter-spacing: 0;
+      }
+      .subtitle {
+        font:
+          500 18px -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        fill: #cbd5e1;
+        letter-spacing: 0;
+      }
+      .cardTitle {
+        font:
+          800 25px -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        fill: #f8fafc;
+        letter-spacing: 0;
+      }
+      .cardKicker {
+        font:
+          700 13px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Consolas,
+          monospace;
+        fill: #cbd5e1;
+        letter-spacing: 0;
+      }
+      .body {
+        font:
+          560 15px -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        fill: #cbd5e1;
+        letter-spacing: 0;
+      }
+      .strong {
+        font:
+          760 15px -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        fill: #f8fafc;
+        letter-spacing: 0;
+      }
+      .tiny {
+        font:
+          650 12px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Consolas,
+          monospace;
+        fill: #94a3b8;
+        letter-spacing: 0;
+      }
+      .axis {
+        font:
+          760 14px -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        fill: #e2e8f0;
+        letter-spacing: 0;
+      }
+      .pill {
+        font:
+          800 12px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Consolas,
+          monospace;
+        fill: #07111f;
+        letter-spacing: 0;
+      }
+    </style>
+  </defs>
+
+  <rect width="1120" height="620" fill="#0b1020" />
+  <rect width="1120" height="620" rx="28" fill="url(#bg)" />
+  <path
+    d="M72 112 H1048 M72 200 H1048 M72 288 H1048 M72 376 H1048 M72 464 H1048 M180 68 V552 M380 68 V552 M580 68 V552 M780 68 V552 M980 68 V552"
+    stroke="#1e293b"
+    stroke-width="1"
+  />
+  <rect
+    x="34"
+    y="34"
+    width="1052"
+    height="552"
+    rx="24"
+    fill="none"
+    stroke="#334155"
+  />
+
+  <text x="72" y="86" class="title">Fugu / OpenFugu / FuguNano</text>
+  <text x="72" y="120" class="subtitle">
+    Same direction: capability through coordination. Different entry point: service, training stack, or repo-native loop.
+  </text>
+
+  <line
+    x1="346"
+    y1="278"
+    x2="386"
+    y2="278"
+    stroke="#64748b"
+    stroke-width="2.4"
+    marker-end="url(#arrow)"
+  />
+  <line
+    x1="714"
+    y1="278"
+    x2="754"
+    y2="278"
+    stroke="#64748b"
+    stroke-width="2.4"
+    marker-end="url(#arrow)"
+  />
+
+  <rect
+    x="72"
+    y="166"
+    width="274"
+    height="238"
+    rx="20"
+    fill="url(#service)"
+    stroke="#3b82f6"
+  />
+  <rect x="96" y="190" width="86" height="24" rx="12" fill="#7ad7ff" />
+  <text x="112" y="207" class="pill">SERVICE</text>
+  <text x="96" y="252" class="cardTitle">Sakana Fugu</text>
+  <text x="96" y="287" class="body">OpenAI-compatible API</text>
+  <text x="96" y="315" class="body">learned conductor</text>
+  <text x="96" y="343" class="body">frontier model pool</text>
+  <line x1="96" y1="365" x2="322" y2="365" stroke="#334155" />
+  <text x="96" y="388" class="tiny">managed orchestration layer</text>
+
+  <rect
+    x="428"
+    y="166"
+    width="286"
+    height="238"
+    rx="20"
+    fill="url(#training)"
+    stroke="#e4b85a"
+  />
+  <rect x="452" y="190" width="112" height="24" rx="12" fill="#e4b85a" />
+  <text x="468" y="207" class="pill">TRAIN + SERVE</text>
+  <text x="452" y="252" class="cardTitle">OpenFugu</text>
+  <text x="452" y="287" class="body">open reconstruction</text>
+  <text x="452" y="315" class="body">TRINITY · sep-CMA-ES</text>
+  <text x="452" y="343" class="body">Conductor · GRPO</text>
+  <line x1="452" y1="365" x2="690" y2="365" stroke="#334155" />
+  <text x="452" y="388" class="tiny">for rebuilding the conductor route</text>
+
+  <rect
+    x="754"
+    y="146"
+    width="294"
+    height="278"
+    rx="22"
+    fill="url(#nano)"
+    stroke="#18d9c5"
+    stroke-width="2"
+  />
+  <rect x="778" y="170" width="108" height="24" rx="12" fill="#18d9c5" />
+  <text x="794" y="187" class="pill">CLONE + RUN</text>
+  <text x="778" y="252" class="cardTitle">FuguNano</text>
+  <text x="778" y="287" class="body">repo-native engineering loop</text>
+  <text x="778" y="315" class="strong">no coordinator training</text>
+  <text x="778" y="343" class="body">review gates + Self-Harness</text>
+  <text x="778" y="371" class="body">strict TS · ports &amp; adapters</text>
+  <line x1="778" y1="393" x2="1024" y2="393" stroke="#2dd4bf" />
+  <text x="778" y="416" class="tiny">open, auditable, self-improving</text>
+
+  <rect
+    x="72"
+    y="458"
+    width="976"
+    height="76"
+    rx="18"
+    fill="#0f172a"
+    stroke="#334155"
+  />
+  <text x="102" y="493" class="axis">Where the coordination lives</text>
+  <text x="368" y="493" class="body">product API</text>
+  <text x="548" y="493" class="body">training + serving stack</text>
+  <text x="812" y="493" class="strong">local engineering loop</text>
+  <line x1="102" y1="508" x2="1018" y2="508" stroke="#1e293b" />
+  <text x="102" y="526" class="tiny">FuguNano keeps the same multi-model ambition but moves the first useful step into a normal repository.</text>
+</svg>

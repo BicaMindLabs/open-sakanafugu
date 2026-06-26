@@ -134,6 +134,27 @@ fuguectl loop decide
 
 Read the full walkthrough in [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
+## Fugu, OpenFugu, And FuguNano
+
+Sakana Fugu, OpenFugu, and FuguNano share the same direction: when a
+single frontier model or hardware path is expensive, unavailable, or hard to
+govern, coordination becomes the system capability. The difference is where
+that coordination layer lives.
+
+<p align="center">
+  <img src="docs/readme-fugu-comparison.svg" alt="Fugu, OpenFugu, and FuguNano comparison" width="920">
+</p>
+
+| System       | Coordination layer              | What it opens                                                                 | Adoption shape                                                          |
+| ------------ | ------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Sakana Fugu  | Learned conductor behind an API | Frontier-style multi-model synthesis without binding the user to one model    | Managed / closed service; conductor training and access live elsewhere  |
+| OpenFugu     | Open training and serving stack | A readable route to rebuild Fugu-style conductor training and OpenAI serving   | Best for teams that want to train, inspect, and serve the conductor path |
+| FuguNano     | Repo-native engineering loop    | Multi-agent coding, independent review, and Self-Harness without training one | Cloneable, auditable, and light enough to run before training a router   |
+
+FuguNano is not a replacement for Fugu or OpenFugu. It is the lightest open
+entry point on the same road: use policies, ports, review gates, and harness
+improvement first, then decide whether a learned conductor is worth the cost.
+
 ## Command Surface
 
 `orchestration/fuguectl/fuguectl` is the production operator entry point. It has

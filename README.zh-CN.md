@@ -116,6 +116,24 @@ fuguectl loop decide
 
 完整流程见 [docs/WORKFLOW.md](docs/WORKFLOW.md)。
 
+## Fugu、OpenFugu 与 FuguNano
+
+Fugu、OpenFugu 和 FuguNano 在同一条路线上：当单一前沿模型或硬件路径变贵、
+变窄、难治理时，系统能力开始来自“协调层”。区别在于这个协调层放在哪里。
+
+<p align="center">
+  <img src="docs/readme-fugu-comparison.svg" alt="Fugu、OpenFugu 与 FuguNano 对比" width="920">
+</p>
+
+| 系统        | 协调层放在哪里       | 打开的能力                                          | 使用形态                                      |
+| ----------- | -------------------- | --------------------------------------------------- | --------------------------------------------- |
+| Sakana Fugu | API 背后的训练式 conductor | 不绑定单一模型的类前沿多模型合成能力                | 托管 / 闭源服务；conductor 训练与访问在仓库外 |
+| OpenFugu    | 开放训练与服务栈     | 重建 Fugu 式 conductor 训练与 OpenAI 兼容服务的路径 | 适合想训练、检查、服务 conductor 路线的团队   |
+| FuguNano    | 仓库原生工程闭环     | 免训练的多 agent 编码、独立审查与 Self-Harness      | 可 clone、可审计，先跑起来再决定是否训练 router |
+
+FuguNano 不是要替代 Fugu / OpenFugu，而是把同一方向落到更轻的开放入口上：
+先用策略、端口、审查门和 harness 自改进打开协作，再判断是否值得训练一个 conductor。
+
 ## 命令面
 
 `orchestration/fuguectl/fuguectl` 是生产操作入口。当前有 19 个子命令和 20 套测试。
