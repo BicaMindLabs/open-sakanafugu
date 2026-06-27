@@ -1722,6 +1722,7 @@ describe('fugue CLI', () => {
       expect(called).toContain('cc-b');
       expect(planned.out).toContain('cc-a.plan.md');
       expect(planned.out).toContain('captured stdout to');
+      expect(planned.out).toContain('(took ');
       expect(prompt).toContain('build a login feature');
       expect(prompt).toContain(`write to ${join(out, 'cc-a.plan.md')}`);
       expect(captured).toContain('# stub plan');
@@ -1890,6 +1891,7 @@ describe('fugue CLI', () => {
 
       expect(missing.code).toBe(1);
       expect(missing.out).toContain('dispatch failed');
+      expect(missing.out).toContain('(took ');
     });
 
     it('returns non-zero when a planner produces no durable artifact', async () => {
@@ -1910,6 +1912,7 @@ describe('fugue CLI', () => {
 
       expect(planned.code).toBe(1);
       expect(planned.out).toContain('produced no plan artifact');
+      expect(planned.out).toContain('(took ');
       await expect(readFile(join(out, 'cc-silent.plan.md'), 'utf8')).rejects.toThrow();
     });
 

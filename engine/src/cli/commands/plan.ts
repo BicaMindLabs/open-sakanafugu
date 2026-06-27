@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join as joinPath } from 'node:path';
+import { performance } from 'node:perf_hooks';
 
 import { Command, Option } from 'clipanion';
 
@@ -25,6 +26,11 @@ const parseTimeoutMs = (raw: string): number | null | undefined => {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 1) return null;
   return parsed;
+};
+
+const formatDurationMs = (ms: number): string => {
+  if (ms < 1000) return `${String(Math.max(0, Math.round(ms)))}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
 };
 
 const defaultPlanOut = (): string => joinPath(defaultCacheRoot(import.meta.url), 'plans');
@@ -124,6 +130,7 @@ export class PlanCommand extends Command {
     }));
     const results = await Promise.all(
       requests.map(async ({ agent, outfile }) => {
+        const startedAt = performance.now();
         const result = await harness.dispatch({
           agent,
           prompt: promptFor(agent, this.goal, outfile),
@@ -131,7 +138,8 @@ export class PlanCommand extends Command {
         const artifact = isOk(result)
           ? await ensurePlanArtifact(outfile, result.value.output)
           : null;
-        return { agent, outfile, result, artifact };
+        const elapsedMs = performance.now() - startedAt;
+        return { agent, outfile, result, artifact, elapsedMs };
       }),
     );
 
@@ -139,14 +147,17 @@ export class PlanCommand extends Command {
       `── planning panel: goal decomposition (${this.harness}) → ${agents.join(' ')} ──`,
     ];
     for (const entry of results) {
+      const duration = ` (took ${formatDurationMs(entry.elapsedMs)})`;
       if (!isOk(entry.result)) {
-        lines.push(`  ✗ ${entry.agent} dispatch failed`);
+        lines.push(`  ✗ ${entry.agent} dispatch failed${duration}`);
       } else if (entry.artifact === 'written') {
-        lines.push(`  → dispatched to ${entry.agent}, plan written to ${entry.outfile}`);
+        lines.push(`  → dispatched to ${entry.agent}, plan written to ${entry.outfile}${duration}`);
       } else if (entry.artifact === 'captured') {
-        lines.push(`  → dispatched to ${entry.agent}, captured stdout to ${entry.outfile}`);
+        lines.push(
+          `  → dispatched to ${entry.agent}, captured stdout to ${entry.outfile}${duration}`,
+        );
       } else {
-        lines.push(`  ✗ ${entry.agent} produced no plan artifact at ${entry.outfile}`);
+        lines.push(`  ✗ ${entry.agent} produced no plan artifact at ${entry.outfile}${duration}`);
       }
     }
 

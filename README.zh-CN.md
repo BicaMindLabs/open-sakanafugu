@@ -143,6 +143,9 @@ Fugu、OpenFugu 和 FuguNano 在同一条路线上：当单一前沿模型或硬
 FuguNano 不是要替代 Fugu / OpenFugu，而是把同一方向落到更轻的开放入口上：
 先用策略、端口、审查门和 harness 自改进打开协作，再判断是否值得训练一个 conductor。
 
+Planning panel 会打印每个 agent 的 dispatch 耗时，所以真实 Codex/OpenCode/AGY
+规划不会只剩一段安静等待，而是留下可观察的运行痕迹。
+
 ## 命令面
 
 `orchestration/fuguectl/fuguectl` 是生产操作入口。当前有 20 个子命令和 22 套测试。

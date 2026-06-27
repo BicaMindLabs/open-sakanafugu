@@ -165,6 +165,9 @@ FuguNano is not a replacement for Fugu or OpenFugu. It is the lightest open
 entry point on the same road: use policies, ports, review gates, and harness
 improvement first, then decide whether a learned conductor is worth the cost.
 
+The planning panel prints per-agent dispatch duration, so live Codex/OpenCode/AGY
+planning runs leave an observable trace instead of a silent wait.
+
 ## Command Surface
 
 `orchestration/fuguectl/fuguectl` is the production operator entry point. It has
