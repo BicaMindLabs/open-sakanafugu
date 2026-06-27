@@ -12,19 +12,33 @@ export class NodeCommandRunner implements CommandRunner {
   ): Promise<CommandResult> {
     return new Promise<CommandResult>((resolve, reject) => {
       const env = options.env !== undefined ? { ...process.env, ...options.env } : process.env;
+      const timeoutMs = options.timeoutMs;
+      const useProcessGroup =
+        timeoutMs !== undefined && timeoutMs > 0 && process.platform !== 'win32';
       const child = spawn(command, [...args], {
         env,
         ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(useProcessGroup ? { detached: true } : {}),
       });
-      const timeoutMs = options.timeoutMs;
       let timedOut = false;
       let timeout: ReturnType<typeof setTimeout> | undefined;
       let forceKill: ReturnType<typeof setTimeout> | undefined;
+      const killChild = (signal: NodeJS.Signals): void => {
+        if (useProcessGroup && child.pid !== undefined) {
+          try {
+            process.kill(-child.pid, signal);
+            return;
+          } catch {
+            // The child may have exited before the group signal lands; fall back below.
+          }
+        }
+        child.kill(signal);
+      };
       if (timeoutMs !== undefined && timeoutMs > 0) {
         timeout = setTimeout(() => {
           timedOut = true;
-          child.kill('SIGTERM');
-          forceKill = setTimeout(() => child.kill('SIGKILL'), 1000);
+          killChild('SIGTERM');
+          forceKill = setTimeout(() => killChild('SIGKILL'), 1000);
         }, timeoutMs);
       }
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { NodeCommandRunner } from './node-command-runner.js';
 
 const node = process.execPath;
+const itSupportsProcessGroups = process.platform === 'win32' ? it.skip : it;
 
 describe('NodeCommandRunner', () => {
   it('captures stdout and a zero exit code', async () => {
@@ -48,6 +49,27 @@ describe('NodeCommandRunner', () => {
     expect(result.stderr).toContain('command timed out after 50ms');
     expect(Date.now() - started).toBeLessThan(2000);
   });
+
+  itSupportsProcessGroups(
+    'times out the process group so grandchildren cannot hold pipes open',
+    async () => {
+      const script = [
+        'const { spawn } = require("node:child_process");',
+        'const child = spawn(process.execPath, ["-e", "setTimeout(()=>process.stdout.write(\'grandchild-late\'),3000)"], { stdio: ["ignore", "inherit", "inherit"] });',
+        'if (child.pid === undefined) process.exit(2);',
+        'process.stdout.write("spawned\\n");',
+        'setInterval(() => {}, 1000);',
+      ].join('');
+      const started = Date.now();
+
+      const result = await new NodeCommandRunner().run(node, ['-e', script], { timeoutMs: 500 });
+
+      expect(result.code).toBe(124);
+      expect(result.stdout).toContain('spawned');
+      expect(result.stdout).not.toContain('grandchild-late');
+      expect(Date.now() - started).toBeLessThan(2000);
+    },
+  );
 
   it('rejects when the binary does not exist', async () => {
     await expect(
