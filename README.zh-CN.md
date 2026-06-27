@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Runtime-Node%20%E2%89%A518.18-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js >= 18.18" />
   <img src="https://img.shields.io/badge/Engine-TypeScript-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript engine" />
   <img src="https://img.shields.io/badge/fuguectl-21%20%E5%A5%97%E6%B5%8B%E8%AF%95-7c3aed?style=for-the-badge" alt="21 套 fuguectl 测试" />
-  <img src="https://img.shields.io/badge/assertions-287-brightgreen?style=for-the-badge" alt="287 个 fuguectl 断言" />
+  <img src="https://img.shields.io/badge/assertions-290-brightgreen?style=for-the-badge" alt="290 个 fuguectl 断言" />
   <a href="https://github.com/BicaMindLabs/FuguNano/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/BicaMindLabs/FuguNano/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status" /></a>
   <img src="https://img.shields.io/badge/license-Apache--2.0-yellowgreen?style=for-the-badge" alt="Apache-2.0 license" />
 </p>
@@ -43,7 +43,7 @@
 - **可扩展模型池** - 现有 profile 只是起点。社区可以继续接入可用的商业、开源、私有、本地或自托管模型，而不改变 FuguNano 的核心协议。
 - **真实隔离** - worker 在独立 worktree 中编辑，配合 scoped workspace、按需 skills 和 ownership enforcement。
 - **审查保持独立** - implementer 写代码，Codex 或另一个配置好的独立 reviewer 给出 `ACCEPTED` / `NEEDS FIX`。
-- **输出不会丢** - 每个派发任务都先落 cache；join barrier 强制“派出 N 个，收回 N 个”。
+- **输出不会丢** - dispatch 可用 `--out` 持久化 reviewer/agent 输出；join barrier 仍强制“派出 N 个，收回 N 个”。
 - **修复有边界** - keep-best、二次确认、询问用户、升级和非收敛状态避免无限循环。
 - **免训练学习** - allocation 用 benchmark prior 加 live review outcome 迭代路由。
 - **Self-Harness 就绪** - TypeScript engine 能挖失败 run、提出有界 harness edits，并只 promote 不回退的改动。
@@ -174,7 +174,7 @@ fugue doctor
 fugue init [--dry-run|--write]
 fugue fleet status|up|down
 fugue allocate <task-type>|list|record|feed|stats|reset|decay
-fugue dispatch <target> --harness fugue-cc|codex|opencode [--timeout-ms n] [--codex-clean] [--harness-arg x] --template <name>|--prompt-file <file>|--prompt <text>
+fugue dispatch <target> --harness fugue-cc|codex|opencode [--timeout-ms n] [--codex-clean] [--harness-arg x] [--out <file>] --template <name>|--prompt-file <file>|--prompt <text>
 fugue integrate --work <repo> --agents "a b" [--ownership file] [--dry]
 fugue skills index|list|match|show|inject|validate|forge
 fugue preflight [--harness fugue-cc|codex|opencode|all] [--config-only] [provider.config]

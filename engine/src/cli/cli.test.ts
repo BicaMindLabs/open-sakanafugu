@@ -268,6 +268,7 @@ describe('fugue CLI', () => {
     let experience: string;
     let ledger: string;
     let promptFile: string;
+    let codexBin: string;
     let fugueCcCalled: string;
     let codexCalled: string;
     let opencodeCalled: string;
@@ -306,6 +307,7 @@ describe('fugue CLI', () => {
       const fugueCc = join(dir, 'fugue-cc');
       const codex = join(dir, 'codex');
       const opencode = join(dir, 'opencode');
+      codexBin = codex;
       await writeFile(
         fugueCc,
         [
@@ -518,6 +520,30 @@ describe('fugue CLI', () => {
       expect(dispatched.code).toBe(0);
       expect(codexCall).toContain('ARGV: exec --model gpt-5.5');
       expect(codexCall).toContain('inline smoke prompt');
+    });
+
+    it('writes successful dispatch output to a durable artifact', async () => {
+      const outFile = join(dir, 'artifacts', 'review.txt');
+      await writeFile(
+        codexBin,
+        [
+          '#!/usr/bin/env bash',
+          `echo "ARGV: $*" > "${codexCalled}"`,
+          'printf "VERDICT: ACCEPTED\\n"',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      await chmod(codexBin, 0o755);
+
+      const dispatched = await run(
+        args('gpt-5.5', '--harness', 'codex', '--prompt', 'review this change', '--out', outFile),
+      );
+      const artifact = await readFile(outFile, 'utf8');
+
+      expect(dispatched.code).toBe(0);
+      expect(dispatched.out).toBe('VERDICT: ACCEPTED\n');
+      expect(artifact).toBe('VERDICT: ACCEPTED\n');
     });
 
     it('rejects invalid dispatch timeouts', async () => {

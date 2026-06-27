@@ -30,6 +30,9 @@ suite.ok("help lists clean Codex dispatch", () =>
 suite.ok("help lists dispatch harness args", () =>
   help.includes("--harness-arg x"),
 );
+suite.ok("help lists dispatch output file", () =>
+  help.includes("--out <file>"),
+);
 
 writeExecutable(join(tmp, "fugue-cc"), [
   "#!/usr/bin/env node",
@@ -92,6 +95,7 @@ writeExecutable(join(tmp, "codex"), [
   "#!/usr/bin/env node",
   "const fs = require('node:fs');",
   `fs.writeFileSync(${JSON.stringify(codexCalled)}, 'ARGV: ' + process.argv.slice(2).join(' ') + '\\n');`,
+  "process.stdout.write('VERDICT: ACCEPTED\\n');",
 ]);
 process.env.FUGUE_CODEX = join(tmp, "codex");
 run(dispatch, ["gpt-5.5", "--harness", "codex", "--prompt-file", promptFile]);
@@ -127,6 +131,19 @@ suite.ok("clean Codex mode is preserved through wrapper", () =>
   readFileSync(codexCalled, "utf8").includes(
     "ARGV: exec --ignore-user-config --ignore-rules --ephemeral --color never --model gpt-5.5",
   ),
+);
+const dispatchOut = join(tmp, "artifacts", "review.txt");
+run(dispatch, [
+  "gpt-5.5",
+  "--harness",
+  "codex",
+  "--prompt-file",
+  promptFile,
+  "--out",
+  dispatchOut,
+]);
+suite.ok("--out writes successful dispatch output", () =>
+  readFileSync(dispatchOut, "utf8").includes("VERDICT: ACCEPTED"),
 );
 
 const opencodeCalled = join(tmp, "oc.called");

@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Runtime-Node%20%E2%89%A518.18-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js >= 18.18" />
   <img src="https://img.shields.io/badge/Engine-TypeScript-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript engine" />
   <img src="https://img.shields.io/badge/fuguectl-21%20suites-7c3aed?style=for-the-badge" alt="21 fuguectl test suites" />
-  <img src="https://img.shields.io/badge/assertions-287-brightgreen?style=for-the-badge" alt="287 fuguectl assertions" />
+  <img src="https://img.shields.io/badge/assertions-290-brightgreen?style=for-the-badge" alt="290 fuguectl assertions" />
   <a href="https://github.com/BicaMindLabs/FuguNano/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/BicaMindLabs/FuguNano/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status" /></a>
   <img src="https://img.shields.io/badge/license-Apache--2.0-yellowgreen?style=for-the-badge" alt="Apache-2.0 license" />
 </p>
@@ -50,8 +50,8 @@
   selected skills, and optional ownership enforcement.
 - **Review stays independent** - implementers write, while Codex or another
   configured independent reviewer returns `ACCEPTED` or `NEEDS FIX`.
-- **No lost outputs** - every dispatched task lands in the cache before the next
-  phase; the join barrier enforces N sent, N returned.
+- **No lost outputs** - dispatch can persist reviewer/agent output with `--out`,
+  and the join barrier still enforces N sent, N returned.
 - **Bounded repair** - keep-best, confirmation passes, user escalation, and
   non-convergence states keep the loop from spinning forever.
 - **Learning without training** - allocation blends benchmark priors with live
@@ -201,7 +201,7 @@ fugue doctor
 fugue init [--dry-run|--write]
 fugue fleet status|up|down
 fugue allocate <task-type>|list|record|feed|stats|reset|decay
-fugue dispatch <target> --harness fugue-cc|codex|opencode [--timeout-ms n] [--codex-clean] [--harness-arg x] --template <name>|--prompt-file <file>|--prompt <text>
+fugue dispatch <target> --harness fugue-cc|codex|opencode [--timeout-ms n] [--codex-clean] [--harness-arg x] [--out <file>] --template <name>|--prompt-file <file>|--prompt <text>
 fugue integrate --work <repo> --agents "a b" [--ownership file] [--dry]
 fugue skills index|list|match|show|inject|validate|forge
 fugue preflight [--harness fugue-cc|codex|opencode|all] [--config-only] [provider.config]

@@ -52,6 +52,9 @@ suite.ok("help lists clean Codex dispatch", () =>
 suite.ok("help lists dispatch harness args", () =>
   helpOut.includes("--harness-arg x"),
 );
+suite.ok("help lists dispatch output file", () =>
+  helpOut.includes("--out <file>"),
+);
 suite.ok("help lists planning harness", () =>
   helpOut.includes('plan "<goal>" [--harness h]'),
 );

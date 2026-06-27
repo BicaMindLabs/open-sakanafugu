@@ -195,6 +195,7 @@ export class DispatchCommand extends Command {
   experience = Option.String('--experience', defaultExperienceDir());
   ledger = Option.String('--ledger', defaultAllocationLedger());
   timeoutMs = Option.String('--timeout-ms', process.env.FUGUE_DISPATCH_TIMEOUT_MS ?? '0');
+  out = Option.String('--out');
   harnessArgs = Option.Array('--harness-arg', []);
   codexClean = Option.Boolean('--codex-clean', process.env.FUGUE_CODEX_CLEAN === '1');
 
@@ -227,15 +228,25 @@ export class DispatchCommand extends Command {
       ...(this.taskType !== undefined ? { taskType: this.taskType } : {}),
     });
     const rc = isOk(result) ? result.value.exitCode : (result.error.exitCode ?? 1);
+    let finalRc = rc;
     if (isOk(result)) {
+      if (this.out !== undefined) {
+        try {
+          await this.fs.write(this.out, result.value.output);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          this.context.stderr.write(`failed to write --out ${this.out}: ${message}\n`);
+          finalRc = 1;
+        }
+      }
       if (result.value.output.length > 0) this.context.stdout.write(result.value.output);
     } else {
       this.context.stderr.write(`${result.error.detail}\n`);
     }
 
-    await this.appendTaskLog(rc);
+    await this.appendTaskLog(finalRc);
     await this.appendAllocationLedger();
-    return rc;
+    return finalRc;
   }
 
   private harnessFor(name: HarnessName, timeoutMs: number | undefined): Harness {
