@@ -32,10 +32,7 @@ export class FsTaskStore implements TaskStore {
   async log(path: string, message: string): Promise<void> {
     const content = await this.read(path);
     const line = `- [${this.stamp()}] ${message}`;
-    await this.fs.write(
-      path,
-      content.endsWith('\n') ? `${content}${line}\n` : `${content}\n${line}\n`,
-    );
+    await this.fs.append(path, `${content.endsWith('\n') ? '' : '\n'}${line}\n`);
   }
 
   async done(path: string): Promise<void> {

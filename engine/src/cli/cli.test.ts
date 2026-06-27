@@ -239,6 +239,20 @@ describe('fugue CLI', () => {
       expect(code).toBe(0);
       expect(await readFile(file, 'utf8')).toContain('first second');
     });
+
+    it('preserves concurrent task log entries', async () => {
+      const created = await run(['task', 'new', 'concurrent log target']);
+      const file = created.out.trim();
+      const messages = Array.from({ length: 8 }, (_, index) => `audit-${String(index + 1)}`);
+
+      const results = await Promise.all(
+        messages.map((message) => run(['task', 'log', file, message])),
+      );
+      const content = await readFile(file, 'utf8');
+
+      expect(results.every((result) => result.code === 0)).toBe(true);
+      for (const message of messages) expect(content).toContain(message);
+    });
   });
 
   describe('template rendering', () => {
