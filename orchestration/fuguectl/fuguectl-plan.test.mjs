@@ -35,11 +35,12 @@ writeFileSync(
     "const root = args[0];",
     "const goal = args[1];",
     "if (root !== 'plan' || !goal) die('usage: plan <goal>');",
+    "const harness = opt('--harness', 'fugue-cc');",
     "const models = opt('--models', 'cc-deepseek,cc-kimi,coder').split(',').filter(Boolean);",
     "const out = opt('--out', path.join(process.env.FUGUE_CACHE || path.join(process.cwd(), '.fuguectl-cache'), 'plans'));",
     "const bin = opt('--bin', process.env.FUGUE_CC_BIN || 'fugue-cc');",
     "fs.mkdirSync(out, { recursive: true });",
-    "process.stdout.write('planning panel: goal decomposition -> ' + models.join(' ') + '\\n');",
+    "process.stdout.write('planning panel: goal decomposition (' + harness + ') -> ' + models.join(' ') + '\\n');",
     "const files = [];",
     "for (const model of models) {",
     "  const file = path.join(out, model + '.plan.md');",
@@ -81,6 +82,13 @@ suite.ok("calls include cc-a and cc-b", () => {
   return text.includes("cc-a") && text.includes("cc-b");
 });
 suite.ok("output lists plan file paths", () => out.includes("cc-a.plan.md"));
+
+run(plan, ["lite planning", "--harness", "codex", "--models", "gpt-5.5"]);
+suite.ok("wrapper preserves harness option", () =>
+  readFileSync(process.env.FUGUE_PLAN_CALLS, "utf8").includes(
+    "plan lite planning --harness codex --models gpt-5.5\n",
+  ),
+);
 
 writeFileSync(calls, "");
 run(plan, ["default models test"]);

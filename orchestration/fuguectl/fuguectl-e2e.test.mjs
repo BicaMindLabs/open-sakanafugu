@@ -42,6 +42,7 @@ suite.ok("help lists agents entrypoint", () =>
 suite.ok("help lists inline prompt dispatch", () =>
   helpOut.includes("--prompt <text>"),
 );
+suite.ok("help lists planning harness", () => helpOut.includes('plan "<goal>" [--harness h]'));
 suite.ok(
   "help does not leak script body",
   () => !helpOut.includes("set -uo pipefail"),

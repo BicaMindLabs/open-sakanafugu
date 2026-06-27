@@ -170,7 +170,7 @@ improvement first, then decide whether a learned conductor is worth the cost.
 | Area                   | Commands                                                                                                                                                                                              |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Setup and recon        | `fuguectl doctor`, `fuguectl preflight --harness fugue-cc\|codex\|opencode\|all`, `fuguectl fleet status\|up\|down`                                                                                   |
-| Planning               | `fuguectl task new\|log\|done`, `fuguectl template <name>`, `fuguectl plan "<goal>"`, `fuguectl goal template\|show\|check`                                                                           |
+| Planning               | `fuguectl task new\|log\|done`, `fuguectl template <name>`, `fuguectl plan "<goal>" [--harness h]`, `fuguectl goal template\|show\|check`                                                             |
 | Routing and context    | `fuguectl allocate <type>`, `fuguectl workspace list\|show\|model\|context`, `fuguectl agents template\|validate\|list\|resolve`, `fuguectl skills index\|list\|match\|show\|inject\|validate\|forge` |
 | Dispatch and gather    | `fuguectl dispatch <target>`, `fuguectl cache init\|put\|fail\|barrier\|collect\|resume`                                                                                                              |
 | Integration and loop   | `fuguectl integrate --work <repo>`, `fuguectl loop init\|record\|decide\|status`, `fuguectl run set\|round\|status\|next\|clear`, `fuguectl summary <round>`                                          |
@@ -203,7 +203,7 @@ fugue integrate --work <repo> --agents "a b" [--ownership file] [--dry]
 fugue skills index|list|match|show|inject|validate|forge
 fugue preflight [--harness fugue-cc|codex|opencode|all] [--config-only] [provider.config]
 fugue cache init|put|fail|status|barrier|collect|list|resume --cache <dir>
-fugue plan "<goal>" --out <dir> [--models m1,m2]
+fugue plan "<goal>" --harness fugue-cc|codex|opencode --out <dir> [--models m1,m2]
 fugue task new|log|done
 fugue template <name> --dir <templates> [--set KEY=VALUE ...]
 fugue workspace list|show|model|context

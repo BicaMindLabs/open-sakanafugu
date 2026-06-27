@@ -3,8 +3,11 @@ import { join as joinPath } from 'node:path';
 
 import { Command, Option } from 'clipanion';
 
+import { CodexHarness } from '../../adapters/harness/codex-harness.js';
 import { FugueCcHarness } from '../../adapters/harness/fugue-cc-harness.js';
+import { OpencodeHarness } from '../../adapters/harness/opencode-harness.js';
 import { DEFAULT_PLAN_AGENTS } from '../../domain/plan.js';
+import { HARNESS_NAMES, type Harness, type HarnessName } from '../../domain/ports/harness.js';
 import { isOk } from '../../domain/result.js';
 import { NodeCommandRunner } from '../../infra/node-command-runner.js';
 import { defaultCacheRoot } from '../default-paths.js';
@@ -16,6 +19,17 @@ const parseModels = (raw: string): readonly string[] =>
     .filter((model) => model.length > 0);
 
 const defaultPlanOut = (): string => joinPath(defaultCacheRoot(import.meta.url), 'plans');
+
+const DEFAULT_CODEX_PLAN_AGENTS = ['gpt-5.5'] as const;
+const DEFAULT_OPENCODE_PLAN_AGENTS = ['opencode/deepseek-v4-flash-free'] as const;
+
+const isHarnessName = (value: string): value is HarnessName =>
+  (HARNESS_NAMES as readonly string[]).includes(value);
+
+const planFilename = (agent: string): string => {
+  const slug = agent.replace(/[^A-Za-z0-9._-]+/gu, '_').replace(/^_+|_+$/gu, '');
+  return `${slug.length > 0 ? slug : 'agent'}.plan.md`;
+};
 
 const promptFor = (model: string, goal: string, outfile: string): string =>
   [
@@ -32,16 +46,32 @@ const promptFor = (model: string, goal: string, outfile: string): string =>
     `Output: **must use the Write tool to write to ${outfile}** (NOT chat! chat gets lost), Markdown.`,
   ].join('\n');
 
+const defaultAgentsFor = (harness: HarnessName): readonly string[] => {
+  switch (harness) {
+    case 'fugue-cc':
+      return DEFAULT_PLAN_AGENTS;
+    case 'codex':
+      return DEFAULT_CODEX_PLAN_AGENTS;
+    case 'opencode':
+      return DEFAULT_OPENCODE_PLAN_AGENTS;
+  }
+};
+
 export class PlanCommand extends Command {
   static override paths = [['plan']];
 
   goal = Option.String();
-  models = Option.String('--models', DEFAULT_PLAN_AGENTS.join(','));
+  harness = Option.String('--harness', process.env.FUGUE_DEFAULT_HARNESS ?? 'fugue-cc');
+  models = Option.String('--models');
   out = Option.String('--out');
   bin = Option.String('--bin', process.env.FUGUE_CC_BIN ?? 'fugue-cc');
 
   override async execute(): Promise<number> {
-    const agents = parseModels(this.models);
+    if (!isHarnessName(this.harness)) {
+      this.context.stderr.write(`unknown harness '${this.harness}' (fugue-cc|codex|opencode)\n`);
+      return 2;
+    }
+    const agents = parseModels(this.models ?? defaultAgentsFor(this.harness).join(','));
     if (agents.length === 0) {
       this.context.stderr.write('no planning models specified\n');
       return 2;
@@ -49,10 +79,10 @@ export class PlanCommand extends Command {
     const outDir = this.out ?? defaultPlanOut();
     await mkdir(outDir, { recursive: true });
 
-    const harness = new FugueCcHarness(new NodeCommandRunner(), { bin: this.bin });
+    const harness = this.harnessFor(this.harness);
     const requests = agents.map((agent) => ({
       agent,
-      outfile: joinPath(outDir, `${agent}.plan.md`),
+      outfile: joinPath(outDir, planFilename(agent)),
     }));
     const results = await Promise.all(
       requests.map(async ({ agent, outfile }) => {
@@ -64,7 +94,9 @@ export class PlanCommand extends Command {
       }),
     );
 
-    const lines = [`── planning panel: goal decomposition → ${agents.join(' ')} ──`];
+    const lines = [
+      `── planning panel: goal decomposition (${this.harness}) → ${agents.join(' ')} ──`,
+    ];
     for (const entry of results) {
       lines.push(
         isOk(entry.result)
@@ -79,6 +111,18 @@ export class PlanCommand extends Command {
     );
     for (const entry of requests) lines.push(`  ${entry.outfile}`);
     this.context.stdout.write(`${lines.join('\n')}\n`);
-    return 0;
+    return results.every((entry) => isOk(entry.result)) ? 0 : 1;
+  }
+
+  private harnessFor(name: HarnessName): Harness {
+    const runner = new NodeCommandRunner();
+    switch (name) {
+      case 'fugue-cc':
+        return new FugueCcHarness(runner, { bin: this.bin });
+      case 'codex':
+        return new CodexHarness(runner, { bin: process.env.FUGUE_CODEX ?? 'codex' });
+      case 'opencode':
+        return new OpencodeHarness(runner, { bin: process.env.FUGUE_OPENCODE ?? 'opencode' });
+    }
   }
 }

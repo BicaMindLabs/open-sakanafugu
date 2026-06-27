@@ -1395,6 +1395,8 @@ describe('fugue CLI', () => {
   describe('plan command', () => {
     let dir: string;
     let bin: string;
+    let codexBin: string;
+    let opencodeBin: string;
     let out: string;
     let calls: string;
     let prompts: string;
@@ -1402,6 +1404,8 @@ describe('fugue CLI', () => {
     beforeEach(async () => {
       dir = await mkdtemp(join(tmpdir(), 'fugue-plan-'));
       bin = join(dir, 'fugue-cc');
+      codexBin = join(dir, 'codex');
+      opencodeBin = join(dir, 'opencode');
       out = join(dir, 'plans');
       calls = join(dir, 'calls.txt');
       prompts = join(dir, 'prompts.txt');
@@ -1411,6 +1415,28 @@ describe('fugue CLI', () => {
         'utf8',
       );
       await chmod(bin, 0o755);
+      await writeFile(
+        codexBin,
+        [
+          '#!/usr/bin/env bash',
+          `printf 'codex:%s\\n' "$3" >> "${calls}"`,
+          `printf '%s\\n' "$4" >> "${prompts}"`,
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      await chmod(codexBin, 0o755);
+      await writeFile(
+        opencodeBin,
+        [
+          '#!/usr/bin/env bash',
+          `printf 'opencode:%s\\n' "$3" >> "${calls}"`,
+          `printf '%s\\n' "$4" >> "${prompts}"`,
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      await chmod(opencodeBin, 0o755);
     });
 
     afterEach(async () => {
@@ -1437,6 +1463,119 @@ describe('fugue CLI', () => {
       expect(planned.out).toContain('cc-a.plan.md');
       expect(prompt).toContain('build a login feature');
       expect(prompt).toContain(`write to ${join(out, 'cc-a.plan.md')}`);
+    });
+
+    it('dispatches planning through the selected lite harness', async () => {
+      process.env.FUGUE_CODEX = codexBin;
+      try {
+        const planned = await run([
+          'plan',
+          'improve the dispatch smoke path',
+          '--harness',
+          'codex',
+          '--models',
+          'gpt-5.5',
+          '--out',
+          out,
+        ]);
+        const called = await readFile(calls, 'utf8');
+        const prompt = await readFile(prompts, 'utf8');
+
+        expect(planned.code).toBe(0);
+        expect(planned.out).toContain('planning panel: goal decomposition (codex)');
+        expect(called).toContain('codex:gpt-5.5');
+        expect(prompt).toContain('improve the dispatch smoke path');
+      } finally {
+        delete process.env.FUGUE_CODEX;
+      }
+    });
+
+    it('uses a codex default model for codex planning', async () => {
+      process.env.FUGUE_CODEX = codexBin;
+      try {
+        const planned = await run([
+          'plan',
+          'default codex plan',
+          '--harness',
+          'codex',
+          '--out',
+          out,
+        ]);
+        const called = await readFile(calls, 'utf8');
+
+        expect(planned.code).toBe(0);
+        expect(called).toContain('codex:gpt-5.5');
+        expect(planned.out).toContain('gpt-5.5.plan.md');
+      } finally {
+        delete process.env.FUGUE_CODEX;
+      }
+    });
+
+    it('uses safe plan filenames for provider/model targets', async () => {
+      process.env.FUGUE_OPENCODE = opencodeBin;
+      try {
+        const planned = await run([
+          'plan',
+          'plan through opencode',
+          '--harness',
+          'opencode',
+          '--models',
+          'opencode/deepseek-v4-flash-free',
+          '--out',
+          out,
+        ]);
+        const called = await readFile(calls, 'utf8');
+        const prompt = await readFile(prompts, 'utf8');
+
+        expect(planned.code).toBe(0);
+        expect(called).toContain('opencode:opencode/deepseek-v4-flash-free');
+        expect(planned.out).toContain('opencode_deepseek-v4-flash-free.plan.md');
+        expect(prompt).toContain(join(out, 'opencode_deepseek-v4-flash-free.plan.md'));
+      } finally {
+        delete process.env.FUGUE_OPENCODE;
+      }
+    });
+
+    it('uses an opencode provider/model default for opencode planning', async () => {
+      process.env.FUGUE_OPENCODE = opencodeBin;
+      try {
+        const planned = await run([
+          'plan',
+          'default opencode plan',
+          '--harness',
+          'opencode',
+          '--out',
+          out,
+        ]);
+        const called = await readFile(calls, 'utf8');
+
+        expect(planned.code).toBe(0);
+        expect(called).toContain('opencode:opencode/deepseek-v4-flash-free');
+        expect(planned.out).toContain('opencode_deepseek-v4-flash-free.plan.md');
+      } finally {
+        delete process.env.FUGUE_OPENCODE;
+      }
+    });
+
+    it('returns non-zero when a planning dispatch fails', async () => {
+      const missing = await run([
+        'plan',
+        'this should fail',
+        '--models',
+        'cc-missing',
+        '--bin',
+        join(dir, 'missing-fugue-cc'),
+      ]);
+
+      expect(missing.code).toBe(1);
+      expect(missing.out).toContain('dispatch failed');
+    });
+
+    it('rejects unknown planning harnesses', async () => {
+      const planned = await run(['plan', 'bad harness', '--harness', 'bogus']);
+
+      expect(planned.code).toBe(2);
+      expect(planned.err).toContain('unknown harness');
     });
 
     it('uses the cross-family default model set and env-backed command defaults', async () => {
