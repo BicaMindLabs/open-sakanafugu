@@ -20,13 +20,14 @@
     "test:engine": "cd engine && npm run check",
     "test:engine:ci": "cd engine && npm ci && npm run check",
     "test": "npm run test:plugin && npm run test:fuguectl",
+    "build:engine": "cd engine && npm run build",
     "install:backends": "node scripts/run-ts.mjs backends/install.ts",
     "install:skill": "node scripts/run-ts.mjs scripts/install-skill.ts",
     "verify:launchers": "node scripts/run-ts.mjs backends/verify.ts",
     "scan": "node scripts/run-ts.mjs scripts/scan-secrets.ts",
     "lint:launchers": "node scripts/run-ts.mjs scripts/check-launchers.ts",
     "check:docs": "node scripts/run-ts.mjs scripts/check-docs.ts",
-    "ci": "npm run scan && npm run lint:launchers && npm run check:docs && npm test && npm run test:engine",
-    "ci:clean": "npm run scan && npm run lint:launchers && npm run check:docs && npm test && npm run test:engine:ci"
+    "ci": "npm run scan && npm run lint:launchers && npm run check:docs && npm run build:engine && npm test && npm run test:engine",
+    "ci:clean": "npm run scan && npm run lint:launchers && npm run check:docs && npm run build:engine && npm test && npm run test:engine:ci"
   }
 }

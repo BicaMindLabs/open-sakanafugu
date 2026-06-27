@@ -46,6 +46,9 @@ suite.ok("help lists inline prompt dispatch", () =>
 suite.ok("help lists dispatch timeout", () =>
   helpOut.includes("--timeout-ms n"),
 );
+suite.ok("help lists clean Codex dispatch", () =>
+  helpOut.includes("--codex-clean"),
+);
 suite.ok("help lists dispatch harness args", () =>
   helpOut.includes("--harness-arg x"),
 );

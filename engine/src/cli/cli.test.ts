@@ -480,6 +480,35 @@ describe('fugue CLI', () => {
       expect(opencodeCall).toContain('ARGV: run --agent review -m doubao/doubao-code');
     });
 
+    it('uses clean Codex exec flags for non-interactive reviewer dispatch', async () => {
+      const dispatched = await run(
+        args('gpt-5.5', '--harness', 'codex', '--codex-clean', '--prompt-file', promptFile),
+      );
+      const codexCall = await readFile(codexCalled, 'utf8');
+
+      expect(dispatched.code).toBe(0);
+      expect(codexCall).toContain(
+        'ARGV: exec --ignore-user-config --ignore-rules --ephemeral --color never --model gpt-5.5',
+      );
+      expect(codexCall).toContain('custom prompt content');
+    });
+
+    it('rejects clean Codex mode on non-Codex harnesses', async () => {
+      const dispatched = await run(
+        args(
+          'doubao/doubao-code',
+          '--harness',
+          'opencode',
+          '--codex-clean',
+          '--prompt-file',
+          promptFile,
+        ),
+      );
+
+      expect(dispatched.code).toBe(2);
+      expect(dispatched.err).toContain('--codex-clean requires --harness codex');
+    });
+
     it('dispatches an inline prompt for quick smoke checks', async () => {
       const dispatched = await run(
         args('gpt-5.5', '--harness', 'codex', '--prompt', 'inline smoke prompt'),

@@ -24,6 +24,9 @@ const called = join(tmp, "called");
 
 const help = run(dispatch, ["--help"]).stdout;
 suite.ok("help lists dispatch timeout", () => help.includes("--timeout-ms n"));
+suite.ok("help lists clean Codex dispatch", () =>
+  help.includes("--codex-clean"),
+);
 suite.ok("help lists dispatch harness args", () =>
   help.includes("--harness-arg x"),
 );
@@ -110,6 +113,19 @@ run(dispatch, [
 suite.ok("codex harness args are preserved through wrapper", () =>
   readFileSync(codexCalled, "utf8").includes(
     "ARGV: exec -c mcp_servers={} --model gpt-5.5",
+  ),
+);
+run(dispatch, [
+  "gpt-5.5",
+  "--harness",
+  "codex",
+  "--codex-clean",
+  "--prompt-file",
+  promptFile,
+]);
+suite.ok("clean Codex mode is preserved through wrapper", () =>
+  readFileSync(codexCalled, "utf8").includes(
+    "ARGV: exec --ignore-user-config --ignore-rules --ephemeral --color never --model gpt-5.5",
   ),
 );
 

@@ -167,6 +167,14 @@ const shanghaiTimestamp = (date = new Date()): string => {
 const isHarnessName = (value: string): value is HarnessName =>
   (HARNESS_NAMES as readonly string[]).includes(value);
 
+const CODEX_CLEAN_ARGS = [
+  '--ignore-user-config',
+  '--ignore-rules',
+  '--ephemeral',
+  '--color',
+  'never',
+] as const;
+
 export class DispatchCommand extends Command {
   static override paths = [['dispatch']];
 
@@ -188,12 +196,17 @@ export class DispatchCommand extends Command {
   ledger = Option.String('--ledger', defaultAllocationLedger());
   timeoutMs = Option.String('--timeout-ms', process.env.FUGUE_DISPATCH_TIMEOUT_MS ?? '0');
   harnessArgs = Option.Array('--harness-arg', []);
+  codexClean = Option.Boolean('--codex-clean', process.env.FUGUE_CODEX_CLEAN === '1');
 
   private readonly fs = new NodeFileSystem();
 
   override async execute(): Promise<number> {
     if (!isHarnessName(this.harness)) {
       this.context.stderr.write(`unknown harness '${this.harness}' (fugue-cc|codex|opencode)\n`);
+      return 2;
+    }
+    if (this.codexClean && this.harness !== 'codex') {
+      this.context.stderr.write('--codex-clean requires --harness codex\n');
       return 2;
     }
 
@@ -227,6 +240,9 @@ export class DispatchCommand extends Command {
 
   private harnessFor(name: HarnessName, timeoutMs: number | undefined): Harness {
     const runner = new NodeCommandRunner();
+    const codexArgs = this.codexClean
+      ? [...CODEX_CLEAN_ARGS, ...this.harnessArgs]
+      : this.harnessArgs;
     switch (name) {
       case 'fugue-cc':
         return new FugueCcHarness(runner, {
@@ -238,7 +254,7 @@ export class DispatchCommand extends Command {
         return new CodexHarness(runner, {
           bin: process.env.FUGUE_CODEX ?? 'codex',
           ...(timeoutMs !== undefined ? { timeoutMs } : {}),
-          ...(this.harnessArgs.length > 0 ? { args: this.harnessArgs } : {}),
+          ...(codexArgs.length > 0 ? { args: codexArgs } : {}),
         });
       case 'opencode':
         return new OpencodeHarness(runner, {
