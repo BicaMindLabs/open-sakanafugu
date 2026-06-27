@@ -176,7 +176,7 @@ improvement first, then decide whether a learned conductor is worth the cost.
 | Routing and context    | `fuguectl allocate <type>`, `fuguectl workspace list\|show\|model\|context`, `fuguectl agents template\|validate\|list\|resolve`, `fuguectl skills index\|list\|match\|show\|inject\|validate\|forge` |
 | Dispatch and gather    | `fuguectl dispatch <target>`, `fuguectl cache init\|put\|fail\|barrier\|collect\|resume`                                                                                                              |
 | Integration and loop   | `fuguectl integrate --work <repo>`, `fuguectl loop init\|record\|decide\|status`, `fuguectl run set\|round\|status\|next\|clear`, `fuguectl summary <round>`                                          |
-| Memory and maintenance | `fuguectl experience add\|list\|recall\|show`, `fuguectl runtime check\|adapt`, `fuguectl selftest`                                                                                                   |
+| Memory and maintenance | `fuguectl experience add\|list\|recall\|show`, `fuguectl runtime check\|adapt` (provider + installed workflow skill drift), `fuguectl selftest`                                                       |
 
 ## TypeScript Engine
 
@@ -212,13 +212,19 @@ fugue template <name> --dir <templates> [--set KEY=VALUE ...]
 fugue workspace list|show|model|context
 fugue experience add|list|recall|show --store <dir>
 fugue summary <round> --cache <dir> [--task <file>]
-fugue runtime check|adapt --state <dir>
+fugue runtime check|adapt --state <dir> [--skill <installed SKILL.md>] [--repo-skill <repo SKILL.md>]
 fugue run set|round|status|next|clear
 fugue loop init|record|decide|next|status
 fugue goal template|show|check
 fugue agent-registry template|validate|list|resolve
 fugue self-harness template|run
 ```
+
+`runtime check` also compares the repo's `orchestration/fuguectl/SKILL.md`
+with the installed workflow skill. `runtime adapt --apply` syncs it, so local
+agent instructions do not drift behind the repo after the workflow evolves. If
+`fugue-cc` is unavailable, adapt still syncs the skill but exits non-zero so
+provider automation can detect the skipped runtime restart/stamp.
 
 ## Self-Harness
 

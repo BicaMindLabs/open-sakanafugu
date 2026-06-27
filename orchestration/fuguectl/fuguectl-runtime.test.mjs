@@ -168,4 +168,17 @@ suite.ok("wrapper delegates to engine CLI", () =>
   readFileSync(calls, "utf8").includes("runtime check\n"),
 );
 
+run(runtime, [
+  "check",
+  "--skill",
+  join(tmp, "installed", "SKILL.md"),
+  "--repo-skill",
+  join(tmp, "repo", "SKILL.md"),
+]);
+suite.ok("wrapper forwards workflow skill options", () =>
+  readFileSync(calls, "utf8").includes(
+    `runtime check --skill ${join(tmp, "installed", "SKILL.md")} --repo-skill ${join(tmp, "repo", "SKILL.md")}\n`,
+  ),
+);
+
 suite.done();

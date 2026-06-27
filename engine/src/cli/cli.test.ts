@@ -1941,6 +1941,8 @@ describe('fugue CLI', () => {
     let work: string;
     let preflight: string;
     let calls: string;
+    let repoSkill: string;
+    let installedSkill: string;
 
     beforeEach(async () => {
       dir = await mkdtemp(join(tmpdir(), 'fugue-runtime-'));
@@ -1950,9 +1952,15 @@ describe('fugue CLI', () => {
       work = join(dir, 'work');
       preflight = join(dir, 'preflight');
       calls = join(dir, 'calls.txt');
+      repoSkill = join(dir, 'repo-skill', 'SKILL.md');
+      installedSkill = join(dir, 'installed-skill', 'SKILL.md');
       await mkdir(join(install, 'lib/provider_profiles'), { recursive: true });
       await mkdir(join(work, '.fugue-cc'), { recursive: true });
+      await mkdir(join(dir, 'repo-skill'), { recursive: true });
+      await mkdir(join(dir, 'installed-skill'), { recursive: true });
       await writeFile(join(install, 'lib/provider_profiles/api_shortcuts.py'), '', 'utf8');
+      await writeFile(repoSkill, 'repo workflow skill\n', 'utf8');
+      await writeFile(installedSkill, 'old workflow skill\n', 'utf8');
       await writeFile(
         join(work, '.fugue-cc/provider.config'),
         '[agents.cc]\nmodel = "deepseek"\n',
@@ -1974,6 +1982,8 @@ describe('fugue CLI', () => {
       await chmod(bin, 0o755);
       await writeFile(preflight, '#!/usr/bin/env bash\necho "config OK: $3"\n', 'utf8');
       await chmod(preflight, 0o755);
+      process.env.FUGUNANO_REPO_SKILL = repoSkill;
+      process.env.FUGUNANO_SKILL = installedSkill;
     });
 
     afterEach(async () => {
@@ -1983,6 +1993,11 @@ describe('fugue CLI', () => {
       delete process.env.FUGUE_CC_INSTALL;
       delete process.env.FUGUE_CC_WORK;
       delete process.env.FUGUE_DRIVER_NAME;
+      delete process.env.FUGUNANO_REPO_SKILL;
+      delete process.env.FUGUE_REPO_SKILL;
+      delete process.env.FUGUNANO_SKILL;
+      delete process.env.FUGUE_WORKFLOW_SKILL;
+      delete process.env.FUGUE_SKILL;
       await rm(dir, { recursive: true, force: true });
     });
 
@@ -2023,6 +2038,7 @@ describe('fugue CLI', () => {
         '--apply',
       ]);
       const stamp = await readFile(join(state, 'runtime-version'), 'utf8');
+      const syncedSkill = await readFile(installedSkill, 'utf8');
       const killCalls = await readFile(calls, 'utf8');
       const check2 = await run([
         'runtime',
@@ -2050,14 +2066,19 @@ describe('fugue CLI', () => {
       expect(check.code).toBe(0);
       expect(check.out).toContain('version drift');
       expect(check.out).toContain('grafting api_shortcuts.py present');
+      expect(check.out).toContain('workflow skill drift');
       expect(dry.out).toContain('[dry-run]');
       expect(dry.out).toContain('stamp not written');
+      expect(dry.out).toContain('would refresh workflow skill');
       expect(apply.out).toContain('config validation');
       expect(apply.out).toContain('recorded v9.9.9');
+      expect(apply.out).toContain('synced workflow skill');
       expect(stamp.trim()).toBe('v9.9.9');
+      expect(syncedSkill).toBe('repo workflow skill\n');
       expect(killCalls).toContain('kill:');
       expect(killCalls).toContain('/work');
       expect(check2.out).toContain('no drift');
+      expect(check2.out).toContain('workflow skill up-to-date');
       expect(missingGrafting.out).toContain('api_shortcuts.py is gone');
     });
 
@@ -2076,10 +2097,40 @@ describe('fugue CLI', () => {
       expect(check.code).toBe(0);
       expect(check.out).toContain("run 'fctl runtime adapt --apply'");
       expect(check.out).toContain('grafting api_shortcuts.py present');
+      expect(check.out).toContain('workflow skill drift');
       expect(apply.out).toContain(`stopped provider daemon @ ${work}`);
+      expect(apply.out).toContain('synced workflow skill');
       expect(apply.out).toContain('config validation');
       expect(stamp.trim()).toBe('v9.9.9');
       expect(killCalls).toContain('/work');
+    });
+
+    it('still syncs the workflow skill when fugue-cc is unavailable', async () => {
+      await writeFile(bin, '#!/usr/bin/env bash\nexit 127\n', 'utf8');
+      await chmod(bin, 0o755);
+
+      const apply = await run([
+        'runtime',
+        'adapt',
+        '--bin',
+        bin,
+        '--state',
+        state,
+        '--install',
+        install,
+        '--apply',
+      ]);
+      const syncedSkill = await readFile(installedSkill, 'utf8');
+      const stampMissing = await readFile(join(state, 'runtime-version'), 'utf8').then(
+        () => false,
+        () => true,
+      );
+
+      expect(apply.code).toBe(2);
+      expect(apply.out).toContain('cannot get fugue-cc provider version');
+      expect(apply.out).toContain('synced workflow skill');
+      expect(syncedSkill).toBe('repo workflow skill\n');
+      expect(stampMissing).toBe(true);
     });
 
     it('keeps FUGUE_STATE as a compatibility fallback', async () => {

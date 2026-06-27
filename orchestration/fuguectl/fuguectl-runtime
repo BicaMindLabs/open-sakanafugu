@@ -7,8 +7,10 @@ runSubcommandBridge({
   allowed: ["check", "adapt"],
   help: `fuguectl-runtime — TypeScript runtime sync bridge
 
-check            print current/last provider version + drift
-adapt [--apply]  verify grafting, optionally restart daemon, preflight, record version
+check            print current/last provider version + workflow skill drift
+adapt [--apply]  verify grafting, sync workflow skill, optionally restart daemon, preflight, record version
+
+Options: --skill <installed SKILL.md> --repo-skill <repo SKILL.md>
 `,
   unknown: (subcommand) =>
     `fuguectl-runtime: unknown subcommand '${subcommand}' (check|adapt)`,
