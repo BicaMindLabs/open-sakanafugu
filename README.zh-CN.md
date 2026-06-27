@@ -143,10 +143,11 @@ Fugu、OpenFugu 和 FuguNano 在同一条路线上：当单一前沿模型或硬
 FuguNano 不是要替代 Fugu / OpenFugu，而是把同一方向落到更轻的开放入口上：
 先用策略、端口、审查门和 harness 自改进打开协作，再判断是否值得训练一个 conductor。
 
-Planning panel 会打印每个 agent 的 dispatch 耗时；`dispatch --verbose` 会把 obs 行写到
-stderr；带 `--task` 的 dispatch 会把耗时 / 输出大小 / 可选 `--out` artifact 路径
-持久化进 TASK log。所以真实 Codex/OpenCode/AGY 运行会留下可观察痕迹，同时不污染
-模型 stdout 或 durable artifact。
+Planning panel 会打印每个 agent 的 dispatch 耗时；带 `--task` 时还会把 planner 状态和
+artifact 路径持久化进 TASK log。`dispatch --verbose` 会把 obs 行写到 stderr；带
+`--task` 的 dispatch 会把耗时 / 输出大小 / 可选 `--out` artifact 路径持久化进 TASK
+log。所以真实 Codex/OpenCode/AGY 运行会留下可观察痕迹，同时不污染模型 stdout 或
+durable artifact。
 
 ## 命令面
 
@@ -155,7 +156,7 @@ stderr；带 `--task` 的 dispatch 会把耗时 / 输出大小 / 可选 `--out` 
 | 区域                   | 命令                                                                                                                                                                                                  |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Setup and recon        | `fuguectl doctor`、`fuguectl init --dry-run\|--write`、`fuguectl preflight --harness fugue-cc\|codex\|opencode\|agy\|all`、`fuguectl fleet status\|up\|down`                                          |
-| Planning               | `fuguectl task new\|log\|done`、`fuguectl template <name>`、`fuguectl plan "<goal>" [--harness h] [--timeout-ms n] [--harness-arg x]`、`fuguectl goal template\|show\|check`                          |
+| Planning               | `fuguectl task new\|log\|done`、`fuguectl template <name>`、`fuguectl plan "<goal>" [--harness h] [--timeout-ms n] [--harness-arg x] [--task f]`、`fuguectl goal template\|show\|check`               |
 | Routing and context    | `fuguectl allocate <type>`、`fuguectl workspace list\|show\|model\|context`、`fuguectl agents template\|validate\|list\|resolve`、`fuguectl skills index\|list\|match\|show\|inject\|validate\|forge` |
 | Dispatch and gather    | `fuguectl dispatch <target>`、`fuguectl cache init\|put\|fail\|barrier\|collect\|resume`                                                                                                              |
 | Integration and loop   | `fuguectl integrate --work <repo>`、`fuguectl loop init\|record\|decide\|status`、`fuguectl run set\|round\|status\|next\|clear`、`fuguectl summary <round>`                                          |
@@ -185,7 +186,7 @@ fugue integrate --work <repo> --agents "a b" [--ownership file] [--dry]
 fugue skills index|list|match|show|inject|validate|forge
 fugue preflight [--harness fugue-cc|codex|opencode|agy|all] [--model provider/model|--target provider/model] [--config-only] [provider.config]
 fugue cache init|put|fail|status|barrier|collect|list|resume --cache <dir>
-fugue plan "<goal>" --harness fugue-cc|codex|opencode|agy --out <dir> [--models m1,m2] [--timeout-ms n] [--harness-arg x]
+fugue plan "<goal>" --harness fugue-cc|codex|opencode|agy --out <dir> [--models m1,m2] [--timeout-ms n] [--harness-arg x] [--task <file>]
 fugue task new|log|done
 fugue template <name> --dir <templates> [--set KEY=VALUE ...]
 fugue workspace list|show|model|context

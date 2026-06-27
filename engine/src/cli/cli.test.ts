@@ -1742,6 +1742,9 @@ describe('fugue CLI', () => {
     });
 
     it('dispatches the planning prompt to selected models and lists output files', async () => {
+      const task = join(dir, 'TASK-plan.md');
+      await writeFile(task, '## Log\n', 'utf8');
+
       const planned = await run([
         'plan',
         'build a login feature',
@@ -1751,10 +1754,13 @@ describe('fugue CLI', () => {
         out,
         '--bin',
         bin,
+        '--task',
+        task,
       ]);
       const called = await readFile(calls, 'utf8');
       const prompt = await readFile(prompts, 'utf8');
       const captured = await readFile(join(out, 'cc-a.plan.md'), 'utf8');
+      const taskLog = await readFile(task, 'utf8');
 
       expect(planned.code).toBe(0);
       expect(called).toContain('cc-a');
@@ -1765,6 +1771,9 @@ describe('fugue CLI', () => {
       expect(prompt).toContain('build a login feature');
       expect(prompt).toContain(`write to ${join(out, 'cc-a.plan.md')}`);
       expect(captured).toContain('# stub plan');
+      expect(taskLog).toContain('plan → cc-a [fugue-cc] (status=started');
+      expect(taskLog).toContain('plan → cc-a [fugue-cc] (status=captured');
+      expect(taskLog).toContain(`out=${join(out, 'cc-a.plan.md')}`);
     });
 
     it('dispatches planning through the selected lite harness', async () => {
@@ -1919,6 +1928,9 @@ describe('fugue CLI', () => {
     });
 
     it('returns non-zero when a planning dispatch fails', async () => {
+      const task = join(dir, 'TASK-plan-fail.md');
+      await writeFile(task, '## Log\n', 'utf8');
+
       const missing = await run([
         'plan',
         'this should fail',
@@ -1926,16 +1938,23 @@ describe('fugue CLI', () => {
         'cc-missing',
         '--bin',
         join(dir, 'missing-fugue-cc'),
+        '--task',
+        task,
       ]);
+      const taskLog = await readFile(task, 'utf8');
 
       expect(missing.code).toBe(1);
       expect(missing.out).toContain('dispatch failed');
       expect(missing.out).toContain('(took ');
+      expect(taskLog).toContain('plan → cc-missing [fugue-cc] (status=started');
+      expect(taskLog).toContain('plan → cc-missing [fugue-cc] (status=failed');
     });
 
     it('returns non-zero when a planner produces no durable artifact', async () => {
       const silentBin = join(dir, 'silent-fugue-cc');
+      const task = join(dir, 'TASK-plan-missing.md');
       await writeFile(silentBin, '#!/usr/bin/env bash\ncat >/dev/null\nexit 0\n', 'utf8');
+      await writeFile(task, '## Log\n', 'utf8');
       await chmod(silentBin, 0o755);
 
       const planned = await run([
@@ -1947,11 +1966,16 @@ describe('fugue CLI', () => {
         out,
         '--bin',
         silentBin,
+        '--task',
+        task,
       ]);
+      const taskLog = await readFile(task, 'utf8');
 
       expect(planned.code).toBe(1);
       expect(planned.out).toContain('produced no plan artifact');
       expect(planned.out).toContain('(took ');
+      expect(taskLog).toContain('plan → cc-silent [fugue-cc] (status=started');
+      expect(taskLog).toContain('plan → cc-silent [fugue-cc] (status=missing');
       await expect(readFile(join(out, 'cc-silent.plan.md'), 'utf8')).rejects.toThrow();
     });
 

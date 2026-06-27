@@ -70,9 +70,11 @@ suite.ok(
     helpOut.includes('plan "<goal>"') && helpOut.includes("[--timeout-ms n]"),
 );
 suite.ok(
-  "help lists planning harness args",
+  "help lists planning harness args and task audit",
   () =>
-    helpOut.includes('plan "<goal>"') && helpOut.includes("[--harness-arg x]"),
+    helpOut.includes('plan "<goal>"') &&
+    helpOut.includes("[--harness-arg x]") &&
+    helpOut.includes("[--task <file>]"),
 );
 suite.ok(
   "help does not leak script body",

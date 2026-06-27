@@ -33,6 +33,20 @@ const formatDurationMs = (ms: number): string => {
   return `${(ms / 1000).toFixed(1)}s`;
 };
 
+const shanghaiTimestamp = (date = new Date()): string => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const value = (type: string): string => parts.find((part) => part.type === type)?.value ?? '00';
+  return `${value('year')}-${value('month')}-${value('day')} ${value('hour')}:${value('minute')}`;
+};
+
 const defaultPlanOut = (): string => joinPath(defaultCacheRoot(import.meta.url), 'plans');
 
 const DEFAULT_CODEX_PLAN_AGENTS = ['gpt-5.5'] as const;
@@ -99,9 +113,12 @@ export class PlanCommand extends Command {
   harness = Option.String('--harness', process.env.FUGUE_DEFAULT_HARNESS ?? 'fugue-cc');
   models = Option.String('--models');
   out = Option.String('--out');
+  task = Option.String('--task');
   bin = Option.String('--bin', process.env.FUGUE_CC_BIN ?? 'fugue-cc');
   timeoutMs = Option.String('--timeout-ms', process.env.FUGUE_PLAN_TIMEOUT_MS ?? '0');
   harnessArgs = Option.Array('--harness-arg', []);
+
+  private taskLogQueue: Promise<void> = Promise.resolve();
 
   override async execute(): Promise<number> {
     if (!isHarnessName(this.harness)) {
@@ -128,6 +145,11 @@ export class PlanCommand extends Command {
       agent,
       outfile: joinPath(outDir, planFilename(agent)),
     }));
+    for (const request of requests) {
+      await this.appendTaskLog(
+        `plan → ${request.agent} [${this.harness}] (status=started out=${request.outfile})`,
+      );
+    }
     const results = await Promise.all(
       requests.map(async ({ agent, outfile }) => {
         const startedAt = performance.now();
@@ -139,6 +161,12 @@ export class PlanCommand extends Command {
           ? await ensurePlanArtifact(outfile, result.value.output)
           : null;
         const elapsedMs = performance.now() - startedAt;
+        const status = !isOk(result) ? 'failed' : (artifact ?? 'missing');
+        await this.appendTaskLog(
+          `plan → ${agent} [${this.harness}] (status=${status} took=${formatDurationMs(
+            elapsedMs,
+          )} out=${outfile})`,
+        );
         return { agent, outfile, result, artifact, elapsedMs };
       }),
     );
@@ -168,6 +196,22 @@ export class PlanCommand extends Command {
     for (const entry of requests) lines.push(`  ${entry.outfile}`);
     this.context.stdout.write(`${lines.join('\n')}\n`);
     return results.every((entry) => isOk(entry.result) && entry.artifact !== null) ? 0 : 1;
+  }
+
+  private appendTaskLog(message: string): Promise<void> {
+    if (this.task === undefined) return Promise.resolve();
+    const write = async (): Promise<void> => {
+      if (this.task === undefined) return;
+      let current: string;
+      try {
+        current = await readFile(this.task, 'utf8');
+      } catch {
+        return;
+      }
+      await writeFile(this.task, `${current}- [${shanghaiTimestamp()}] ${message}\n`, 'utf8');
+    };
+    this.taskLogQueue = this.taskLogQueue.then(write, write);
+    return this.taskLogQueue;
   }
 
   private harnessFor(name: HarnessName, timeoutMs: number | undefined): Harness {

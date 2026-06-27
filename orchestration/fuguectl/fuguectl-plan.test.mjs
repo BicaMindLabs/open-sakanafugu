@@ -98,10 +98,12 @@ run(plan, [
   "120000",
   "--harness-arg=-c",
   "--harness-arg=mcp_servers={}",
+  "--task",
+  join(tmp, "TASK.md"),
 ]);
 suite.ok("wrapper preserves planning runtime controls", () =>
   readFileSync(process.env.FUGUE_PLAN_CALLS, "utf8").includes(
-    "plan runtime controlled planning --harness codex --timeout-ms 120000 --harness-arg=-c --harness-arg=mcp_servers={}\n",
+    `plan runtime controlled planning --harness codex --timeout-ms 120000 --harness-arg=-c --harness-arg=mcp_servers={} --task ${join(tmp, "TASK.md")}\n`,
   ),
 );
 
