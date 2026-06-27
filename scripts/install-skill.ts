@@ -6,6 +6,7 @@ import {
   mkdirSync,
   readdirSync,
   renameSync,
+  writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
@@ -43,6 +44,7 @@ if (existsSync(dest)) {
 }
 
 cpSync(src, dest, { recursive: true });
+writeFileSync(join(dest, ".fugunano-repo-root"), `${root}\n`, "utf8");
 
 try {
   chmodSync(join(dest, "fuguectl"), 0o755);

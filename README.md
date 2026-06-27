@@ -9,8 +9,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Runtime-Node%20%E2%89%A518.18-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js >= 18.18" />
   <img src="https://img.shields.io/badge/Engine-TypeScript-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript engine" />
-  <img src="https://img.shields.io/badge/fuguectl-21%20suites-7c3aed?style=for-the-badge" alt="21 fuguectl test suites" />
-  <img src="https://img.shields.io/badge/assertions-296-brightgreen?style=for-the-badge" alt="296 fuguectl assertions" />
+  <img src="https://img.shields.io/badge/fuguectl-22%20suites-7c3aed?style=for-the-badge" alt="22 fuguectl test suites" />
+  <img src="https://img.shields.io/badge/assertions-299-brightgreen?style=for-the-badge" alt="299 fuguectl assertions" />
   <a href="https://github.com/BicaMindLabs/FuguNano/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/BicaMindLabs/FuguNano/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status" /></a>
   <img src="https://img.shields.io/badge/license-Apache--2.0-yellowgreen?style=for-the-badge" alt="Apache-2.0 license" />
 </p>
@@ -167,7 +167,7 @@ improvement first, then decide whether a learned conductor is worth the cost.
 ## Command Surface
 
 `orchestration/fuguectl/fuguectl` is the production operator entry point. It has
-20 subcommands and 21 test suites.
+20 subcommands and 22 test suites.
 
 | Area                   | Commands                                                                                                                                                                                              |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -176,7 +176,7 @@ improvement first, then decide whether a learned conductor is worth the cost.
 | Routing and context    | `fuguectl allocate <type>`, `fuguectl workspace list\|show\|model\|context`, `fuguectl agents template\|validate\|list\|resolve`, `fuguectl skills index\|list\|match\|show\|inject\|validate\|forge` |
 | Dispatch and gather    | `fuguectl dispatch <target>`, `fuguectl cache init\|put\|fail\|barrier\|collect\|resume`                                                                                                              |
 | Integration and loop   | `fuguectl integrate --work <repo>`, `fuguectl loop init\|record\|decide\|status`, `fuguectl run set\|round\|status\|next\|clear`, `fuguectl summary <round>`                                          |
-| Memory and maintenance | `fuguectl experience add\|list\|recall\|show`, `fuguectl runtime check\|adapt` (provider + installed workflow skill drift), `fuguectl selftest`                                                       |
+| Memory and maintenance | `fuguectl experience add\|list\|recall\|show`, `fuguectl runtime check\|adapt` (provider + installed workflow bundle drift), `fuguectl selftest`                                                      |
 
 ## TypeScript Engine
 
@@ -220,11 +220,12 @@ fugue agent-registry template|validate|list|resolve
 fugue self-harness template|run
 ```
 
-`runtime check` also compares the repo's `orchestration/fuguectl/SKILL.md`
-with the installed workflow skill. `runtime adapt --apply` syncs it, so local
-agent instructions do not drift behind the repo after the workflow evolves. If
-`fugue-cc` is unavailable, adapt still syncs the skill but exits non-zero so
-provider automation can detect the skipped runtime restart/stamp.
+`runtime check` also compares the repo's `orchestration/fuguectl/` bundle with
+the installed workflow bundle. `runtime adapt --apply` syncs it, so local agent
+instructions and helper entrypoints do not drift behind the repo after the
+workflow evolves. If `fugue-cc` is unavailable, adapt still syncs the bundle but
+exits non-zero so provider automation can detect the skipped runtime
+restart/stamp.
 
 ## Self-Harness
 

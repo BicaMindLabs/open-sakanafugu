@@ -1,12 +1,23 @@
 #!/usr/bin/env node
-import { existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const bridgeDir = dirname(fileURLToPath(import.meta.url));
+const repoRootPointer = join(bridgeDir, ".fugunano-repo-root");
 
-export const repoRoot = () => resolve(bridgeDir, "..", "..");
+const pointedRepoRoot = () => {
+  if (!existsSync(repoRootPointer)) return null;
+  const value = readFileSync(repoRootPointer, "utf8").trim();
+  return value.length > 0 ? resolve(value) : null;
+};
+
+export const repoRoot = () =>
+  process.env.FUGUNANO_REPO ??
+  process.env.FUGUE_REPO ??
+  pointedRepoRoot() ??
+  resolve(bridgeDir, "..", "..");
 
 export const engineCli = () =>
   process.env.FUGUE_ENGINE_CLI ??

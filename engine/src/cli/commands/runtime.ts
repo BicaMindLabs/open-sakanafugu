@@ -1,5 +1,6 @@
+import { chmod, cp, readFile as readNodeFile, readdir, rm } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join as joinPath } from 'node:path';
+import { dirname, join as joinPath, relative, resolve, sep as pathSeparator } from 'node:path';
 
 import { Command, Option } from 'clipanion';
 
@@ -69,8 +70,125 @@ interface WorkflowSkillStatus {
   readonly installedSkill: string;
   readonly repoExists: boolean;
   readonly installedExists: boolean;
+  readonly driverExists: boolean;
+  readonly legacyShellFiles: readonly string[];
+  readonly repoRootPointerOk: boolean;
+  readonly bundleFilesMatch: boolean;
+  readonly targetOnlyFiles: readonly string[];
   readonly upToDate: boolean;
 }
+
+const isLegacyShellWrapper = (file: string): boolean => /^fuguectl.*\.sh$/u.test(file);
+
+const chmodExecutable = async (path: string): Promise<void> => {
+  try {
+    await chmod(path, 0o755);
+  } catch {
+    // Best-effort parity with scripts/install-skill.ts. Missing optional files are not fatal.
+  }
+};
+
+const skillDir = (skill: string): string => dirname(resolve(skill));
+
+const repoRootForSkill = (repoSkill: string): string => {
+  const sourceDir = skillDir(repoSkill);
+  return sourceDir.endsWith(`${pathSeparator}orchestration${pathSeparator}fuguectl`)
+    ? dirname(dirname(sourceDir))
+    : sourceDir;
+};
+
+const repoRootPointerPath = (installedSkill: string): string =>
+  joinPath(skillDir(installedSkill), '.fugunano-repo-root');
+
+const listBundleFiles = async (dir: string): Promise<readonly string[]> => {
+  const files: string[] = [];
+  const visit = async (current: string): Promise<void> => {
+    let entries;
+    try {
+      entries = await readdir(current, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    await Promise.all(
+      entries.map(async (entry) => {
+        const path = joinPath(current, entry.name);
+        if (entry.isDirectory()) {
+          await visit(path);
+          return;
+        }
+        if (entry.isFile()) files.push(relative(dir, path));
+      }),
+    );
+  };
+  await visit(dir);
+  return files.sort();
+};
+
+const filesEqual = async (left: string, right: string): Promise<boolean> => {
+  try {
+    const [leftBytes, rightBytes] = await Promise.all([readNodeFile(left), readNodeFile(right)]);
+    return leftBytes.equals(rightBytes);
+  } catch {
+    return false;
+  }
+};
+
+const ignoredTargetOnlyFile = (file: string): boolean =>
+  file === '.fugunano-repo-root' || file === '.DS_Store';
+
+interface BundleFileComparison {
+  readonly matches: boolean;
+  readonly targetOnlyFiles: readonly string[];
+}
+
+const compareBundleFiles = async (
+  repoSkill: string,
+  installedSkill: string,
+): Promise<BundleFileComparison> => {
+  const sourceDir = skillDir(repoSkill);
+  const targetDir = skillDir(installedSkill);
+  const sourceFiles = await listBundleFiles(sourceDir);
+  const targetFiles = await listBundleFiles(targetDir);
+  const sourceSet = new Set(sourceFiles);
+  const targetOnlyFiles = targetFiles.filter(
+    (file) => !sourceSet.has(file) && !ignoredTargetOnlyFile(file),
+  );
+  if (sourceFiles.length === 0 || targetOnlyFiles.length > 0) {
+    return { matches: false, targetOnlyFiles };
+  }
+  const matches = await Promise.all(
+    sourceFiles.map(async (file) =>
+      filesEqual(joinPath(sourceDir, file), joinPath(targetDir, file)),
+    ),
+  );
+  return { matches: matches.every(Boolean), targetOnlyFiles };
+};
+
+const syncWorkflowBundle = async (repoSkill: string, installedSkill: string): Promise<void> => {
+  const sourceDir = skillDir(repoSkill);
+  const targetDir = skillDir(installedSkill);
+  await cp(sourceDir, targetDir, { recursive: true, force: true });
+  await fs().write(repoRootPointerPath(installedSkill), `${repoRootForSkill(repoSkill)}\n`);
+  const entries = await fs().list(targetDir);
+  await Promise.all(
+    entries.filter(isLegacyShellWrapper).map(async (entry) => {
+      await rm(joinPath(targetDir, entry), { force: true });
+    }),
+  );
+  await Promise.all(
+    entries
+      .filter((entry) => entry === 'fuguectl' || /^fuguectl-[a-z]+$/u.test(entry))
+      .map(async (entry) => {
+        await chmodExecutable(joinPath(targetDir, entry));
+      }),
+  );
+  const targetOnlyFiles = (await compareBundleFiles(repoSkill, installedSkill)).targetOnlyFiles;
+  await Promise.all(
+    targetOnlyFiles.map(async (file) => {
+      await rm(joinPath(targetDir, file), { force: true });
+    }),
+  );
+};
 
 const workflowSkillStatus = async (
   fileSystem: FileSystem,
@@ -79,12 +197,31 @@ const workflowSkillStatus = async (
 ): Promise<WorkflowSkillStatus> => {
   const repo = await fileSystem.read(repoSkill);
   const installed = await fileSystem.read(installedSkill);
+  const installedDir = skillDir(installedSkill);
+  const installedDriver = await fileSystem.read(joinPath(installedDir, 'fuguectl'));
+  const expectedRepoRoot = repoRootForSkill(repoSkill);
+  const pointerRequired = skillDir(repoSkill) !== installedDir;
+  const repoRootPointer = await fileSystem.read(repoRootPointerPath(installedSkill));
+  const repoRootPointerOk = !pointerRequired || repoRootPointer?.trim() === expectedRepoRoot;
+  const bundleComparison = await compareBundleFiles(repoSkill, installedSkill);
+  const legacyShellFiles = (await fileSystem.list(installedDir)).filter(isLegacyShellWrapper);
   return {
     repoSkill,
     installedSkill,
     repoExists: repo !== null,
     installedExists: installed !== null,
-    upToDate: repo !== null && installed !== null && repo === installed,
+    driverExists: installedDriver !== null,
+    legacyShellFiles,
+    repoRootPointerOk,
+    bundleFilesMatch: bundleComparison.matches,
+    targetOnlyFiles: bundleComparison.targetOnlyFiles,
+    upToDate:
+      repo !== null &&
+      installed !== null &&
+      installedDriver !== null &&
+      bundleComparison.matches &&
+      repoRootPointerOk &&
+      legacyShellFiles.length === 0,
   };
 };
 
@@ -95,37 +232,64 @@ const workflowSkillCheckLines = async (
   driverName: string,
 ): Promise<readonly string[]> => {
   const status = await workflowSkillStatus(fileSystem, repoSkill, installedSkill);
-  if (!status.repoExists) return [`  ⚠ workflow skill source missing (${repoSkill})`];
-  if (status.upToDate) return [`  ✓ workflow skill up-to-date (${installedSkill})`];
+  if (!status.repoExists) return [`  ⚠ workflow bundle source missing (${repoSkill})`];
+  if (status.upToDate) return [`  ✓ workflow bundle up-to-date (${skillDir(installedSkill)})`];
   if (!status.installedExists) {
     return [
-      `  → workflow skill not installed (${installedSkill}): run '${driverName} runtime adapt --apply' to sync`,
+      `  → workflow bundle not installed (${skillDir(installedSkill)}): run '${driverName} runtime adapt --apply' to sync`,
+    ];
+  }
+  if (!status.driverExists || status.legacyShellFiles.length > 0) {
+    const reason = !status.driverExists
+      ? 'missing fuguectl entrypoint'
+      : `legacy shell wrappers present (${status.legacyShellFiles.length})`;
+    return [
+      `  → workflow bundle drift (${skillDir(installedSkill)}; ${reason}): run '${driverName} runtime adapt --apply' to sync`,
+    ];
+  }
+  if (!status.repoRootPointerOk) {
+    return [
+      `  → workflow bundle drift (${skillDir(installedSkill)}; missing repo root pointer): run '${driverName} runtime adapt --apply' to sync`,
+    ];
+  }
+  if (status.targetOnlyFiles.length > 0) {
+    return [
+      `  → workflow bundle drift (${skillDir(installedSkill)}; target-only files present (${String(status.targetOnlyFiles.length)})): run '${driverName} runtime adapt --apply' to sync`,
+    ];
+  }
+  if (!status.bundleFilesMatch) {
+    return [
+      `  → workflow bundle drift (${skillDir(installedSkill)}; bundle file mismatch): run '${driverName} runtime adapt --apply' to sync`,
     ];
   }
   return [
-    `  → workflow skill drift (${installedSkill}): run '${driverName} runtime adapt --apply' to sync`,
+    `  → workflow bundle drift (${skillDir(installedSkill)}): run '${driverName} runtime adapt --apply' to sync`,
   ];
 };
 
-const workflowSkillAdaptLines = async (
+const workflowBundleAdaptLines = async (
   fileSystem: FileSystem,
   repoSkill: string,
   installedSkill: string,
   apply: boolean,
 ): Promise<readonly string[]> => {
   const repo = await fileSystem.read(repoSkill);
-  if (repo === null) return [`  ✗ workflow skill source missing (${repoSkill})`];
+  if (repo === null) return [`  ✗ workflow bundle source missing (${repoSkill})`];
 
-  const installed = await fileSystem.read(installedSkill);
-  if (installed === repo) return [`  ✓ workflow skill up-to-date (${installedSkill})`];
-
-  if (!apply) {
-    const verb = installed === null ? 'install' : 'refresh';
-    return [`  [dry] would ${verb} workflow skill (${repoSkill} → ${installedSkill})`];
+  const status = await workflowSkillStatus(fileSystem, repoSkill, installedSkill);
+  if (status.upToDate && !apply) {
+    return [`  ✓ workflow bundle up-to-date (${skillDir(installedSkill)})`];
   }
 
-  await fileSystem.write(installedSkill, repo);
-  return [`  ✓ synced workflow skill (${repoSkill} → ${installedSkill})`];
+  if (!apply) {
+    const verb = status.installedExists ? 'refresh' : 'install';
+    return [
+      `  [dry] would ${verb} workflow bundle (${skillDir(repoSkill)} → ${skillDir(installedSkill)})`,
+    ];
+  }
+
+  await syncWorkflowBundle(repoSkill, installedSkill);
+  return [`  ✓ synced workflow bundle (${skillDir(repoSkill)} → ${skillDir(installedSkill)})`];
 };
 
 abstract class RuntimeCommand extends Command {
@@ -217,7 +381,7 @@ export class RuntimeAdaptCommand extends RuntimeCommand {
         '  ⚠ cannot get fugue-cc provider version — skipped provider restart and version stamp',
       );
       lines.push(
-        ...(await workflowSkillAdaptLines(fileSystem, this.repoSkill, this.skill, this.apply)),
+        ...(await workflowBundleAdaptLines(fileSystem, this.repoSkill, this.skill, this.apply)),
       );
       this.context.stdout.write(`${lines.join('\n')}\n`);
       return 2;
@@ -233,7 +397,7 @@ export class RuntimeAdaptCommand extends RuntimeCommand {
     }
 
     lines.push(
-      ...(await workflowSkillAdaptLines(fileSystem, this.repoSkill, this.skill, this.apply)),
+      ...(await workflowBundleAdaptLines(fileSystem, this.repoSkill, this.skill, this.apply)),
     );
 
     const work = this.work ?? nonEmptyEnv(process.env.FUGUE_CC_WORK);

@@ -41,7 +41,7 @@ preserved → `npx fugue`).
 | 15  | `summary`                                                    | observability over `RunState`/`ResultCache`                              | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
 | 16  | `task` (new/log/done)                                        | `TaskStore` audit trail                                                  | ✓ Node wrapper | ◐ core + cli (iter13)                 | ☑       |
 | 17  | `template` (render)                                          | `ContextAssembler` (template part)                                       | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
-| 18  | `runtime` (check/adapt)                                      | Runtime/provider sync + installed workflow skill drift                   | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
+| 18  | `runtime` (check/adapt)                                      | Runtime/provider sync + installed workflow bundle drift                  | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
 | 19  | `agents` / `(agent-registry)` — logical agents over runtimes | `AgentRegistry` + `Coordinator` harness map                              | ✓ Node wrapper | ◐ core + cli `agent-registry`         | ☑       |
 | —   | `(coordinator)` — wires the ports into the pipeline          | `Coordinator` + `wire.ts`                                                | n/a            | ◐ core (iter12)                       | n/a     |
 | —   | `(self-harness)` — self-improving harness loop               | `SelfHarnessLoop` + `WeaknessMiner`/`HarnessProposer`/`HarnessValidator` | n/a (net-new)  | ◐ core + live adapters + cli (iter15) | n/a     |

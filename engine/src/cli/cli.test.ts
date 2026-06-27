@@ -1,6 +1,6 @@
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { Readable, Writable } from 'node:stream';
 
 import { Cli } from 'clipanion';
@@ -1961,6 +1961,12 @@ describe('fugue CLI', () => {
       await writeFile(join(install, 'lib/provider_profiles/api_shortcuts.py'), '', 'utf8');
       await writeFile(repoSkill, 'repo workflow skill\n', 'utf8');
       await writeFile(installedSkill, 'old workflow skill\n', 'utf8');
+      await writeFile(join(dir, 'repo-skill', 'fuguectl'), '#!/usr/bin/env node\n', 'utf8');
+      await writeFile(join(dir, 'repo-skill', 'fuguectl-runtime'), 'repo helper\n', 'utf8');
+      await writeFile(join(dir, 'installed-skill', 'fuguectl'), '#!/usr/bin/env bash\n', 'utf8');
+      await writeFile(join(dir, 'installed-skill', 'fuguectl-runtime'), 'old helper\n', 'utf8');
+      await writeFile(join(dir, 'installed-skill', 'fuguectl-cache.sh'), 'old shell\n', 'utf8');
+      await writeFile(join(dir, 'installed-skill', 'fuguectl-e2e.test.sh'), 'old test\n', 'utf8');
       await writeFile(
         join(work, '.fugue-cc/provider.config'),
         '[agents.cc]\nmodel = "deepseek"\n',
@@ -2039,6 +2045,26 @@ describe('fugue CLI', () => {
       ]);
       const stamp = await readFile(join(state, 'runtime-version'), 'utf8');
       const syncedSkill = await readFile(installedSkill, 'utf8');
+      const syncedEntrypoint = await readFile(join(dir, 'installed-skill', 'fuguectl'), 'utf8');
+      const syncedHelper = await readFile(join(dir, 'installed-skill', 'fuguectl-runtime'), 'utf8');
+      const repoRootPointer = await readFile(
+        join(dir, 'installed-skill', '.fugunano-repo-root'),
+        'utf8',
+      );
+      const staleShellMissing = await readFile(
+        join(dir, 'installed-skill', 'fuguectl-cache.sh'),
+        'utf8',
+      ).then(
+        () => false,
+        () => true,
+      );
+      const staleNumberedShellMissing = await readFile(
+        join(dir, 'installed-skill', 'fuguectl-e2e.test.sh'),
+        'utf8',
+      ).then(
+        () => false,
+        () => true,
+      );
       const killCalls = await readFile(calls, 'utf8');
       const check2 = await run([
         'runtime',
@@ -2066,19 +2092,24 @@ describe('fugue CLI', () => {
       expect(check.code).toBe(0);
       expect(check.out).toContain('version drift');
       expect(check.out).toContain('grafting api_shortcuts.py present');
-      expect(check.out).toContain('workflow skill drift');
+      expect(check.out).toContain('workflow bundle drift');
       expect(dry.out).toContain('[dry-run]');
       expect(dry.out).toContain('stamp not written');
-      expect(dry.out).toContain('would refresh workflow skill');
+      expect(dry.out).toContain('would refresh workflow bundle');
       expect(apply.out).toContain('config validation');
       expect(apply.out).toContain('recorded v9.9.9');
-      expect(apply.out).toContain('synced workflow skill');
+      expect(apply.out).toContain('synced workflow bundle');
       expect(stamp.trim()).toBe('v9.9.9');
       expect(syncedSkill).toBe('repo workflow skill\n');
+      expect(syncedEntrypoint).toBe('#!/usr/bin/env node\n');
+      expect(syncedHelper).toBe('repo helper\n');
+      expect(repoRootPointer.trim()).toBe(dirname(repoSkill));
+      expect(staleShellMissing).toBe(true);
+      expect(staleNumberedShellMissing).toBe(true);
       expect(killCalls).toContain('kill:');
       expect(killCalls).toContain('/work');
       expect(check2.out).toContain('no drift');
-      expect(check2.out).toContain('workflow skill up-to-date');
+      expect(check2.out).toContain('workflow bundle up-to-date');
       expect(missingGrafting.out).toContain('api_shortcuts.py is gone');
     });
 
@@ -2097,15 +2128,138 @@ describe('fugue CLI', () => {
       expect(check.code).toBe(0);
       expect(check.out).toContain("run 'fctl runtime adapt --apply'");
       expect(check.out).toContain('grafting api_shortcuts.py present');
-      expect(check.out).toContain('workflow skill drift');
+      expect(check.out).toContain('workflow bundle drift');
       expect(apply.out).toContain(`stopped provider daemon @ ${work}`);
-      expect(apply.out).toContain('synced workflow skill');
+      expect(apply.out).toContain('synced workflow bundle');
       expect(apply.out).toContain('config validation');
       expect(stamp.trim()).toBe('v9.9.9');
       expect(killCalls).toContain('/work');
     });
 
-    it('still syncs the workflow skill when fugue-cc is unavailable', async () => {
+    it('detects and refreshes non-entrypoint workflow bundle files', async () => {
+      await writeFile(installedSkill, 'repo workflow skill\n', 'utf8');
+      await writeFile(join(dir, 'installed-skill', 'fuguectl'), '#!/usr/bin/env node\n', 'utf8');
+      await writeFile(join(dir, 'installed-skill', 'fuguectl-runtime'), 'old helper\n', 'utf8');
+      await writeFile(
+        join(dir, 'installed-skill', '.fugunano-repo-root'),
+        `${dirname(repoSkill)}\n`,
+        'utf8',
+      );
+      await rm(join(dir, 'installed-skill', 'fuguectl-cache.sh'));
+      await rm(join(dir, 'installed-skill', 'fuguectl-e2e.test.sh'));
+
+      const check = await run([
+        'runtime',
+        'check',
+        '--bin',
+        bin,
+        '--state',
+        state,
+        '--install',
+        install,
+      ]);
+      const apply = await run([
+        'runtime',
+        'adapt',
+        '--bin',
+        bin,
+        '--state',
+        state,
+        '--install',
+        install,
+        '--apply',
+      ]);
+      const syncedHelper = await readFile(join(dir, 'installed-skill', 'fuguectl-runtime'), 'utf8');
+
+      expect(check.out).toContain('bundle file mismatch');
+      expect(apply.out).toContain('synced workflow bundle');
+      expect(syncedHelper).toBe('repo helper\n');
+    });
+
+    it('detects and prunes target-only workflow bundle files', async () => {
+      await writeFile(installedSkill, 'repo workflow skill\n', 'utf8');
+      await writeFile(join(dir, 'installed-skill', 'fuguectl'), '#!/usr/bin/env node\n', 'utf8');
+      await writeFile(join(dir, 'installed-skill', 'fuguectl-runtime'), 'repo helper\n', 'utf8');
+      await writeFile(
+        join(dir, 'installed-skill', '.fugunano-repo-root'),
+        `${dirname(repoSkill)}\n`,
+        'utf8',
+      );
+      await writeFile(join(dir, 'installed-skill', 'removed-helper'), 'stale\n', 'utf8');
+      await rm(join(dir, 'installed-skill', 'fuguectl-cache.sh'));
+      await rm(join(dir, 'installed-skill', 'fuguectl-e2e.test.sh'));
+
+      const check = await run([
+        'runtime',
+        'check',
+        '--bin',
+        bin,
+        '--state',
+        state,
+        '--install',
+        install,
+      ]);
+      const apply = await run([
+        'runtime',
+        'adapt',
+        '--bin',
+        bin,
+        '--state',
+        state,
+        '--install',
+        install,
+        '--apply',
+      ]);
+      const targetOnlyMissing = await readFile(
+        join(dir, 'installed-skill', 'removed-helper'),
+        'utf8',
+      )
+        .then(() => false)
+        .catch(() => true);
+
+      expect(check.out).toContain('target-only files present');
+      expect(apply.out).toContain('synced workflow bundle');
+      expect(targetOnlyMissing).toBe(true);
+    });
+
+    it('writes an absolute repo pointer for relative repo-skill paths', async () => {
+      const oldCwd = process.cwd();
+      const repoDir = join(dir, 'relative-repo');
+      const sourceDir = join(repoDir, 'orchestration', 'fuguectl');
+      const targetDir = join(repoDir, 'installed-skill');
+      await mkdir(sourceDir, { recursive: true });
+      await mkdir(targetDir, { recursive: true });
+      await writeFile(join(sourceDir, 'SKILL.md'), 'relative repo skill\n', 'utf8');
+      await writeFile(join(sourceDir, 'fuguectl'), '#!/usr/bin/env node\n', 'utf8');
+      await writeFile(join(targetDir, 'SKILL.md'), 'old relative skill\n', 'utf8');
+
+      try {
+        process.chdir(repoDir);
+        const apply = await run([
+          'runtime',
+          'adapt',
+          '--bin',
+          bin,
+          '--state',
+          state,
+          '--install',
+          install,
+          '--repo-skill',
+          join('orchestration', 'fuguectl', 'SKILL.md'),
+          '--skill',
+          join('installed-skill', 'SKILL.md'),
+          '--apply',
+        ]);
+        const repoRootPointer = await readFile(join(targetDir, '.fugunano-repo-root'), 'utf8');
+
+        expect(apply.out).toContain('synced workflow bundle');
+        expect(await realpath(repoRootPointer.trim())).toBe(await realpath(repoDir));
+      } finally {
+        process.chdir(oldCwd);
+      }
+    });
+
+    it('still syncs the workflow bundle when fugue-cc is unavailable', async () => {
       await writeFile(bin, '#!/usr/bin/env bash\nexit 127\n', 'utf8');
       await chmod(bin, 0o755);
 
@@ -2121,6 +2275,11 @@ describe('fugue CLI', () => {
         '--apply',
       ]);
       const syncedSkill = await readFile(installedSkill, 'utf8');
+      const syncedEntrypoint = await readFile(join(dir, 'installed-skill', 'fuguectl'), 'utf8');
+      const repoRootPointer = await readFile(
+        join(dir, 'installed-skill', '.fugunano-repo-root'),
+        'utf8',
+      );
       const stampMissing = await readFile(join(state, 'runtime-version'), 'utf8').then(
         () => false,
         () => true,
@@ -2128,8 +2287,10 @@ describe('fugue CLI', () => {
 
       expect(apply.code).toBe(2);
       expect(apply.out).toContain('cannot get fugue-cc provider version');
-      expect(apply.out).toContain('synced workflow skill');
+      expect(apply.out).toContain('synced workflow bundle');
       expect(syncedSkill).toBe('repo workflow skill\n');
+      expect(syncedEntrypoint).toBe('#!/usr/bin/env node\n');
+      expect(repoRootPointer.trim()).toBe(dirname(repoSkill));
       expect(stampMissing).toBe(true);
     });
 
