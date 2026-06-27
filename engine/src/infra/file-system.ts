@@ -8,6 +8,8 @@ export interface FileSystem {
   read(path: string): Promise<string | null>;
   /** Write atomically (temp + rename), creating parent dirs as needed. */
   write(path: string, content: string): Promise<void>;
+  /** Append content, creating parent dirs as needed. */
+  append(path: string, content: string): Promise<void>;
   /** Last-modified epoch millis, or null if absent. */
   mtime(path: string): Promise<number | null>;
   /** Remove a file; no-op if absent. */

@@ -41,6 +41,25 @@ const run = async (
   return { code, out: out.text(), err: err.text() };
 };
 
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const waitFor = async (
+  predicate: () => Promise<boolean>,
+  options: { readonly timeoutMs?: number; readonly pollMs?: number } = {},
+): Promise<void> => {
+  const timeoutMs = options.timeoutMs ?? 2000;
+  const pollMs = options.pollMs ?? 20;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await predicate()) return;
+    await sleep(pollMs);
+  }
+  throw new Error(`timed out after ${String(timeoutMs)}ms`);
+};
+
 describe('fugue CLI', () => {
   it('prints the version', async () => {
     const { code, out } = await run(['version']);
@@ -414,6 +433,99 @@ describe('fugue CLI', () => {
       expect(taskLog).toContain('took=');
       expect(taskLog).toContain('output_chars=0');
       expect(ledgerLog).toContain('code\tcc-deepseek');
+    });
+
+    it('records a started task log line before a long dispatch finishes', async () => {
+      const task = join(dir, 'TASK-inflight.md');
+      const marker = join(dir, 'harness-started');
+      const outFile = join(dir, 'artifacts', 'slow.txt');
+      const slowFugueCc = join(dir, 'slow-fugue-cc');
+      await writeFile(task, '## Execution log\n', 'utf8');
+      await writeFile(
+        slowFugueCc,
+        [
+          '#!/usr/bin/env bash',
+          `touch "${marker}"`,
+          'cat >/dev/null',
+          'sleep 1',
+          'printf "slow-output\\n"',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      await chmod(slowFugueCc, 0o755);
+      process.env.FUGUE_CC_BIN = slowFugueCc;
+
+      const pending = run(
+        args(
+          'cc-slow',
+          '--prompt',
+          'slow dispatch',
+          '--out',
+          outFile,
+          '--task',
+          task,
+          '--require-output',
+        ),
+      );
+      try {
+        await waitFor(async () =>
+          readFile(marker, 'utf8').then(
+            () => true,
+            () => false,
+          ),
+        );
+        const inFlightLog = await readFile(task, 'utf8');
+
+        expect(inFlightLog).toContain(
+          `dispatch → cc-slow [fugue-cc] (status=started out=${outFile})`,
+        );
+        expect(inFlightLog).not.toContain('status=ok rc=0');
+
+        const dispatched = await pending;
+        const finalLog = await readFile(task, 'utf8');
+
+        expect(dispatched.code).toBe(0);
+        expect(dispatched.out).toBe('slow-output\n');
+        expect(finalLog).toContain('status=ok rc=0');
+      } finally {
+        await pending.catch(() => undefined);
+      }
+    });
+
+    it('preserves task audit lines from concurrent dispatches', async () => {
+      const task = join(dir, 'TASK-concurrent.md');
+      const slowFugueCc = join(dir, 'concurrent-fugue-cc');
+      await writeFile(task, '## Execution log\n', 'utf8');
+      await writeFile(
+        slowFugueCc,
+        [
+          '#!/usr/bin/env bash',
+          'agent="$2"',
+          'cat >/dev/null',
+          'sleep 0.2',
+          'printf "done:%s\\n" "$agent"',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      await chmod(slowFugueCc, 0o755);
+      process.env.FUGUE_CC_BIN = slowFugueCc;
+
+      const [first, second] = await Promise.all([
+        run(args('cc-audit-a', '--prompt', 'a', '--task', task, '--require-output')),
+        run(args('cc-audit-b', '--prompt', 'b', '--task', task, '--require-output')),
+      ]);
+      const taskLog = await readFile(task, 'utf8');
+
+      expect(first.code).toBe(0);
+      expect(second.code).toBe(0);
+      expect(taskLog.match(/status=started/gu)?.length).toBe(2);
+      expect(taskLog.match(/status=ok rc=0/gu)?.length).toBe(2);
+      expect(taskLog).toContain('dispatch → cc-audit-a [fugue-cc] (status=started');
+      expect(taskLog).toContain('dispatch → cc-audit-b [fugue-cc] (status=started');
+      expect(taskLog).toContain('dispatch → cc-audit-a [fugue-cc] (status=ok rc=0');
+      expect(taskLog).toContain('dispatch → cc-audit-b [fugue-cc] (status=ok rc=0');
     });
 
     it('uses env-backed default path options when dispatch paths are omitted', async () => {

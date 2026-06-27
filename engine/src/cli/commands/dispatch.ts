@@ -233,6 +233,7 @@ export class DispatchCommand extends Command {
       return 2;
     }
 
+    await this.appendTaskStart({ ...(this.out !== undefined ? { outputPath: this.out } : {}) });
     const startedAt = performance.now();
     const result = await this.harnessFor(this.harness, timeoutMs).dispatch({
       agent: this.target,
@@ -283,6 +284,13 @@ export class DispatchCommand extends Command {
     });
     await this.appendAllocationLedger();
     return finalRc;
+  }
+
+  private async appendTaskStart(metrics: { readonly outputPath?: string }): Promise<void> {
+    const outputPath = metrics.outputPath === undefined ? '' : ` out=${metrics.outputPath}`;
+    await this.appendTaskLine(
+      `dispatch → ${this.target} [${this.harness}] (status=started${outputPath})`,
+    );
   }
 
   private harnessFor(name: HarnessName, timeoutMs: number | undefined): Harness {
@@ -393,19 +401,21 @@ export class DispatchCommand extends Command {
       readonly outputPath?: string;
     },
   ): Promise<void> {
-    if (this.task === undefined) return;
-    const current = await this.fs.read(this.task);
-    if (current === null) return;
     const outputPath = metrics.outputPath === undefined ? '' : ` out=${metrics.outputPath}`;
     const status = rc === 0 ? 'ok' : 'failed';
-    await this.fs.write(
-      this.task,
-      `${current}- [${shanghaiTimestamp()}] dispatch → ${this.target} [${this.harness}] (status=${status} rc=${String(
+    await this.appendTaskLine(
+      `dispatch → ${this.target} [${this.harness}] (status=${status} rc=${String(
         rc,
       )}${failureFields(metrics.errorKind)} took=${formatDurationMs(metrics.elapsedMs)} output_chars=${String(
         metrics.outputChars,
-      )}${outputPath})\n`,
+      )}${outputPath})`,
     );
+  }
+
+  private async appendTaskLine(message: string): Promise<void> {
+    if (this.task === undefined) return;
+    if ((await this.fs.read(this.task)) === null) return;
+    await this.fs.append(this.task, `- [${shanghaiTimestamp()}] ${message}\n`);
   }
 
   private async appendAllocationLedger(): Promise<void> {

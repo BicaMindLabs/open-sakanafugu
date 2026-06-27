@@ -1,4 +1,13 @@
-import { mkdir, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import {
+  appendFile,
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 import type { FileSystem } from './file-system.js';
@@ -30,6 +39,11 @@ export class NodeFileSystem implements FileSystem {
     const tempPath = `${path}.${process.pid}.${writeSeq}.tmp`;
     await writeFile(tempPath, content, 'utf8');
     await rename(tempPath, path);
+  }
+
+  async append(path: string, content: string): Promise<void> {
+    await mkdir(dirname(path), { recursive: true });
+    await appendFile(path, content, 'utf8');
   }
 
   async mtime(path: string): Promise<number | null> {

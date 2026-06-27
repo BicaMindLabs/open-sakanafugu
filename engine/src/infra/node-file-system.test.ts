@@ -13,7 +13,7 @@ describe('NodeFileSystem', () => {
     await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
   });
 
-  it('implements read, write, mtime, remove, and list against a real temp dir', async () => {
+  it('implements read, write, append, mtime, remove, and list against a real temp dir', async () => {
     const tempDir = await mkdtemp(join(tmpdir(), 'fugue-engine-'));
     tempDirs.push(tempDir);
     const fs = new NodeFileSystem();
@@ -21,8 +21,9 @@ describe('NodeFileSystem', () => {
     const file = join(dir, 'artifact.txt');
 
     await fs.write(file, 'hello');
+    await fs.append(file, ' world');
 
-    expect(await fs.read(file)).toBe('hello');
+    expect(await fs.read(file)).toBe('hello world');
     expect((await fs.list(dir)).some((name) => name.endsWith('.tmp'))).toBe(false);
     expect(await fs.read(join(dir, 'missing.txt'))).toBeNull();
     expect(await fs.mtime(file)).not.toBeNull();
