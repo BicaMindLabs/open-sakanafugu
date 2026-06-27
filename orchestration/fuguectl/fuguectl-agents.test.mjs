@@ -21,8 +21,8 @@ writeFileSync(
     "fs.appendFileSync(process.env.FUGUE_AGENT_CALLS, args.join(' ') + '\\n');",
     "const root = args[0];",
     "const cmd = args[1];",
-    "const file = args[2];",
-    "const id = args[3];",
+    "const file = cmd === 'resolve' && args.length === 3 ? undefined : args[2];",
+    "const id = cmd === 'resolve' && args.length === 3 ? args[2] : args[3];",
     "if (root !== 'agent-registry') {",
     "  console.error('expected agent-registry');",
     "  process.exit(9);",
@@ -79,10 +79,18 @@ const list = run(agents, ["list", registry]).stdout;
 suite.ok("list includes coder target", () =>
   list.includes("coder\tcodex\tgpt-5.5"),
 );
+const defaultList = run(agents, ["list"]).stdout;
+suite.ok("list without file uses starter registry", () =>
+  defaultList.includes("coder\tcodex\tgpt-5.5"),
+);
 
 const resolved = run(agents, ["resolve", registry, "coder"]).stdout;
 suite.ok("resolve prints harness", () => resolved.includes("harness\tcodex"));
 suite.ok("resolve prints target", () => resolved.includes("target\tgpt-5.5"));
+const defaultResolved = run(agents, ["resolve", "coder"]).stdout;
+suite.ok("resolve without file uses starter registry", () =>
+  defaultResolved.includes("harness\tcodex"),
+);
 
 const top = run(fuguectl, ["agents", "template"]).stdout;
 suite.ok("top-level agents entrypoint works", () => top.includes('"opencode"'));

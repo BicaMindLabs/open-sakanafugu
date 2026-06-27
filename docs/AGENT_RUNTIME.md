@@ -62,6 +62,13 @@ fuguectl agents list agents.json
 fuguectl agents resolve agents.json coder
 ```
 
+For a quick smoke check, omit `agents.json` to use the starter registry:
+
+```bash
+fuguectl agents list
+fuguectl agents resolve coder
+```
+
 The wrappers are intentionally small Node entry points. They give operators a
 stable `fuguectl` command surface, while the engine remains the canonical place
 for typed routing and coordinator behavior. The `agents`, `task`, `template`,

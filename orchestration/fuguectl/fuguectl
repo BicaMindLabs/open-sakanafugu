@@ -21,7 +21,7 @@ const help = `fuguectl — fugue workflow control-plane entrypoint.
   fuguectl allocate <task-type> [--top]|record|stats|reset
   fuguectl skills index|list|match|show|inject
   fuguectl workspace list|show|model|context <name>
-  fuguectl agents template|validate|list|resolve
+  fuguectl agents template|validate [file]|list [file]|resolve [file] <id>
   fuguectl experience add|list|recall|show <ws>
   fuguectl plan "<goal>" [--harness h] [--models a,b,c]
   fuguectl goal template|show|check <spec>

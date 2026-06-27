@@ -2198,6 +2198,19 @@ describe('fugue CLI', () => {
       expect(resolved.out).toContain('target\tgpt-5.5');
     });
 
+    it('lists and resolves the starter registry when no file is provided', async () => {
+      const valid = await run(['agent-registry', 'validate']);
+      const list = await run(['agent-registry', 'list']);
+      const resolved = await run(['agent-registry', 'resolve', 'coder']);
+
+      expect(valid.code).toBe(0);
+      expect(valid.out).toContain('OK agent registry valid');
+      expect(list.code).toBe(0);
+      expect(list.out).toContain('coder\tcodex\tgpt-5.5');
+      expect(resolved.code).toBe(0);
+      expect(resolved.out).toContain('harness\tcodex');
+    });
+
     it('rejects invalid registry JSON', async () => {
       const registry = join(dir, 'bad.json');
       await writeFile(registry, '{ nope', 'utf8');

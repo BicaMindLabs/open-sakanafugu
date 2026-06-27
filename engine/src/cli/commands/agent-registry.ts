@@ -31,7 +31,13 @@ export const formatAgentRegistryResolve = (profile: AgentProfile): string => {
   return `${fields.map(([key, value]) => `${key}\t${value}`).join('\n')}\n`;
 };
 
-const readRegistry = async (file: string): Promise<AgentRegistry | string> => {
+const defaultRegistry = (): AgentRegistry | string => {
+  const parsed = parseAgentRegistryJson(renderAgentRegistryTemplate());
+  return isOk(parsed) ? parsed.value : parsed.error;
+};
+
+const readRegistry = async (file: string | undefined): Promise<AgentRegistry | string> => {
+  if (file === undefined) return defaultRegistry();
   const text = await new NodeFileSystem().read(file);
   if (text === null) return `no agent registry at ${file}`;
   const parsed = parseAgentRegistryJson(text);
@@ -48,11 +54,11 @@ export class AgentRegistryTemplateCommand extends Command {
   }
 }
 
-/** `fugue agent-registry validate <file>` — validate a runtime profile registry. */
+/** `fugue agent-registry validate [file]` — validate a runtime profile registry. */
 export class AgentRegistryValidateCommand extends Command {
   static override paths = [['agent-registry', 'validate']];
 
-  file = Option.String();
+  file = Option.String({ required: false });
 
   override async execute(): Promise<number> {
     const registry = await readRegistry(this.file);
@@ -67,11 +73,11 @@ export class AgentRegistryValidateCommand extends Command {
   }
 }
 
-/** `fugue agent-registry list <file>` — print id/harness/target/roles rows. */
+/** `fugue agent-registry list [file]` — print id/harness/target/roles rows. */
 export class AgentRegistryListCommand extends Command {
   static override paths = [['agent-registry', 'list']];
 
-  file = Option.String();
+  file = Option.String({ required: false });
 
   override async execute(): Promise<number> {
     const registry = await readRegistry(this.file);
@@ -84,25 +90,36 @@ export class AgentRegistryListCommand extends Command {
   }
 }
 
-/** `fugue agent-registry resolve <file> <id>` — resolve one logical id. */
+/** `fugue agent-registry resolve [file] <id>` — resolve one logical id. */
 export class AgentRegistryResolveCommand extends Command {
   static override paths = [['agent-registry', 'resolve']];
 
-  file = Option.String();
-  id = Option.String();
+  fileOrId = Option.String({ required: false });
+  id = Option.String({ required: false });
 
   override async execute(): Promise<number> {
-    const registry = await readRegistry(this.file);
+    const selection = this.selection();
+    if (typeof selection === 'string') {
+      this.context.stderr.write(`${selection}\n`);
+      return 2;
+    }
+    const registry = await readRegistry(selection.file);
     if (typeof registry === 'string') {
       this.context.stderr.write(`${registry}\n`);
       return 1;
     }
-    const profile = findAgentProfile(registry, this.id);
+    const profile = findAgentProfile(registry, selection.id);
     if (profile === undefined) {
-      this.context.stderr.write(`agent "${this.id}" not found\n`);
+      this.context.stderr.write(`agent "${selection.id}" not found\n`);
       return 1;
     }
     this.context.stdout.write(formatAgentRegistryResolve(profile));
     return 0;
+  }
+
+  private selection(): { readonly file?: string; readonly id: string } | string {
+    if (this.fileOrId === undefined) return 'need <id> or <file> <id>';
+    if (this.id === undefined) return { id: this.fileOrId };
+    return { file: this.fileOrId, id: this.id };
   }
 }
