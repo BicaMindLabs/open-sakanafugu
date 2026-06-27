@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join as joinPath } from 'node:path';
 
 import { Command, Option } from 'clipanion';
@@ -48,6 +48,23 @@ const promptFor = (model: string, goal: string, outfile: string): string =>
     `Output: **must use the Write tool to write to ${outfile}** (NOT chat! chat gets lost), Markdown.`,
   ].join('\n');
 
+const ensurePlanArtifact = async (
+  outfile: string,
+  harnessOutput: string,
+): Promise<'written' | 'captured' | null> => {
+  try {
+    const existing = await readFile(outfile, 'utf8');
+    if (existing.trim().length > 0) return 'written';
+  } catch {
+    // Missing files are expected when a harness returns its plan on stdout.
+  }
+
+  const captured = harnessOutput.trim();
+  if (captured.length === 0) return null;
+  await writeFile(outfile, `${captured}\n`, 'utf8');
+  return 'captured';
+};
+
 const defaultAgentsFor = (harness: HarnessName): readonly string[] => {
   switch (harness) {
     case 'fugue-cc':
@@ -94,7 +111,10 @@ export class PlanCommand extends Command {
           agent,
           prompt: promptFor(agent, this.goal, outfile),
         });
-        return { agent, outfile, result };
+        const artifact = isOk(result)
+          ? await ensurePlanArtifact(outfile, result.value.output)
+          : null;
+        return { agent, outfile, result, artifact };
       }),
     );
 
@@ -102,11 +122,15 @@ export class PlanCommand extends Command {
       `── planning panel: goal decomposition (${this.harness}) → ${agents.join(' ')} ──`,
     ];
     for (const entry of results) {
-      lines.push(
-        isOk(entry.result)
-          ? `  → dispatched to ${entry.agent}, plan will be written to ${entry.outfile}`
-          : `  ✗ ${entry.agent} dispatch failed`,
-      );
+      if (!isOk(entry.result)) {
+        lines.push(`  ✗ ${entry.agent} dispatch failed`);
+      } else if (entry.artifact === 'written') {
+        lines.push(`  → dispatched to ${entry.agent}, plan written to ${entry.outfile}`);
+      } else if (entry.artifact === 'captured') {
+        lines.push(`  → dispatched to ${entry.agent}, captured stdout to ${entry.outfile}`);
+      } else {
+        lines.push(`  ✗ ${entry.agent} produced no plan artifact at ${entry.outfile}`);
+      }
     }
 
     lines.push(
@@ -115,7 +139,7 @@ export class PlanCommand extends Command {
     );
     for (const entry of requests) lines.push(`  ${entry.outfile}`);
     this.context.stdout.write(`${lines.join('\n')}\n`);
-    return results.every((entry) => isOk(entry.result)) ? 0 : 1;
+    return results.every((entry) => isOk(entry.result) && entry.artifact !== null) ? 0 : 1;
   }
 
   private harnessFor(name: HarnessName): Harness {

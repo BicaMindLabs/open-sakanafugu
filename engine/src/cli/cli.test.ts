@@ -1650,7 +1650,13 @@ describe('fugue CLI', () => {
       prompts = join(dir, 'prompts.txt');
       await writeFile(
         bin,
-        ['#!/usr/bin/env bash', `echo "$2" >> "${calls}"`, `cat >> "${prompts}"`, ''].join('\n'),
+        [
+          '#!/usr/bin/env bash',
+          `echo "$2" >> "${calls}"`,
+          `cat >> "${prompts}"`,
+          "printf '# stub plan\\n'",
+          '',
+        ].join('\n'),
         'utf8',
       );
       await chmod(bin, 0o755);
@@ -1660,6 +1666,7 @@ describe('fugue CLI', () => {
           '#!/usr/bin/env bash',
           `printf 'codex:%s\\n' "$3" >> "${calls}"`,
           `printf '%s\\n' "$4" >> "${prompts}"`,
+          "printf '# stub plan\\n'",
           '',
         ].join('\n'),
         'utf8',
@@ -1671,6 +1678,7 @@ describe('fugue CLI', () => {
           '#!/usr/bin/env bash',
           `printf 'opencode:%s\\n' "$3" >> "${calls}"`,
           `printf '%s\\n' "$4" >> "${prompts}"`,
+          "printf '# stub plan\\n'",
           '',
         ].join('\n'),
         'utf8',
@@ -1682,6 +1690,7 @@ describe('fugue CLI', () => {
           '#!/usr/bin/env bash',
           `printf 'agy:%s\\n' "$1" >> "${calls}"`,
           `printf '%s\\n' "$2" >> "${prompts}"`,
+          "printf '# stub plan\\n'",
           '',
         ].join('\n'),
         'utf8',
@@ -1706,13 +1715,16 @@ describe('fugue CLI', () => {
       ]);
       const called = await readFile(calls, 'utf8');
       const prompt = await readFile(prompts, 'utf8');
+      const captured = await readFile(join(out, 'cc-a.plan.md'), 'utf8');
 
       expect(planned.code).toBe(0);
       expect(called).toContain('cc-a');
       expect(called).toContain('cc-b');
       expect(planned.out).toContain('cc-a.plan.md');
+      expect(planned.out).toContain('captured stdout to');
       expect(prompt).toContain('build a login feature');
       expect(prompt).toContain(`write to ${join(out, 'cc-a.plan.md')}`);
+      expect(captured).toContain('# stub plan');
     });
 
     it('dispatches planning through the selected lite harness', async () => {
@@ -1835,6 +1847,27 @@ describe('fugue CLI', () => {
 
       expect(missing.code).toBe(1);
       expect(missing.out).toContain('dispatch failed');
+    });
+
+    it('returns non-zero when a planner produces no durable artifact', async () => {
+      const silentBin = join(dir, 'silent-fugue-cc');
+      await writeFile(silentBin, '#!/usr/bin/env bash\ncat >/dev/null\nexit 0\n', 'utf8');
+      await chmod(silentBin, 0o755);
+
+      const planned = await run([
+        'plan',
+        'silent planner',
+        '--models',
+        'cc-silent',
+        '--out',
+        out,
+        '--bin',
+        silentBin,
+      ]);
+
+      expect(planned.code).toBe(1);
+      expect(planned.out).toContain('produced no plan artifact');
+      await expect(readFile(join(out, 'cc-silent.plan.md'), 'utf8')).rejects.toThrow();
     });
 
     it('rejects unknown planning harnesses', async () => {
