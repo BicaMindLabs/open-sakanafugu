@@ -410,6 +410,8 @@ describe('fugue CLI', () => {
       expect(called).toContain('BACKEND-ROLE');
       expect(called).toContain('SCOPE-MARK');
       expect(taskLog).toContain('dispatch → cc-deepseek');
+      expect(taskLog).toContain('took=');
+      expect(taskLog).toContain('output_chars=0');
       expect(ledgerLog).toContain('code\tcc-deepseek');
     });
 

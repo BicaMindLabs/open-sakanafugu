@@ -98,9 +98,14 @@ suite.ok("explicit fugue-cc harness dispatches", () =>
 const taskFile = join(tmp, "task.md");
 writeFileSync(taskFile, "## Execution log\n");
 run(dispatch, ["cc-kimi", "--prompt-file", promptFile, "--task", taskFile]);
-suite.ok("--task appends dispatch log", () =>
-  readFileSync(taskFile, "utf8").includes("dispatch → cc-kimi"),
-);
+suite.ok("--task appends dispatch log", () => {
+  const log = readFileSync(taskFile, "utf8");
+  return (
+    log.includes("dispatch → cc-kimi") &&
+    log.includes("took=") &&
+    log.includes("output_chars=0")
+  );
+});
 
 const codexCalled = join(tmp, "codex.called");
 writeExecutable(join(tmp, "codex"), [

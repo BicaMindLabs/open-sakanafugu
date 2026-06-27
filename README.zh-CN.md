@@ -143,9 +143,9 @@ Fugu、OpenFugu 和 FuguNano 在同一条路线上：当单一前沿模型或硬
 FuguNano 不是要替代 Fugu / OpenFugu，而是把同一方向落到更轻的开放入口上：
 先用策略、端口、审查门和 harness 自改进打开协作，再判断是否值得训练一个 conductor。
 
-Planning panel 会打印每个 agent 的 dispatch 耗时，`dispatch --verbose` 会把
-obs 行写到 stderr，所以真实 Codex/OpenCode/AGY 运行会留下可观察痕迹，同时不污染
-模型 stdout 或 durable artifact。
+Planning panel 会打印每个 agent 的 dispatch 耗时；`dispatch --verbose` 会把 obs 行写到
+stderr；带 `--task` 的 dispatch 会把耗时 / 输出大小持久化进 TASK log。所以真实
+Codex/OpenCode/AGY 运行会留下可观察痕迹，同时不污染模型 stdout 或 durable artifact。
 
 ## 命令面
 

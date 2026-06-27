@@ -269,7 +269,10 @@ export class DispatchCommand extends Command {
       );
     }
 
-    await this.appendTaskLog(finalRc);
+    await this.appendTaskLog(finalRc, {
+      elapsedMs,
+      outputChars,
+    });
     await this.appendAllocationLedger();
     return finalRc;
   }
@@ -373,7 +376,10 @@ export class DispatchCommand extends Command {
     );
   }
 
-  private async appendTaskLog(rc: number): Promise<void> {
+  private async appendTaskLog(
+    rc: number,
+    metrics: { readonly elapsedMs: number; readonly outputChars: number },
+  ): Promise<void> {
     if (this.task === undefined) return;
     const current = await this.fs.read(this.task);
     if (current === null) return;
@@ -381,7 +387,7 @@ export class DispatchCommand extends Command {
       this.task,
       `${current}- [${shanghaiTimestamp()}] dispatch → ${this.target} [${this.harness}] (rc=${String(
         rc,
-      )})\n`,
+      )} took=${formatDurationMs(metrics.elapsedMs)} output_chars=${String(metrics.outputChars)})\n`,
     );
   }
 
