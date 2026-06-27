@@ -55,6 +55,69 @@ describe('fugue CLI', () => {
     expect(out).toContain('backends_ready=');
   });
 
+  describe('init command', () => {
+    let dir: string;
+    let secrets: string;
+    let providerConfig: string;
+
+    beforeEach(async () => {
+      dir = await mkdtemp(join(tmpdir(), 'fugue-init-'));
+      secrets = join(dir, 'cc-model-secrets.env');
+      providerConfig = join(dir, '.fugue-cc', 'provider.config');
+    });
+
+    afterEach(async () => {
+      await rm(dir, { recursive: true, force: true });
+    });
+
+    it('prints a dry-run readiness report without creating local templates', async () => {
+      const { code, out } = await run([
+        'init',
+        '--dry-run',
+        '--project',
+        dir,
+        '--secrets',
+        secrets,
+      ]);
+
+      expect(code).toBe(0);
+      expect(out).toContain('FuguNano init (dry-run)');
+      expect(out).toContain('would create secrets template');
+      expect(out).toContain('would copy provider config example');
+      expect(out).toContain('fuguectl preflight --harness codex');
+      await expect(readFile(secrets, 'utf8')).rejects.toThrow();
+      await expect(readFile(providerConfig, 'utf8')).rejects.toThrow();
+    });
+
+    it('creates missing local templates only when --write is explicit', async () => {
+      await writeFile(join(dir, '.gitignore'), '.fugue-cc/\n', 'utf8');
+
+      const { code, out } = await run(['init', '--write', '--project', dir, '--secrets', secrets]);
+
+      expect(code).toBe(0);
+      expect(out).toContain('FuguNano init (write)');
+      expect(out).toContain('created secrets template');
+      expect(out).toContain('copied provider config example');
+      expect(await readFile(secrets, 'utf8')).toContain('DEEPSEEK_API_KEY=');
+      expect(await readFile(providerConfig, 'utf8')).toContain('version = 2');
+    });
+
+    it('rejects mutually exclusive dry-run and write modes', async () => {
+      const { code, err } = await run([
+        'init',
+        '--dry-run',
+        '--write',
+        '--project',
+        dir,
+        '--secrets',
+        secrets,
+      ]);
+
+      expect(code).toBe(2);
+      expect(err).toContain('choose either --dry-run or --write');
+    });
+  });
+
   it('errors with exit 1 on a missing goal spec', async () => {
     const { code, err } = await run(['goal', 'check', '/no/such/spec.txt']);
     expect(code).toBe(1);
@@ -394,6 +457,15 @@ describe('fugue CLI', () => {
       expect(dispatched.code).toBe(0);
       expect(codexCall).toContain('ARGV: exec --model gpt-5.5');
       expect(codexCall).toContain('inline smoke prompt');
+    });
+
+    it('rejects invalid dispatch timeouts', async () => {
+      const dispatched = await run(
+        args('gpt-5.5', '--harness', 'codex', '--prompt', 'x', '--timeout-ms', 'abc'),
+      );
+
+      expect(dispatched.code).toBe(2);
+      expect(dispatched.err).toContain("invalid --timeout-ms 'abc'");
     });
 
     it('prefixes selected skills and workspace context before the prompt body', async () => {

@@ -19,6 +19,7 @@ import {
 } from './commands/experience.js';
 import { FleetCommand } from './commands/fleet.js';
 import { GoalCheckCommand, GoalShowCommand, GoalTemplateCommand } from './commands/goal.js';
+import { InitCommand } from './commands/init.js';
 import { IntegrateCommand } from './commands/integrate.js';
 import { LoopCommand } from './commands/loop.js';
 import { PlanCommand } from './commands/plan.js';
@@ -52,6 +53,7 @@ export const buildCli = (): Cli => {
   cli.register(Builtins.VersionCommand);
   cli.register(VersionCommand);
   cli.register(DoctorCommand);
+  cli.register(InitCommand);
   cli.register(AllocateCommand);
   cli.register(DispatchCommand);
   cli.register(FleetCommand);

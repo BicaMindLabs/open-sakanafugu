@@ -12,6 +12,7 @@ import type { CommandOptions, CommandRunner } from '../../infra/command-runner.j
 export interface HarnessExecOptions {
   readonly bin?: string;
   readonly cwd?: string;
+  readonly timeoutMs?: number;
   /**
    * Extra CLI flags spliced into every dispatch. Lets a caller harden the
    * underlying tool per host — e.g. codex `-c mcp_servers={}` to skip a flaky

@@ -10,11 +10,12 @@ const here = dirname(fileURLToPath(import.meta.url));
 const help = `fuguectl — fugue workflow control-plane entrypoint.
 
   fuguectl doctor              env recon + workflow recommendation
+  fuguectl init [--dry-run|--write]  first-run readiness + local scaffold hints
   fuguectl fleet status|up [--pty]|down  bring up/view/stop fugue-cc fleet
   fuguectl preflight [--harness fugue-cc|codex|opencode|all] [cfg]  pre-run go/no-go gate
   fuguectl task new|log|done   TASK file scaffold/log/finalize
   fuguectl template <n> [--set K=V]   render prompt template
-  fuguectl dispatch <agent> [--harness h] --template <n>|--prompt-file <f>|--prompt <text> [--task <file>]
+  fuguectl dispatch <agent> [--harness h] [--timeout-ms n] --template <n>|--prompt-file <f>|--prompt <text> [--task <file>]
   fuguectl cache ...           result cache + join barrier
   fuguectl integrate --work <repo> --agents "a b" [--onconflict abort|skip]
   fuguectl allocate <task-type> [--top]|record|stats|reset
@@ -29,7 +30,26 @@ const help = `fuguectl — fugue workflow control-plane entrypoint.
   fuguectl summary <round> [--task <file>]
   fuguectl runtime check|adapt [--apply]
   fuguectl selftest            run all *.test.mjs
-  fuguectl help                this help`;
+  fuguectl help [quickstart]   this help`;
+
+const quickstartHelp = `fuguectl quickstart — safe first run
+
+  1. Inspect your machine:
+     fuguectl doctor
+     fuguectl init --dry-run
+
+  2. Verify a lightweight runtime:
+     fuguectl preflight --harness codex
+     fuguectl dispatch gpt-5.5 --harness codex --timeout-ms 60000 --prompt "Reply with OK"
+
+  3. Create a durable planning artifact:
+     fuguectl plan "your goal" --harness codex --out /tmp/fugunano-plan
+
+  4. Optional full fleet setup:
+     fuguectl init --write
+     fuguectl preflight --harness fugue-cc
+
+No command above writes project code. Only 'fuguectl init --write' creates local config templates.`;
 
 const selftest = () => {
   let failed = false;
@@ -49,6 +69,7 @@ const args = process.argv.slice(2);
 const [subcommand = "help", ...rest] = args;
 const commandMap = new Map([
   ["doctor", "doctor"],
+  ["init", "init"],
   ["preflight", "preflight"],
   ["fleet", "fleet"],
   ["task", "task"],
@@ -71,14 +92,23 @@ const commandMap = new Map([
 ]);
 
 if (subcommand === "help" || subcommand === "-h" || subcommand === "--help") {
-  console.log(help);
+  const [topic = ""] = rest;
+  if (topic === "" || topic === "help") console.log(help);
+  else if (topic === "quickstart") console.log(quickstartHelp);
+  else {
+    console.error(
+      `fuguectl: unknown help topic '${topic}' (try: fuguectl help quickstart)`,
+    );
+    process.exit(2);
+  }
 } else if (subcommand === "selftest") {
   selftest();
 } else if (commandMap.has(subcommand)) {
   runEngine([commandMap.get(subcommand), ...rest]);
 } else {
   console.error(
-    `fuguectl: unknown subcommand '${subcommand}' (doctor|fleet|preflight|task|template|dispatch|cache|integrate|allocate|skills|workspace|agents|experience|plan|goal|loop|run|summary|runtime|selftest|help)`,
+    `fuguectl: unknown subcommand '${subcommand}' (doctor|init|fleet|preflight|task|template|dispatch|cache|integrate|allocate|skills|workspace|agents|experience|plan|goal|loop|run|summary|runtime|selftest|help)`,
   );
+  console.error("try: fuguectl help or fuguectl help quickstart");
   process.exit(2);
 }

@@ -37,6 +37,18 @@ describe('NodeCommandRunner', () => {
     expect(result.code).not.toBe(0); // signal-kill must not look like success
   });
 
+  it('returns a timeout result when a child exceeds timeoutMs', async () => {
+    const started = Date.now();
+    const result = await new NodeCommandRunner().run(
+      node,
+      ['-e', 'setTimeout(() => process.stdout.write("late"), 5000)'],
+      { timeoutMs: 50 },
+    );
+    expect(result.code).toBe(124);
+    expect(result.stderr).toContain('command timed out after 50ms');
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+
   it('rejects when the binary does not exist', async () => {
     await expect(
       new NodeCommandRunner().run('definitely-not-a-real-binary-xyz', []),

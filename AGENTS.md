@@ -8,7 +8,7 @@ Cross-harness entry for any coding agent (**Claude Code / Codex / OpenCode** all
 orchestration/fuguectl/fuguectl help
 ```
 
-Unified driver (19 subcommands): `doctor` · `fleet` · `preflight` · `task` · `template` · `dispatch` · `cache` · `integrate` · `allocate` · `skills` · `workspace` · `agents` · `experience` · `plan` · `goal` · `loop` · `run` · `summary` · `runtime`. The production driver remains shell-callable from any harness; new orchestration primitives move into the strict TypeScript engine first, then get thin CLI wrappers.
+Unified driver (20 subcommands): `doctor` · `init` · `fleet` · `preflight` · `task` · `template` · `dispatch` · `cache` · `integrate` · `allocate` · `skills` · `workspace` · `agents` · `experience` · `plan` · `goal` · `loop` · `run` · `summary` · `runtime`. The production driver remains shell-callable from any harness; new orchestration primitives move into the strict TypeScript engine first, then get thin CLI wrappers.
 
 ## The workflow (5 phases)
 
@@ -19,7 +19,7 @@ Plan → Dispatch → Integrate → Review → **bounded Review-Fix Loop**. Full
 The implementer backend is selected by `--harness`:
 
 ```
-fuguectl dispatch <target> --harness fugue-cc|codex|opencode [--workspace ws] [--template impl --set ... | --prompt-file f | --prompt text]
+fuguectl dispatch <target> --harness fugue-cc|codex|opencode [--timeout-ms n] [--workspace ws] [--template impl --set ... | --prompt-file f | --prompt text]
 ```
 
 | harness              | runs                                                  | `<target>` is                                |

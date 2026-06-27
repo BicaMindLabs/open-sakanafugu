@@ -91,6 +91,15 @@ describe('FugueCcHarness', () => {
     });
     expect(runner.calls[0]?.args).toEqual(['ask', 'cc-deepseek', '--compact', '--profile', 'fast']);
   });
+
+  it('passes timeout options to the runner', async () => {
+    const runner = new FakeRunner(res());
+    await new FugueCcHarness(runner, { timeoutMs: 123 }).dispatch({
+      agent: 'cc-deepseek',
+      prompt: 'hi',
+    });
+    expect(runner.calls[0]?.options?.timeoutMs).toBe(123);
+  });
 });
 
 describe('CodexHarness', () => {
@@ -120,6 +129,15 @@ describe('CodexHarness', () => {
       'review this',
     ]);
   });
+
+  it('passes timeout options to the runner', async () => {
+    const runner = new FakeRunner(res({ stdout: 'ok' }));
+    await new CodexHarness(runner, { timeoutMs: 456 }).dispatch({
+      agent: 'gpt-5.5',
+      prompt: 'review this',
+    });
+    expect(runner.calls[0]?.options?.timeoutMs).toBe(456);
+  });
 });
 
 describe('OpencodeHarness', () => {
@@ -143,5 +161,14 @@ describe('OpencodeHarness', () => {
       'volcengine/doubao',
       'go',
     ]);
+  });
+
+  it('passes timeout options to the runner', async () => {
+    const runner = new FakeRunner(res());
+    await new OpencodeHarness(runner, { timeoutMs: 789 }).dispatch({
+      agent: 'volcengine/doubao',
+      prompt: 'go',
+    });
+    expect(runner.calls[0]?.options?.timeoutMs).toBe(789);
   });
 });

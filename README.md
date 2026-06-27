@@ -9,8 +9,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Runtime-Node%20%E2%89%A518.18-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js >= 18.18" />
   <img src="https://img.shields.io/badge/Engine-TypeScript-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript engine" />
-  <img src="https://img.shields.io/badge/fuguectl-20%20suites-7c3aed?style=for-the-badge" alt="20 fuguectl test suites" />
-  <img src="https://img.shields.io/badge/assertions-263-brightgreen?style=for-the-badge" alt="263 fuguectl assertions" />
+  <img src="https://img.shields.io/badge/fuguectl-21%20suites-7c3aed?style=for-the-badge" alt="21 fuguectl test suites" />
+  <img src="https://img.shields.io/badge/assertions-281-brightgreen?style=for-the-badge" alt="281 fuguectl assertions" />
   <a href="https://github.com/BicaMindLabs/FuguNano/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/BicaMindLabs/FuguNano/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status" /></a>
   <img src="https://img.shields.io/badge/license-Apache--2.0-yellowgreen?style=for-the-badge" alt="Apache-2.0 license" />
 </p>
@@ -68,6 +68,8 @@ credentials you choose to use. Codex is recommended for review.
 git clone https://github.com/BicaMindLabs/FuguNano fugunano
 cd fugunano
 
+/path/to/fugunano/orchestration/fuguectl/fuguectl help quickstart
+/path/to/fugunano/orchestration/fuguectl/fuguectl init --dry-run
 make doctor       # inspect local CLIs and provider readiness
 make install      # install model launchers
 make verify       # verify launcher wiring
@@ -165,11 +167,11 @@ improvement first, then decide whether a learned conductor is worth the cost.
 ## Command Surface
 
 `orchestration/fuguectl/fuguectl` is the production operator entry point. It has
-19 subcommands and 20 test suites.
+20 subcommands and 21 test suites.
 
 | Area                   | Commands                                                                                                                                                                                              |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Setup and recon        | `fuguectl doctor`, `fuguectl preflight --harness fugue-cc\|codex\|opencode\|all`, `fuguectl fleet status\|up\|down`                                                                                   |
+| Setup and recon        | `fuguectl doctor`, `fuguectl init --dry-run\|--write`, `fuguectl preflight --harness fugue-cc\|codex\|opencode\|all`, `fuguectl fleet status\|up\|down`                                               |
 | Planning               | `fuguectl task new\|log\|done`, `fuguectl template <name>`, `fuguectl plan "<goal>" [--harness h]`, `fuguectl goal template\|show\|check`                                                             |
 | Routing and context    | `fuguectl allocate <type>`, `fuguectl workspace list\|show\|model\|context`, `fuguectl agents template\|validate\|list\|resolve`, `fuguectl skills index\|list\|match\|show\|inject\|validate\|forge` |
 | Dispatch and gather    | `fuguectl dispatch <target>`, `fuguectl cache init\|put\|fail\|barrier\|collect\|resume`                                                                                                              |
@@ -196,9 +198,10 @@ The engine CLI currently exposes:
 ```bash
 fugue version
 fugue doctor
+fugue init [--dry-run|--write]
 fugue fleet status|up|down
 fugue allocate <task-type>|list|record|feed|stats|reset|decay
-fugue dispatch <target> --harness fugue-cc|codex|opencode --template <name>|--prompt-file <file>|--prompt <text>
+fugue dispatch <target> --harness fugue-cc|codex|opencode [--timeout-ms n] --template <name>|--prompt-file <file>|--prompt <text>
 fugue integrate --work <repo> --agents "a b" [--ownership file] [--dry]
 fugue skills index|list|match|show|inject|validate|forge
 fugue preflight [--harness fugue-cc|codex|opencode|all] [--config-only] [provider.config]

@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+import { runSimpleBridge } from "./fuguectl-node-bridge.mjs";
+
+runSimpleBridge({
+  argv: process.argv.slice(2),
+  command: "init",
+  helpOnEmpty: false,
+  help: `fuguectl-init [--dry-run|--write] [--project <dir>] [--secrets <file>] [--provider-config <file>]
+safe first-run readiness report; --write creates missing local templates only
+`,
+});

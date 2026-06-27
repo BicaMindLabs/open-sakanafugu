@@ -22,6 +22,9 @@ const dispatch = join(here, "fuguectl-dispatch");
 const tmp = makeTempDir();
 const called = join(tmp, "called");
 
+const help = run(dispatch, ["--help"]).stdout;
+suite.ok("help lists dispatch timeout", () => help.includes("--timeout-ms n"));
+
 writeExecutable(join(tmp, "fugue-cc"), [
   "#!/usr/bin/env node",
   "const fs = require('node:fs');",

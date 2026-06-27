@@ -39,6 +39,7 @@ Three roles, five phases. Planner orchestrates, the implementer fleet writes cod
 **Higher-level entry points** (optional, layered on the 5 phases):
 
 - **Goal mode** — declarative target with a deterministic gate: `"$FO" goal template` → fill `outcome/gate/rubric/rounds` → `"$FO" goal check <spec>` runs the gate (the loop drives to it). Goal met = gate 0 + reviewer ACCEPTED.
+- **First-run onboarding** — `"$FO" help quickstart` prints the safe local path, and `"$FO" init --dry-run` reports Codex/OpenCode/fugue-cc readiness plus missing local templates. Only `"$FO" init --write` creates local secrets/provider config templates.
 - **Planning panel** — multi-model decomposition: `"$FO" plan "<goal>" --harness fugue-cc --models cc-deepseek,cc-kimi,coder` asks several models to decompose the goal (each Writes its plan); use `--harness codex|opencode` for a lite planning pass when the worktree fleet is not installed. You synthesize the returned plans into Phase 1.
 - **Allocation (adaptive)** — `"$FO" allocate <task-type> --top` → recommended model; a **bench-prior + battle-experience blend** (Beta-Bernoulli): the static `allocation.tsv` is the prior, and `"$FO" allocate record <task-type> <agent> ok|fail` (call after each verdict — ACCEPTED→`ok`, NEEDS FIX→`fail`) updates the posterior. **Cold-start == the static bench order**; it drifts only once you've recorded outcomes (KAPPA pseudo-counts gate how much), with Laplace smoothing so no agent is starved by one failure. `"$FO" allocate stats <type>` shows scores; `reset` clears. **Auto-feed (data flywheel)**: dispatch with `"$FO" dispatch <agent> --task-type <T> ...` so it logs `(T, agent)` to a ledger; after the round's verdict, `"$FO" allocate feed --from-ledger --result ok [--fail <agents-that-needed-fixing>]` feeds the whole round at once (the `cc-` prefix is normalized to the bench's bare name, so experience lands on the same key it ranks). Routing self-improves from verdicts without per-agent manual calls — but it plateaus at "best-in-pool per coarse task-type", and old stats decay when you upgrade a provider's model. **Iterations**: `--sample` switches ranking from greedy posterior-mean to **Thompson Sampling** (Gaussian-approx Beta sample → explores under-sampled agents, won't lock onto an early winner; Agrawal-Goyal 2012). `"$FO" allocate decay --gamma G [--type T]` discounts counts (`s,f ×G`) to forget stale stats after a model upgrade (discounted bandit; Garivier-Moulines 2011).
 - **Workspace isolation** (inspired by Zleap-Agent) — `"$FO" workspace context <ws>` assembles layered context per station (System + Workspace + Tools + Memory + History); `"$FO" dispatch <agent> --workspace <ws> ...` injects it as a prefix, so a (weak) model sees only what this station should see, not drowned in the full context. Stations: main/code/sql/chinese/review/web.
@@ -46,16 +47,18 @@ Three roles, five phases. Planner orchestrates, the implementer fleet writes cod
 
 ### Phase 1: Plan
 
-> Tooling: `FO=orchestration/fuguectl/fuguectl` — unified driver: `doctor` `preflight` `task` `template` `dispatch` `cache` `integrate` `allocate` `skills` `workspace` `plan` `goal` `loop` `run` `summary` `runtime` `selftest`.
+> Tooling: `FO=orchestration/fuguectl/fuguectl` — unified driver: `doctor` `init` `preflight` `task` `template` `dispatch` `cache` `integrate` `allocate` `skills` `workspace` `plan` `goal` `loop` `run` `summary` `runtime` `selftest`.
 
 0. **Decide the mode** — small/focused task (1–2 files, one fix)? Skip the fleet: implement directly + Codex review (the high-value generation≠review gate). Fleet-shaped work (≥3–4 parallel subtasks / bulk / cost-sensitive)? Bring up the fleet:
    ```bash
    "$FO" fleet status      # ready? (no tmux server / panes down = stuck-in-queue risk)
    "$FO" fleet up          # strips CLAUDE_CODE_* (OAuth false-401) + starts panes in detached tmux
    ```
-1. **Preflight (go/no-go gate)** — deps / provider mounted / provider config sanity + the **legacy Gemini CLI guard**, all as code:
+1. **Preflight (go/no-go gate)** — deps / provider mounted / provider config sanity + selected runtime readiness, all as code:
 
    ```bash
+   "$FO" help quickstart                         # safe first-run path
+   "$FO" init --dry-run                          # local readiness, no writes
    "$FO" preflight --harness codex                    # lite reviewer path
    FUGUE_CC_WORK=<provider project> "$FO" preflight --harness fugue-cc   # full fleet path
    ```
@@ -209,7 +212,7 @@ List only real problems; if none, output VERDICT: ACCEPTED
 If problems exist, output VERDICT: NEEDS FIX plus a problem list
 Be concise.
 EOF
-"$FO" dispatch gpt-5.5 --harness codex --prompt-file /tmp/fugunano-review-prompt.md --task "$F"
+"$FO" dispatch gpt-5.5 --harness codex --timeout-ms 600000 --prompt-file /tmp/fugunano-review-prompt.md --task "$F"
 ```
 
 - `VERDICT: ACCEPTED` → wrap up (TASK → Status: DONE + Completed, push / deliver).

@@ -78,6 +78,14 @@ const numberOrZero = (value: string | undefined): number => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const parseTimeoutMs = (raw: string): number | null | undefined => {
+  const value = raw.trim();
+  if (value.length === 0 || value === '0') return undefined;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) return null;
+  return parsed;
+};
+
 const parseStats = (content: string): StrategyState => {
   const state: StatEntry[] = [];
   for (const raw of content.split(/\r?\n/u)) {
@@ -178,6 +186,7 @@ export class DispatchCommand extends Command {
   stats = Option.String('--stats', defaultAllocationStats());
   experience = Option.String('--experience', defaultExperienceDir());
   ledger = Option.String('--ledger', defaultAllocationLedger());
+  timeoutMs = Option.String('--timeout-ms', process.env.FUGUE_DISPATCH_TIMEOUT_MS ?? '0');
 
   private readonly fs = new NodeFileSystem();
 
@@ -189,8 +198,15 @@ export class DispatchCommand extends Command {
 
     const prompt = await this.prompt();
     if (prompt === null) return 2;
+    const timeoutMs = parseTimeoutMs(this.timeoutMs);
+    if (timeoutMs === null) {
+      this.context.stderr.write(
+        `invalid --timeout-ms '${this.timeoutMs}' (expected positive ms)\n`,
+      );
+      return 2;
+    }
 
-    const result = await this.harnessFor(this.harness).dispatch({
+    const result = await this.harnessFor(this.harness, timeoutMs).dispatch({
       agent: this.target,
       prompt,
       ...(this.workspace !== undefined ? { workspace: this.workspace } : {}),
@@ -208,15 +224,24 @@ export class DispatchCommand extends Command {
     return rc;
   }
 
-  private harnessFor(name: HarnessName): Harness {
+  private harnessFor(name: HarnessName, timeoutMs: number | undefined): Harness {
     const runner = new NodeCommandRunner();
     switch (name) {
       case 'fugue-cc':
-        return new FugueCcHarness(runner, { bin: process.env.FUGUE_CC_BIN ?? 'fugue-cc' });
+        return new FugueCcHarness(runner, {
+          bin: process.env.FUGUE_CC_BIN ?? 'fugue-cc',
+          ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+        });
       case 'codex':
-        return new CodexHarness(runner, { bin: process.env.FUGUE_CODEX ?? 'codex' });
+        return new CodexHarness(runner, {
+          bin: process.env.FUGUE_CODEX ?? 'codex',
+          ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+        });
       case 'opencode':
-        return new OpencodeHarness(runner, { bin: process.env.FUGUE_OPENCODE ?? 'opencode' });
+        return new OpencodeHarness(runner, {
+          bin: process.env.FUGUE_OPENCODE ?? 'opencode',
+          ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+        });
     }
   }
 

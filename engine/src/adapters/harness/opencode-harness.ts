@@ -13,7 +13,7 @@ import { runDispatch, versionHealth, type HarnessExecOptions } from './exec-help
 export class OpencodeHarness implements Harness {
   readonly name = 'opencode';
   private readonly bin: string;
-  private readonly cwd?: string;
+  private readonly commandOptions: CommandOptions;
   private readonly extraArgs: readonly string[];
 
   constructor(
@@ -22,11 +22,14 @@ export class OpencodeHarness implements Harness {
   ) {
     this.bin = options.bin ?? 'opencode';
     this.extraArgs = options.args ?? [];
-    if (options.cwd !== undefined) this.cwd = options.cwd;
+    this.commandOptions = {
+      ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+      ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
+    };
   }
 
   private options(): CommandOptions {
-    return this.cwd !== undefined ? { cwd: this.cwd } : {};
+    return this.commandOptions;
   }
 
   dispatch(request: DispatchRequest): Promise<Result<DispatchResult, DispatchError>> {

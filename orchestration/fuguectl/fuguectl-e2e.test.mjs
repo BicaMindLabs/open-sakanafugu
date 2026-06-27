@@ -33,6 +33,7 @@ writeFileSync(resultFile, "r\n");
 
 const helpOut = run(fuguectl, ["help"]).stdout;
 suite.ok("help lists subcommands", () => helpOut.includes("fuguectl doctor"));
+suite.ok("help lists init entrypoint", () => helpOut.includes("fuguectl init"));
 suite.ok("help lists runtime entrypoint", () =>
   helpOut.includes("fuguectl runtime"),
 );
@@ -42,10 +43,28 @@ suite.ok("help lists agents entrypoint", () =>
 suite.ok("help lists inline prompt dispatch", () =>
   helpOut.includes("--prompt <text>"),
 );
-suite.ok("help lists planning harness", () => helpOut.includes('plan "<goal>" [--harness h]'));
+suite.ok("help lists dispatch timeout", () =>
+  helpOut.includes("--timeout-ms n"),
+);
+suite.ok("help lists planning harness", () =>
+  helpOut.includes('plan "<goal>" [--harness h]'),
+);
 suite.ok(
   "help does not leak script body",
   () => !helpOut.includes("set -uo pipefail"),
+);
+const quickstartOut = run(fuguectl, ["help", "quickstart"]).stdout;
+suite.ok("help quickstart prints first-run path", () =>
+  quickstartOut.includes("fuguectl init --dry-run"),
+);
+const badHelp = run(fuguectl, ["help", "bogus"]);
+suite.ok("unknown help topic is nonzero", () => badHelp.status === 2);
+suite.ok("unknown help topic suggests quickstart", () =>
+  badHelp.stderr.includes("help quickstart"),
+);
+const unknown = run(fuguectl, ["nope"]);
+suite.ok("unknown command suggests help", () =>
+  unknown.stderr.includes("fuguectl help"),
 );
 const workspaceOut = run(fuguectl, ["workspace", "list"]).stdout;
 suite.ok("fuguectl dispatches commands", () => /^  code/mu.test(workspaceOut));
