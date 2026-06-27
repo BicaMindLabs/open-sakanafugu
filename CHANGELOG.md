@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/), versioning [SemV
 
 ### Added
 
+- **Stable `fuguectl self-harness` operator surface**: exposed the engine-native Self-Harness `template|run` commands through the production `fuguectl` entrypoint, added wrapper coverage, and extended docs drift checks so the operator guide keeps documenting the stable surface.
 - **TypeScript engine Self-Harness loop (iter15)**: added the spec-driven `fugue self-harness template|run` CLI plus live Self-Harness adapters — `RunWeaknessMiner` mines `failed` / `no-agent` run events into verifier-grounded clusters, `HarnessBackedProposer` asks a configured harness agent for strict JSON full-surface replacement edits, and `TaskListHarnessValidator` re-runs fixed held-in / held-out cases with shell gates. Includes a strict JSON spec parser, `wireSelfHarness`, `docs/SELF_HARNESS.md`, robust balanced-array JSON extraction, defensive failure handling for expected harness/gate/model-output failures, and engine coverage for the live adapter edge cases.
 - **Antigravity (`agy`) as a first-class harness**: added `AgyHarness` for `agy --prompt`, wired it through dispatch / plan / preflight / agent registry / docs, and made `target=default` use the current Antigravity settings while non-default targets pass through as `--model <target>`. `preflight --harness agy --target <model>` now validates against `agy models`, and the docs drift gate checks the canonical harness list plus rejects stale print-mode guidance.
 

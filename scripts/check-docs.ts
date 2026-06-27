@@ -250,6 +250,13 @@ for (const command of selfCommands) {
   else no(`${basename(selfDoc)}: missing '${command}'`);
 }
 
+for (const command of selfCommands) {
+  const fuguectlCommand = `fuguectl ${command}`;
+  if (selfDocText.includes(fuguectlCommand))
+    ok(`${basename(selfDoc)}: documents '${fuguectlCommand}'`);
+  else no(`${basename(selfDoc)}: missing '${fuguectlCommand}'`);
+}
+
 const selfDomainText = text(selfDomain);
 const surfacesBlock =
   /export const EDITABLE_SURFACES[\s\S]*?\];/u.exec(selfDomainText)?.[0] ?? "";

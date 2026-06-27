@@ -10,27 +10,25 @@ regressing the other.
 
 The implementation is split into pure domain logic, live adapters, and a CLI:
 
-| Stage       | Port / adapter                   | Responsibility                                                                                                         |
-| ----------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 1. Mine     | `RunWeaknessMiner`               | Read failed `RunEvent`s, tag failures with model-backed signatures, cluster via the pure `clusterWeaknesses` function. |
-| 2. Propose  | `HarnessBackedProposer`          | Prompt a configured harness agent for strict JSON replacement edits, then parse and sanitize them.                     |
+| Stage       | Port / adapter                   | Responsibility                                                                                                           |
+| ----------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 1. Mine     | `RunWeaknessMiner`               | Read failed `RunEvent`s, tag failures with model-backed signatures, cluster via the pure `clusterWeaknesses` function.   |
+| 2. Propose  | `HarnessBackedProposer`          | Prompt a configured harness agent for strict JSON replacement edits, then parse and sanitize them.                       |
 | 3. Validate | `TaskListHarnessValidator`       | Re-run fixed held-in and held-out cases (optionally `samples` times to denoise); a `verify` predicate decides pass/fail. |
-| Accept      | `acceptEdit` / `SelfHarnessLoop` | Promote only if `deltaIn >= 0`, `deltaOut >= 0`, and at least one delta is positive.                                   |
+| Accept      | `acceptEdit` / `SelfHarnessLoop` | Promote only if `deltaIn >= 0`, `deltaOut >= 0`, and at least one delta is positive.                                     |
 
 ## CLI
 
 Generate a starter JSON spec:
 
 ```bash
-cd engine
-npm run build
-node dist/cli/main.js self-harness template > /tmp/self-harness.json
+orchestration/fuguectl/fuguectl self-harness template > /tmp/self-harness.json
 ```
 
 Run the loop:
 
 ```bash
-node dist/cli/main.js self-harness run \
+orchestration/fuguectl/fuguectl self-harness run \
   --spec /tmp/self-harness.json \
   --state ~/.config/fugunano \
   --cwd /path/to/workspace
@@ -122,8 +120,8 @@ Treat a Self-Harness spec as trusted executable input: each `gate` runs through
 
 ## Eval paths: tool-capable vs chat-only agents
 
-The CLI's `verify` is a shell gate (`sh -c <gate>`), so it judges the *side
-effects* a dispatch produced — typically a file the agent was asked to create.
+The CLI's `verify` is a shell gate (`sh -c <gate>`), so it judges the _side
+effects_ a dispatch produced — typically a file the agent was asked to create.
 That requires a **tool-capable** agent:
 
 - `fugue-cc` agents (Claude Code instances) edit files directly.
@@ -180,18 +178,18 @@ Use the engine gates before relying on a change:
 cd engine
 npm run check
 npm run build
-node dist/cli/main.js self-harness template
+../orchestration/fuguectl/fuguectl self-harness template
 
 # Error-path smoke: should exit 1 and print "no self-harness spec at /tmp/nope".
-node dist/cli/main.js self-harness run --spec /tmp/nope
+../orchestration/fuguectl/fuguectl self-harness run --spec /tmp/nope
 ```
 
 A successful `run` smoke needs a real source `RunStore` record under
 `--state/runs` plus a reachable harness/agent. In normal use, create or select a
-completed run first, put its ID in `runId`, then run:
+completed run first, put its ID in `runId`, then run from the repo root:
 
 ```bash
-node dist/cli/main.js self-harness run \
+orchestration/fuguectl/fuguectl self-harness run \
   --spec /tmp/self-harness.json \
   --state ~/.config/fugunano \
   --cwd /path/to/workspace
