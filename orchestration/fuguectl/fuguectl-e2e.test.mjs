@@ -44,6 +44,9 @@ suite.ok("help lists init entrypoint", () => helpOut.includes("fuguectl init"));
 suite.ok("help lists runtime entrypoint", () =>
   helpOut.includes("fuguectl runtime"),
 );
+suite.ok("help lists runtime strict gate", () =>
+  helpOut.includes("runtime check [--strict]"),
+);
 suite.ok("help lists agents entrypoint", () =>
   helpOut.includes("fuguectl agents"),
 );

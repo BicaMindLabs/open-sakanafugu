@@ -86,6 +86,10 @@ for typed routing and coordinator behavior. The `agents`, `task`, `template`,
 `doctor`, and `goal` operator wrappers delegate to the built engine CLI at
 `engine/dist/cli/main.js`; set `FUGUE_ENGINE_CLI` to override that path.
 
+Use `fuguectl runtime check --strict --skill <installed SKILL.md> --repo-skill <repo SKILL.md>`
+when automation needs installed workflow bundle drift to fail the gate instead
+of remaining report-only.
+
 ## Dispatch Semantics
 
 `Coordinator` accepts the registry through `CoordinatorDeps.agentRegistry` or

@@ -31,7 +31,7 @@ const defaultInstalledSkillPath = (): string =>
   nonEmptyEnv(process.env.FUGUNANO_SKILL) ??
   nonEmptyEnv(process.env.FUGUE_WORKFLOW_SKILL) ??
   nonEmptyEnv(process.env.FUGUE_SKILL) ??
-  joinPath(homedir(), '.claude', 'skills', 'fugue', 'SKILL.md');
+  joinPath(homedir(), '.claude', 'skills', 'fugunano', 'SKILL.md');
 
 const providerOutput = async (runner: CommandRunner, bin: string): Promise<string> => {
   try {
@@ -225,13 +225,12 @@ const workflowSkillStatus = async (
   };
 };
 
-const workflowSkillCheckLines = async (
-  fileSystem: FileSystem,
+const workflowSkillCheckLinesForStatus = (
+  status: WorkflowSkillStatus,
   repoSkill: string,
   installedSkill: string,
   driverName: string,
-): Promise<readonly string[]> => {
-  const status = await workflowSkillStatus(fileSystem, repoSkill, installedSkill);
+): readonly string[] => {
   if (!status.repoExists) return [`  ⚠ workflow bundle source missing (${repoSkill})`];
   if (status.upToDate) return [`  ✓ workflow bundle up-to-date (${skillDir(installedSkill)})`];
   if (!status.installedExists) {
@@ -315,22 +314,30 @@ abstract class RuntimeCommand extends Command {
 export class RuntimeCheckCommand extends RuntimeCommand {
   static override paths = [['runtime', 'check']];
 
+  strict = Option.Boolean('--strict', false);
+
   override async execute(): Promise<number> {
     const fileSystem = fs();
     const runner = new NodeCommandRunner();
     const output = await providerOutput(runner, this.bin);
     const current = parseProviderVersion(output);
     const last = (await fileSystem.read(stampPath(this.state)))?.trim() ?? '(none)';
+    const workflowStatus = await workflowSkillStatus(fileSystem, this.repoSkill, this.skill);
+    const workflowLines = workflowSkillCheckLinesForStatus(
+      workflowStatus,
+      this.repoSkill,
+      this.skill,
+      this.driverName,
+    );
+    const strictExitCode = this.strict && !workflowStatus.upToDate ? 1 : 0;
     const lines = [
       `fugue-cc provider current: ${current.length > 0 ? current : 'unknown'}   last recorded: ${last}`,
     ];
     if (current.length === 0) {
       lines.push('  ⚠ cannot get fugue-cc provider version (fugue-cc not installed?)');
-      lines.push(
-        ...(await workflowSkillCheckLines(fileSystem, this.repoSkill, this.skill, this.driverName)),
-      );
+      lines.push(...workflowLines);
       this.context.stdout.write(`${lines.join('\n')}\n`);
-      return 0;
+      return strictExitCode;
     }
     if (current !== last) {
       lines.push(
@@ -348,11 +355,9 @@ export class RuntimeCheckCommand extends RuntimeCommand {
         '  ✗ grafting api_shortcuts.py is gone — claude+url grafting may break, check the new fugue-cc version manually',
       );
     }
-    lines.push(
-      ...(await workflowSkillCheckLines(fileSystem, this.repoSkill, this.skill, this.driverName)),
-    );
+    lines.push(...workflowLines);
     this.context.stdout.write(`${lines.join('\n')}\n`);
-    return 0;
+    return strictExitCode;
   }
 }
 

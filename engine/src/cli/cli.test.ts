@@ -2716,6 +2716,17 @@ describe('fugue CLI', () => {
         '--install',
         install,
       ]);
+      const strictCheck = await run([
+        'runtime',
+        'check',
+        '--bin',
+        bin,
+        '--state',
+        state,
+        '--install',
+        install,
+        '--strict',
+      ]);
       const dry = await run([
         'runtime',
         'adapt',
@@ -2773,6 +2784,7 @@ describe('fugue CLI', () => {
         state,
         '--install',
         install,
+        '--strict',
       ]);
 
       await rm(join(install, 'lib/provider_profiles/api_shortcuts.py'));
@@ -2791,6 +2803,8 @@ describe('fugue CLI', () => {
       expect(check.out).toContain('version drift');
       expect(check.out).toContain('grafting api_shortcuts.py present');
       expect(check.out).toContain('workflow bundle drift');
+      expect(strictCheck.code).toBe(1);
+      expect(strictCheck.out).toContain('workflow bundle drift');
       expect(dry.out).toContain('[dry-run]');
       expect(dry.out).toContain('stamp not written');
       expect(dry.out).toContain('would refresh workflow bundle');
@@ -2806,6 +2820,7 @@ describe('fugue CLI', () => {
       expect(staleNumberedShellMissing).toBe(true);
       expect(killCalls).toContain('kill:');
       expect(killCalls).toContain('/work');
+      expect(check2.code).toBe(0);
       expect(check2.out).toContain('no drift');
       expect(check2.out).toContain('workflow bundle up-to-date');
       expect(missingGrafting.out).toContain('api_shortcuts.py is gone');

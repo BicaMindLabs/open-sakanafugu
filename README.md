@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Runtime-Node%20%E2%89%A518.18-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js >= 18.18" />
   <img src="https://img.shields.io/badge/Engine-TypeScript-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript engine" />
   <img src="https://img.shields.io/badge/fuguectl-24%20suites-7c3aed?style=for-the-badge" alt="24 fuguectl test suites" />
-  <img src="https://img.shields.io/badge/assertions-328-brightgreen?style=for-the-badge" alt="328 fuguectl assertions" />
+  <img src="https://img.shields.io/badge/assertions-330-brightgreen?style=for-the-badge" alt="330 fuguectl assertions" />
   <a href="https://github.com/BicaMindLabs/FuguNano/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/BicaMindLabs/FuguNano/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status" /></a>
   <img src="https://img.shields.io/badge/license-Apache--2.0-yellowgreen?style=for-the-badge" alt="Apache-2.0 license" />
 </p>
@@ -227,7 +227,8 @@ fugue template <name> --dir <templates> [--set KEY=VALUE ...]
 fugue workspace list|show|model|context
 fugue experience add|list|recall|show --store <dir>
 fugue summary <round> --cache <dir> [--task <file>]
-fugue runtime check|adapt --state <dir> [--skill <installed SKILL.md>] [--repo-skill <repo SKILL.md>]
+fugue runtime check [--strict] --state <dir> [--skill <installed SKILL.md>] [--repo-skill <repo SKILL.md>]
+fugue runtime adapt --state <dir> [--skill <installed SKILL.md>] [--repo-skill <repo SKILL.md>]
 fugue run set|round|status|next|clear
 fugue loop init|record|decide|next|status
 fugue goal template|show|check
@@ -251,11 +252,13 @@ For Antigravity, `--harness agy` dispatches through `agy --prompt`; target
 as `--model`.
 
 `runtime check` also compares the repo's `orchestration/fuguectl/` bundle with
-the installed workflow bundle. `runtime adapt --apply` syncs it, so local agent
-instructions and helper entrypoints do not drift behind the repo after the
-workflow evolves. If `fugue-cc` is unavailable, adapt still syncs the bundle but
-exits non-zero so provider automation can detect the skipped runtime
-restart/stamp.
+the installed workflow bundle. Add `--strict` when automation should fail on
+installed-skill drift:
+`fuguectl runtime check --strict --skill ~/.claude/skills/fugunano/SKILL.md --repo-skill orchestration/fuguectl/SKILL.md`.
+`runtime adapt --apply` syncs it, so local agent instructions and helper
+entrypoints do not drift behind the repo after the workflow evolves. If
+`fugue-cc` is unavailable, adapt still syncs the bundle but exits non-zero so
+provider automation can detect the skipped runtime restart/stamp.
 
 ## Self-Harness
 

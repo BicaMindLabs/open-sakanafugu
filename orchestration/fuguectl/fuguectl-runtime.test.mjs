@@ -110,6 +110,9 @@ const out = run(runtime, ["check"]).stdout;
 suite.ok("check reports version drift (none → v9.9.9)", () =>
   out.includes("version drift"),
 );
+suite.ok("help lists strict workflow drift gate", () =>
+  run(runtime, ["--help"]).stdout.includes("check [--strict]"),
+);
 suite.ok("check: grafting api_shortcuts.py present", () =>
   out.includes("grafting api_shortcuts.py present"),
 );
@@ -170,6 +173,7 @@ suite.ok("wrapper delegates to engine CLI", () =>
 
 run(runtime, [
   "check",
+  "--strict",
   "--skill",
   join(tmp, "installed", "SKILL.md"),
   "--repo-skill",
@@ -177,7 +181,7 @@ run(runtime, [
 ]);
 suite.ok("wrapper forwards workflow skill options", () =>
   readFileSync(calls, "utf8").includes(
-    `runtime check --skill ${join(tmp, "installed", "SKILL.md")} --repo-skill ${join(tmp, "repo", "SKILL.md")}\n`,
+    `runtime check --strict --skill ${join(tmp, "installed", "SKILL.md")} --repo-skill ${join(tmp, "repo", "SKILL.md")}\n`,
   ),
 );
 
