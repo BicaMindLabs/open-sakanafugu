@@ -15,6 +15,7 @@ const agentTeamDoc = path("docs", "AGENT_TEAM.md");
 const changelog = path("CHANGELOG.md");
 const workflowDoc = path("docs", "WORKFLOW.md");
 const agentRuntimeDoc = path("docs", "AGENT_RUNTIME.md");
+const pullRequestTemplate = path(".github", "PULL_REQUEST_TEMPLATE.md");
 const engineCommandDir = path("engine", "src", "cli", "commands");
 const fugueDir = path("orchestration", "fuguectl");
 const planWrapper = path("orchestration", "fuguectl", "fuguectl-plan");
@@ -52,6 +53,10 @@ requireFile(agentTeamDoc, `check-docs: cannot find ${agentTeamDoc}`);
 requireFile(changelog, `check-docs: cannot find ${changelog}`);
 requireFile(workflowDoc, `check-docs: cannot find ${workflowDoc}`);
 requireFile(agentRuntimeDoc, `check-docs: cannot find ${agentRuntimeDoc}`);
+requireFile(
+  pullRequestTemplate,
+  `check-docs: cannot find ${pullRequestTemplate}`,
+);
 requireFile(engineCommandDir, `check-docs: cannot find ${engineCommandDir}`);
 requireFile(planWrapper, `check-docs: cannot find ${planWrapper}`);
 requireFile(workflowSkill, `check-docs: cannot find ${workflowSkill}`);
@@ -209,6 +214,7 @@ const agentTeamText = text(agentTeamDoc);
 const changelogText = text(changelog);
 const workflowText = text(workflowDoc);
 const agentRuntimeText = text(agentRuntimeDoc);
+const pullRequestTemplateText = text(pullRequestTemplate);
 const planWrapperText = text(planWrapper);
 const workflowSkillText = text(workflowSkill);
 const harnessPortText = text(harnessPort);
@@ -399,6 +405,22 @@ for (const [file, content] of [
     ok(`${basename(file)}: documents 'agy --prompt'`);
   else no(`${basename(file)}: missing 'agy --prompt'`);
 }
+
+if (!pullRequestTemplateText.includes("No Gemini dependency introduced"))
+  ok(`${basename(pullRequestTemplate)}: no blanket Gemini dependency ban`);
+else
+  no(
+    `${basename(pullRequestTemplate)}: replace blanket Gemini dependency ban with a retired Gemini CLI entrypoint check`,
+  );
+
+if (pullRequestTemplateText.includes("retired Gemini CLI entrypoint"))
+  ok(
+    `${basename(pullRequestTemplate)}: scopes Gemini guard to retired CLI entrypoints`,
+  );
+else
+  no(
+    `${basename(pullRequestTemplate)}: missing retired Gemini CLI entrypoint wording`,
+  );
 
 const selfCliText = text(selfCli);
 const selfCommands = [

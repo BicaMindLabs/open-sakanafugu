@@ -18,7 +18,7 @@
 - [ ] **No real key entered the repo** (provider config `key=` values are all `<PLACEHOLDER>`)
 - [ ] If you touched the launcher, shared logic went into `cc-model-launcher.mjs`, not copied into a head
 - [ ] User-facing changes are recorded in the CHANGELOG
-- [ ] No Gemini dependency introduced
+- [ ] No retired Gemini CLI entrypoint introduced (Gemini-family model/API support is allowed)
 
 ## Notes
 
