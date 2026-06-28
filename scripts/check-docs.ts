@@ -378,6 +378,28 @@ const documentsSmokeSummaryAggregateFields = (content) =>
         paragraph.includes("`status`/`passed`/`failed`/`exitCode`"),
     );
 
+const documentsPlanSummaryManifest = (content) => {
+  const paragraphs = content.split(/\n\s*\n/u);
+  return paragraphs.some(
+    (paragraph) =>
+      (paragraph.includes("fuguectl plan") ||
+        paragraph.includes('"$FO" plan') ||
+        paragraph.includes("fuguectl-plan")) &&
+      paragraph.includes("summary.json"),
+  );
+};
+
+const documentsPlanSummaryAggregateFields = (content) =>
+  content
+    .split(/\n\s*\n/u)
+    .some(
+      (paragraph) =>
+        paragraph.includes("summary.json") &&
+        paragraph.includes(
+          "`status`/`exitCode`/`allowPartial`/`succeeded`/`available`/`failed`",
+        ),
+    );
+
 for (const [file, content] of [
   [fuguectl, driver],
   [planWrapper, planWrapperText],
@@ -496,6 +518,31 @@ for (const [file, content] of [
   if (surface.includes("--harness lite") || surface.includes("|lite"))
     ok(`${basename(file)}: documents lite planning`);
   else no(`${basename(file)}: missing 'plan --harness lite'`);
+}
+
+for (const [file, content] of [
+  [fuguectl, driver],
+  [planWrapper, planWrapperText],
+  [readmeEn, en],
+  [readmeZh, zh],
+  [workflowDoc, workflowText],
+  [workflowSkill, workflowSkillText],
+]) {
+  if (documentsPlanSummaryManifest(content))
+    ok(`${basename(file)}: documents planning summary.json`);
+  else no(`${basename(file)}: missing planning summary.json guidance`);
+}
+
+for (const [file, content] of [
+  [readmeEn, en],
+  [readmeZh, zh],
+  [workflowDoc, workflowText],
+  [workflowSkill, workflowSkillText],
+]) {
+  if (documentsPlanSummaryAggregateFields(content))
+    ok(`${basename(file)}: documents planning summary aggregate fields`);
+  else
+    no(`${basename(file)}: missing planning summary aggregate field guidance`);
 }
 
 const selfCliText = text(selfCli);

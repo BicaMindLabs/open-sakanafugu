@@ -228,7 +228,9 @@ Antigravity 场景下，`--harness agy` 会走 `agy --prompt`；target 为
 自定义 lite planner target 时需要加前缀，例如
 `--models codex:gpt-5.5,opencode:opencode/deepseek-v4-flash-free,agy:default`。
 需要让 Codex planner 忽略本机配置和规则时，加 `--codex-clean`；它会保持 plan 输出目录可写，只作用于 Codex 规划目标，不会污染 OpenCode 或 Antigravity 参数。
-探索式规划时可以加 `--allow-partial`：某个 planner 慢或失败时，其他已经写出的计划仍然可以进入综合。
+探索式规划时可以加 `--allow-partial`：某个 planner 慢或失败时，其他已经成功完成并写出的计划仍然可以进入综合。
+设置 `--out` 时，planning 还会写 `<out>/summary.json`，里面包含顶层
+`status`/`exitCode`/`allowPartial`/`succeeded`/`available`/`failed`，以及每个 planner 的 artifact 状态、耗时和错误元数据。
 
 `runtime check` 也会比较仓库里的 `orchestration/fuguectl/` bundle 和本机已安装的 workflow bundle；自动化需要把安装 skill 漂移视为失败时，加 `--strict`：
 `fuguectl runtime check --strict --skill ~/.claude/skills/fugunano/SKILL.md --repo-skill orchestration/fuguectl/SKILL.md`。

@@ -24,7 +24,7 @@ Four roles, seven phases — fully replayable, interruptible, and auditable.
 ### Phase 0 — Open the Task (Planner)
 
 The planner writes the requirement into a task file such as `~/.claude/tasks/TASK-YYYY-MM-DD-NNN.md`: requirements / subtasks (annotated with the logical agent profile) / acceptance criteria / output files. This is the single source of intent for the whole pipeline. `fuguectl task new` uses exclusive file creation for concurrent operators, and all TASK audit appenders (`task log`, `dispatch --task`, `plan --task`, `summary --task`, `integrate --task`) share a lightweight lock with `task done` so overlapping observers preserve their entries even while the task is being closed.
-When using the planning panel, pass `fuguectl plan "<goal>" --models m1,m2 --out <dir> --timeout-ms n --allow-partial --codex-clean --harness-arg x --codex-arg x --opencode-arg x --agy-arg x --task <file>` as needed, so planner start/completion status, output size or error kind/exit code, and artifact paths are written into the same audit trail. Use `--harness lite` to ask Codex, OpenCode, and Antigravity for parallel plans from one command; custom lite models are prefixed as `codex:<model>`, `opencode:<provider/model>`, or `agy:<model|default>`. `--codex-clean` applies only to Codex planning targets and keeps the plan output directory writable. `--allow-partial` is for exploratory planning: if at least one planner writes an artifact, the command exits 0 while keeping failed planners visible in output and the TASK log. TASK writes are append-safe, so concurrent planning commands preserve each other's audit lines.
+When using the planning panel, pass `fuguectl plan "<goal>" --models m1,m2 --out <dir> --timeout-ms n --allow-partial --codex-clean --harness-arg x --codex-arg x --opencode-arg x --agy-arg x --task <file>` as needed, so planner start/completion status, output size or error kind/exit code, and artifact paths are written into the same audit trail. Use `--harness lite` to ask Codex, OpenCode, and Antigravity for parallel plans from one command; custom lite models are prefixed as `codex:<model>`, `opencode:<provider/model>`, or `agy:<model|default>`. `--codex-clean` applies only to Codex planning targets and keeps the plan output directory writable. `--allow-partial` is for exploratory planning: if at least one successful planner writes an artifact, the command exits 0 while keeping failed planners visible in output and the TASK log. TASK writes are append-safe, so concurrent planning commands preserve each other's audit lines.
 
 ### Phase 1 — Split and Assign (fuguectl)
 
@@ -34,6 +34,7 @@ The operator reads the task, splits it into parallelizable subtasks, and picks l
 - English / algorithms / refactoring -> Codex or a strong-reasoning profile (deepseek/minimax)
 - Math and logic -> stepfun
 - One subtask = one independent, copy-ready prompt (**no broadcasting a single generic prompt to everyone**).
+- `fuguectl plan ... --out <dir>` writes `<dir>/summary.json` for automation, with top-level `status`/`exitCode`/`allowPartial`/`succeeded`/`available`/`failed` and per-planner artifact status, duration, and error metadata.
 
 ### Phase 2 — Parallel Implementation + Cache + join barrier (Implementers)
 

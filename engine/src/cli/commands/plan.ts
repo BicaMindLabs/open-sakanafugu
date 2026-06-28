@@ -35,6 +35,12 @@ const formatDurationMs = (ms: number): string => {
   return `${(ms / 1000).toFixed(1)}s`;
 };
 
+const hasErrorCode = (error: unknown, code: string): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  (error as { readonly code?: unknown }).code === code;
+
 const failureFields = (kind: string, exitCode: number | undefined): string =>
   `error=${kind} rc=${String(exitCode ?? 1)}`;
 
@@ -58,6 +64,44 @@ type PlanHarness = HarnessName | 'lite';
 interface PlanTarget {
   readonly harness: HarnessName;
   readonly agent: string;
+}
+
+type PlanArtifactStatus = 'written' | 'captured' | 'missing';
+type PlanSummaryStatus = 'ok' | 'partial' | 'failed';
+
+interface PlanRunResult {
+  readonly harness: HarnessName;
+  readonly agent: string;
+  readonly label: string;
+  readonly outfile: string;
+  readonly result: Awaited<ReturnType<Harness['dispatch']>>;
+  readonly artifact: PlanArtifactStatus;
+  readonly elapsedMs: number;
+}
+
+interface PlanSummaryEntry {
+  readonly label: string;
+  readonly harness: HarnessName;
+  readonly target: string;
+  readonly status: 'ok' | 'failed';
+  readonly artifactStatus: PlanArtifactStatus;
+  readonly artifactPath: string;
+  readonly durationMs: number;
+  readonly outputChars?: number;
+  readonly errorKind?: string;
+  readonly errorExitCode?: number;
+}
+
+interface PlanSummary {
+  readonly schemaVersion: 1;
+  readonly generatedAt: string;
+  readonly status: PlanSummaryStatus;
+  readonly exitCode: 0 | 1;
+  readonly allowPartial: boolean;
+  readonly succeeded: number;
+  readonly available: number;
+  readonly failed: number;
+  readonly results: readonly PlanSummaryEntry[];
 }
 
 const isHarnessName = (value: string): value is HarnessName =>
@@ -106,7 +150,7 @@ const promptFor = (model: string, goal: string, outfile: string): string =>
 const ensurePlanArtifact = async (
   outfile: string,
   harnessOutput: string,
-): Promise<'written' | 'captured' | null> => {
+): Promise<PlanArtifactStatus> => {
   try {
     const existing = await readFile(outfile, 'utf8');
     if (existing.trim().length > 0) return 'written';
@@ -115,7 +159,7 @@ const ensurePlanArtifact = async (
   }
 
   const captured = harnessOutput.trim();
-  if (captured.length === 0) return null;
+  if (captured.length === 0) return 'missing';
   await writeFile(outfile, `${captured}\n`, 'utf8');
   return 'captured';
 };
@@ -123,8 +167,10 @@ const ensurePlanArtifact = async (
 const removePlanArtifact = async (outfile: string): Promise<void> => {
   try {
     await unlink(outfile);
-  } catch {
-    // A missing artifact is the normal first-run case.
+  } catch (error) {
+    if (!hasErrorCode(error, 'ENOENT')) throw error;
+    // A missing artifact is the normal first-run case; other unlink errors could
+    // leave stale artifacts in place and must not be hidden.
   }
 };
 
@@ -222,7 +268,7 @@ export class PlanCommand extends Command {
         `plan → ${request.agent} [${request.harness}] (status=started out=${request.outfile})`,
       );
     }
-    const results = await Promise.all(
+    const results: readonly PlanRunResult[] = await Promise.all(
       requests.map(async ({ harness: harnessName, agent, label, outfile }) => {
         const startedAt = performance.now();
         await removePlanArtifact(outfile);
@@ -235,10 +281,10 @@ export class PlanCommand extends Command {
           ? await ensurePlanArtifact(outfile, result.value.output)
           : await ensurePlanArtifact(outfile, '');
         const status = !isOk(result)
-          ? artifact === null
+          ? artifact === 'missing'
             ? 'failed'
             : `failed-${artifact}`
-          : (artifact ?? 'missing');
+          : artifact;
         const elapsedMs = performance.now() - startedAt;
         const detail = isOk(result)
           ? `output_chars=${String(result.value.output.length)}`
@@ -259,7 +305,7 @@ export class PlanCommand extends Command {
     ];
     for (const entry of results) {
       const duration = ` (took ${formatDurationMs(entry.elapsedMs)})`;
-      if (!isOk(entry.result) && entry.artifact === null) {
+      if (!isOk(entry.result) && entry.artifact === 'missing') {
         lines.push(`  ✗ ${entry.label} dispatch failed${duration}`);
       } else if (!isOk(entry.result)) {
         lines.push(
@@ -276,13 +322,31 @@ export class PlanCommand extends Command {
       }
     }
 
-    const availableArtifacts = results.filter((entry) => entry.artifact !== null);
+    const summary = await this.writeSummary(results);
+    await this.appendTaskLog(
+      `plan summary (status=${summary.status} succeeded=${String(
+        summary.succeeded,
+      )} available=${String(summary.available)} failed=${String(summary.failed)} out=${
+        summary.path
+      })`,
+    );
+
+    const availableArtifacts = results.filter((entry) => entry.artifact !== 'missing');
+    const successfulArtifacts = results.filter(
+      (entry) => isOk(entry.result) && entry.artifact !== 'missing',
+    );
+    const partialAccepted = this.allowPartial && successfulArtifacts.length > 0;
     if (availableArtifacts.length > 0) {
-      lines.push('', 'collect: successful plan artifacts available for synthesis:');
+      lines.push(
+        '',
+        successfulArtifacts.length > 0
+          ? 'collect: successful plan artifacts available for synthesis:'
+          : 'collect: failed planner artifacts available for inspection:',
+      );
       for (const entry of availableArtifacts) lines.push(`  ${entry.outfile}`);
       if (
-        this.allowPartial &&
-        results.some((entry) => !isOk(entry.result) || entry.artifact === null)
+        partialAccepted &&
+        results.some((entry) => !isOk(entry.result) || entry.artifact === 'missing')
       ) {
         lines.push('partial: --allow-partial accepted available artifacts despite failures');
       }
@@ -292,10 +356,55 @@ export class PlanCommand extends Command {
         'collect: no plan artifacts were written; inspect failures above and TASK log.',
       );
     }
+    lines.push(`summary: ${summary.path}`);
     this.context.stdout.write(`${lines.join('\n')}\n`);
-    const allSucceeded = results.every((entry) => isOk(entry.result) && entry.artifact !== null);
-    const partialAccepted = this.allowPartial && availableArtifacts.length > 0;
+    const allSucceeded = results.every(
+      (entry) => isOk(entry.result) && entry.artifact !== 'missing',
+    );
     return allSucceeded || partialAccepted ? 0 : 1;
+  }
+
+  private async writeSummary(
+    results: readonly PlanRunResult[],
+  ): Promise<PlanSummary & { readonly path: string }> {
+    const available = results.filter((entry) => entry.artifact !== 'missing').length;
+    const succeeded = results.filter(
+      (entry) => isOk(entry.result) && entry.artifact !== 'missing',
+    ).length;
+    const failed = results.length - succeeded;
+    const allSucceeded = failed === 0;
+    const status: PlanSummaryStatus = allSucceeded ? 'ok' : succeeded > 0 ? 'partial' : 'failed';
+    const exitCode: 0 | 1 = allSucceeded || (this.allowPartial && succeeded > 0) ? 0 : 1;
+    const summaryPath = joinPath(this.out ?? defaultPlanOut(), 'summary.json');
+    const summary: PlanSummary = {
+      schemaVersion: 1,
+      generatedAt: new Date().toISOString(),
+      status,
+      exitCode,
+      allowPartial: this.allowPartial,
+      succeeded,
+      available,
+      failed,
+      results: results.map((entry): PlanSummaryEntry => {
+        const okResult = isOk(entry.result);
+        return {
+          label: entry.label,
+          harness: entry.harness,
+          target: entry.agent,
+          status: okResult && entry.artifact !== 'missing' ? 'ok' : 'failed',
+          artifactStatus: entry.artifact,
+          artifactPath: entry.outfile,
+          durationMs: Math.round(entry.elapsedMs),
+          ...(okResult ? { outputChars: entry.result.value.output.length } : {}),
+          ...(okResult ? {} : { errorKind: entry.result.error.kind }),
+          ...(!okResult && entry.result.error.exitCode !== undefined
+            ? { errorExitCode: entry.result.error.exitCode }
+            : {}),
+        };
+      }),
+    };
+    await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+    return { ...summary, path: summaryPath };
   }
 
   private appendTaskLog(message: string): Promise<void> {

@@ -266,7 +266,10 @@ Add `--codex-clean` when a Codex planner should ignore local config/rules while
 keeping the plan output directory writable; OpenCode and Antigravity keep their
 own runtime args.
 Add `--allow-partial` during exploratory planning when a slow planner should not
-discard usable plans from the others.
+discard successfully completed plans from the others.
+When `--out` is set, planning also writes `<out>/summary.json` with top-level
+`status`/`exitCode`/`allowPartial`/`succeeded`/`available`/`failed` plus each
+planner's artifact status, duration, and error metadata.
 
 `runtime check` also compares the repo's `orchestration/fuguectl/` bundle with
 the installed workflow bundle. Add `--strict` when automation should fail on

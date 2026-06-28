@@ -2187,6 +2187,22 @@ describe('fugue CLI', () => {
       const called = await readFile(calls, 'utf8');
       const prompt = await readFile(prompts, 'utf8');
       const captured = await readFile(join(out, 'cc-a.plan.md'), 'utf8');
+      const summary = JSON.parse(await readFile(join(out, 'summary.json'), 'utf8')) as {
+        readonly status: string;
+        readonly exitCode: number;
+        readonly allowPartial: boolean;
+        readonly succeeded: number;
+        readonly available: number;
+        readonly failed: number;
+        readonly results: readonly {
+          readonly label: string;
+          readonly harness: string;
+          readonly target: string;
+          readonly status: string;
+          readonly artifactStatus: string;
+          readonly artifactPath: string;
+        }[];
+      };
       const taskLog = await readFile(task, 'utf8');
 
       expect(planned.code).toBe(0);
@@ -2195,12 +2211,35 @@ describe('fugue CLI', () => {
       expect(planned.out).toContain('cc-a.plan.md');
       expect(planned.out).toContain('captured stdout to');
       expect(planned.out).toContain('successful plan artifacts available for synthesis');
+      expect(planned.out).toContain(`summary: ${join(out, 'summary.json')}`);
       expect(planned.out).toContain('(took ');
       expect(prompt).toContain('build a login feature');
       expect(prompt).toContain(`write to ${join(out, 'cc-a.plan.md')}`);
       expect(captured).toContain('# stub plan');
+      expect(summary).toMatchObject({
+        status: 'ok',
+        exitCode: 0,
+        allowPartial: false,
+        succeeded: 2,
+        available: 2,
+        failed: 0,
+      });
+      expect(summary.results[0]).toMatchObject({
+        label: 'cc-a',
+        harness: 'fugue-cc',
+        target: 'cc-a',
+        status: 'ok',
+        artifactStatus: 'captured',
+        artifactPath: join(out, 'cc-a.plan.md'),
+      });
       expect(taskLog).toContain('plan → cc-a [fugue-cc] (status=started');
       expect(taskLog).toContain('plan → cc-a [fugue-cc] (status=captured');
+      expect(taskLog).toContain(
+        `plan summary (status=ok succeeded=2 available=2 failed=0 out=${join(
+          out,
+          'summary.json',
+        )})`,
+      );
       expect(taskLog).toContain('output_chars=');
       expect(taskLog).toContain(`out=${join(out, 'cc-a.plan.md')}`);
     });
@@ -2351,6 +2390,42 @@ describe('fugue CLI', () => {
         expect(planned.out).toContain('codex:gpt-5.5');
         expect(planned.out).toContain('opencode:opencode/deepseek-v4-flash-free dispatch failed');
         expect(planned.out).toContain('partial: --allow-partial accepted available artifacts');
+        expect(planned.out).toContain(`summary: ${join(out, 'summary.json')}`);
+        const summary = JSON.parse(await readFile(join(out, 'summary.json'), 'utf8')) as {
+          readonly status: string;
+          readonly exitCode: number;
+          readonly allowPartial: boolean;
+          readonly succeeded: number;
+          readonly available: number;
+          readonly failed: number;
+          readonly results: readonly {
+            readonly label: string;
+            readonly status: string;
+            readonly artifactStatus: string;
+            readonly errorKind?: string;
+          }[];
+        };
+        expect(summary).toMatchObject({
+          status: 'partial',
+          exitCode: 0,
+          allowPartial: true,
+          succeeded: 1,
+          available: 1,
+          failed: 1,
+        });
+        expect(summary.results.find((entry) => entry.label === 'codex:gpt-5.5')).toMatchObject({
+          status: 'ok',
+          artifactStatus: 'captured',
+        });
+        expect(
+          summary.results.find(
+            (entry) => entry.label === 'opencode:opencode/deepseek-v4-flash-free',
+          ),
+        ).toMatchObject({
+          status: 'failed',
+          artifactStatus: 'missing',
+          errorKind: 'spawn-failed',
+        });
         await expect(readFile(join(out, 'codex_gpt-5.5.plan.md'), 'utf8')).resolves.toContain(
           '# stub plan',
         );
@@ -2360,7 +2435,7 @@ describe('fugue CLI', () => {
       }
     });
 
-    it('salvages a plan artifact written before a planner failure', async () => {
+    it('salvages a plan artifact from a failed planner without accepting partial success', async () => {
       await writeFile(
         codexBin,
         [
@@ -2387,9 +2462,31 @@ describe('fugue CLI', () => {
           '--allow-partial',
         ]);
 
-        expect(planned.code).toBe(0);
+        expect(planned.code).toBe(1);
         expect(planned.out).toContain('dispatch failed but left written artifact');
-        expect(planned.out).toContain('partial: --allow-partial accepted available artifacts');
+        expect(planned.out).not.toContain('partial: --allow-partial accepted available artifacts');
+        const summary = JSON.parse(await readFile(join(out, 'summary.json'), 'utf8')) as {
+          readonly status: string;
+          readonly exitCode: number;
+          readonly succeeded: number;
+          readonly available: number;
+          readonly failed: number;
+          readonly results: readonly {
+            readonly status: string;
+            readonly artifactStatus: string;
+          }[];
+        };
+        expect(summary).toMatchObject({
+          status: 'failed',
+          exitCode: 1,
+          succeeded: 0,
+          available: 1,
+          failed: 1,
+        });
+        expect(summary.results[0]).toMatchObject({
+          status: 'failed',
+          artifactStatus: 'written',
+        });
         await expect(readFile(join(out, 'codex_gpt-5.5.plan.md'), 'utf8')).resolves.toContain(
           '# salvaged plan',
         );
@@ -2672,6 +2769,8 @@ describe('fugue CLI', () => {
         'this should fail',
         '--models',
         'cc-missing',
+        '--out',
+        out,
         '--bin',
         join(dir, 'missing-fugue-cc'),
         '--task',
@@ -2685,8 +2784,40 @@ describe('fugue CLI', () => {
       expect(missing.out).not.toContain('reads these plans');
       expect(missing.out).not.toContain('cc-missing.plan.md');
       expect(missing.out).toContain('(took ');
+      const summary = JSON.parse(await readFile(join(out, 'summary.json'), 'utf8')) as {
+        readonly status: string;
+        readonly exitCode: number;
+        readonly succeeded: number;
+        readonly available: number;
+        readonly failed: number;
+        readonly results: readonly {
+          readonly label: string;
+          readonly status: string;
+          readonly artifactStatus: string;
+          readonly errorKind?: string;
+        }[];
+      };
+      expect(summary).toMatchObject({
+        status: 'failed',
+        exitCode: 1,
+        succeeded: 0,
+        available: 0,
+        failed: 1,
+      });
+      expect(summary.results[0]).toMatchObject({
+        label: 'cc-missing',
+        status: 'failed',
+        artifactStatus: 'missing',
+        errorKind: 'spawn-failed',
+      });
       expect(taskLog).toContain('plan → cc-missing [fugue-cc] (status=started');
       expect(taskLog).toContain('plan → cc-missing [fugue-cc] (status=failed');
+      expect(taskLog).toContain(
+        `plan summary (status=failed succeeded=0 available=0 failed=1 out=${join(
+          out,
+          'summary.json',
+        )})`,
+      );
       expect(taskLog).toContain('error=spawn-failed');
       expect(taskLog).toContain('rc=1');
     });

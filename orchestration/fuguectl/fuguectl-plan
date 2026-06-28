@@ -8,8 +8,8 @@ runSimpleBridge({
   help: `fuguectl-plan "<goal>" [--harness fugue-cc|codex|opencode|agy|lite] [--models m1,m2,..] [--out <dir>] [--timeout-ms n] [--allow-partial] [--codex-clean] [--harness-arg x] [--codex-arg x] [--opencode-arg x] [--agy-arg x] [--task <file>]
 default models = fugue-cc: cc-deepseek,cc-kimi,coder · codex: gpt-5.5 · opencode: opencode/deepseek-v4-flash-free · agy: default · lite: codex:gpt-5.5,opencode:opencode/deepseek-v4-flash-free,agy:default
 lite custom models must be prefixed: codex:<model>, opencode:<provider/model>, agy:<model|default>
---allow-partial exits 0 when at least one planner wrote an artifact; failures stay visible in output and TASK logs
+--allow-partial exits 0 when at least one successful planner wrote an artifact; failures stay visible in output, TASK logs, and <out>/summary.json
 --codex-clean applies Codex clean-run flags to Codex planning targets only, while keeping <out> writable
-default out    = <cache_root>/plans
+default out    = <cache_root>/plans (also writes <out>/summary.json)
 `,
 });
