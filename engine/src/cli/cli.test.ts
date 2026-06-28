@@ -1056,6 +1056,29 @@ describe('fugue CLI', () => {
       expect(dispatched.err).toContain('output_chars=18');
     });
 
+    it('separates verbose dispatch observability when stdout has no trailing newline', async () => {
+      await writeFile(
+        codexBin,
+        [
+          '#!/usr/bin/env bash',
+          `echo "ARGV: $*" > "${codexCalled}"`,
+          'printf "NO_NEWLINE"',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      await chmod(codexBin, 0o755);
+
+      const dispatched = await run(
+        args('gpt-5.5', '--harness', 'codex', '--prompt', 'review this change', '--verbose'),
+      );
+
+      expect(dispatched.code).toBe(0);
+      expect(dispatched.out).toBe('NO_NEWLINE');
+      expect(dispatched.err).toContain('\n[obs] dispatch harness=codex agent=gpt-5.5 rc=0 took=');
+      expect(dispatched.err).toContain('output_chars=10');
+    });
+
     it('rejects invalid dispatch timeouts', async () => {
       const dispatched = await run(
         args('gpt-5.5', '--harness', 'codex', '--prompt', 'x', '--timeout-ms', 'abc'),

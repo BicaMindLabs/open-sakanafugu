@@ -97,6 +97,14 @@ const formatDurationMs = (ms: number): string => {
 const failureFields = (kind: string | undefined): string =>
   kind === undefined ? '' : ` error=${kind}`;
 
+const writeText = async (stream: NodeJS.WritableStream, text: string): Promise<void> =>
+  new Promise((resolve, reject) => {
+    stream.write(text, (error?: Error | null) => {
+      if (error !== undefined && error !== null) reject(error);
+      else resolve();
+    });
+  });
+
 const parseStats = (content: string): StrategyState => {
   const state: StatEntry[] = [];
   for (const raw of content.split(/\r?\n/u)) {
@@ -232,6 +240,7 @@ export class DispatchCommand extends Command {
     const rc = isOk(result) ? result.value.exitCode : (result.error.exitCode ?? 1);
     let finalRc = rc;
     let outputChars = 0;
+    let separateVerboseObservation = false;
     let failureKind: string | undefined = isOk(result) ? undefined : result.error.kind;
     if (isOk(result)) {
       const output = result.value.output;
@@ -250,14 +259,19 @@ export class DispatchCommand extends Command {
           failureKind = 'artifact-write-failed';
         }
       }
-      if (output.length > 0) this.context.stdout.write(output);
+      if (output.length > 0) {
+        await writeText(this.context.stdout, output);
+        separateVerboseObservation = !output.endsWith('\n');
+      }
     } else {
       this.context.stderr.write(`${result.error.detail}\n`);
     }
 
     if (this.verbose) {
       this.context.stderr.write(
-        `[obs] dispatch harness=${this.harness} agent=${this.target} rc=${String(
+        `${separateVerboseObservation ? '\n' : ''}[obs] dispatch harness=${
+          this.harness
+        } agent=${this.target} rc=${String(
           finalRc,
         )} took=${formatDurationMs(elapsedMs)} output_chars=${String(outputChars)}\n`,
       );
