@@ -30,8 +30,92 @@ describe('FsExperienceStore', () => {
       title: 'cache first',
       slug: 'cache-first',
       created: 5, // seconds
+      sourceKind: 'manual',
       body: 'check cache before curl',
     });
+  });
+
+  it('persists task provenance and defaults old records to manual provenance', async () => {
+    const clock = fakeClock(5_000);
+    const fs = new MemoryFileSystem(clock);
+    const store = new FsExperienceStore(fs, clock, '/exp');
+    await store.add({
+      workspace: 'code',
+      title: 'task retro',
+      sourceKind: 'task',
+      sourceRef: '/tmp/TASK.md',
+      body: 'learned from a completed task',
+    });
+    await fs.write(
+      '/exp/code/old.md',
+      ['---', 'workspace: code', 'title: old', 'created: 4', '---', 'legacy body', ''].join('\n'),
+    );
+
+    expect(await store.get('code', 'task-retro')).toEqual({
+      workspace: 'code',
+      title: 'task retro',
+      slug: 'task-retro',
+      created: 5,
+      sourceKind: 'task',
+      sourceRef: '/tmp/TASK.md',
+      body: 'learned from a completed task',
+    });
+    expect(await store.get('code', 'old')).toEqual({
+      workspace: 'code',
+      title: 'old',
+      slug: 'old',
+      created: 4,
+      sourceKind: 'manual',
+      body: 'legacy body',
+    });
+  });
+
+  it('normalizes source references when reading existing records', async () => {
+    const clock = fakeClock(5_000);
+    const fs = new MemoryFileSystem(clock);
+    const store = new FsExperienceStore(fs, clock, '/exp');
+    await fs.write(
+      '/exp/code/imported.md',
+      [
+        '---',
+        'workspace: code',
+        'title: imported',
+        'created: 4',
+        'sourceKind: task',
+        'sourceRef: /tmp/TASK.md\roverwrite: nope',
+        '---',
+        'legacy body',
+        '',
+      ].join('\n'),
+    );
+
+    expect(await store.get('code', 'imported')).toEqual({
+      workspace: 'code',
+      title: 'imported',
+      slug: 'imported',
+      created: 4,
+      sourceKind: 'task',
+      sourceRef: '/tmp/TASK.md overwrite: nope',
+      body: 'legacy body',
+    });
+  });
+
+  it('keeps source references on one frontmatter line', async () => {
+    const clock = fakeClock(5_000);
+    const fs = new MemoryFileSystem(clock);
+    const store = new FsExperienceStore(fs, clock, '/exp');
+    await store.add({
+      workspace: 'code',
+      title: 'task retro',
+      sourceKind: 'task',
+      sourceRef: '/tmp/TASK.md\rinjected: nope\nstill: nope',
+      body: 'learned from a completed task',
+    });
+
+    const raw = await fs.read('/exp/code/task-retro.md');
+    expect(raw).toContain('sourceRef: /tmp/TASK.md injected: nope still: nope\n');
+    expect(raw).not.toContain('\ninjected: nope\n');
+    expect(raw).not.toContain('\r');
   });
 
   it('rejects a body containing a suspected key (redaction gate)', async () => {

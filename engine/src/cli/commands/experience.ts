@@ -23,7 +23,7 @@ const readStream = async (stream: NodeJS.ReadableStream): Promise<string> => {
 const renderRecall = (title: string, body: string): string => `[experience] ${title}\n${body}\n\n`;
 
 const renderRecallExplanation = (
-  method: Pick<Method, 'title' | 'body'>,
+  method: Pick<Method, 'title' | 'body' | 'sourceKind' | 'sourceRef'>,
   options: RecallOptions,
 ): string => {
   const explanation = explainRecallMatch(method, options);
@@ -31,7 +31,11 @@ const renderRecallExplanation = (
   const failureCause = explanation.failureCause ?? '-';
   const filter = options.failureCause ?? '-';
   const minScore = explanation.minScore ?? '-';
-  return `[experience:explain] score=${explanation.score} minScore=${minScore} matched=${matched} failureCause=${failureCause} filter=${filter}\n`;
+  const source =
+    explanation.sourceRef === undefined
+      ? explanation.sourceKind
+      : `${explanation.sourceKind}:${explanation.sourceRef}`;
+  return `[experience:explain] score=${explanation.score} minScore=${minScore} matched=${matched} failureCause=${failureCause} filter=${filter} source=${source}\n`;
 };
 
 const parseLimit = (raw: string): number => {
@@ -156,6 +160,7 @@ export class ExperienceAddCommand extends ExperienceCommand {
     const result = await this.experienceStore().add({
       workspace: this.workspace,
       title: this.title,
+      sourceKind: 'manual',
       body,
     });
     if (!isOk(result)) {
@@ -248,6 +253,8 @@ export class ExperienceLearnCommand extends ExperienceCommand {
     const result = await this.experienceStore().add({
       workspace: this.workspace,
       title: this.title,
+      sourceKind: 'task',
+      sourceRef: this.task,
       body,
     });
     if (!isOk(result)) {

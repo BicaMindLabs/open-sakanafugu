@@ -171,7 +171,7 @@ stdout 或 durable artifact。`task new` 使用独占创建避免并发 operator
 ## Experience Memory
 
 FuguNano 现在把 memory 当成一个小型的 write-manage-read loop，而不是把日志原样塞回上下文。完成的 TASK 可以蒸馏成 reusable method；终态失败或 blocked 的 TASK 默认仍会被拒绝，只有 operator 明确提供 `--allow-failure --lesson` 时才会作为“重标注失败经验”进入 memory。重标注失败还可以携带受控的 `--failure-cause` 标签（`planning`、`context`、`retrieval`、`tooling`、`implementation`、`verification`、`integration`、`runtime`、`policy`、`other`），recall 时可以先按失败原因过滤，再做 query ranking。
-需要审计“为什么选中这条经验”时，加 `--explain`；输出会给出分数、命中的 query 词、存储的 failure cause，以及当前启用的 cause filter。
+每条记录也会带轻量 provenance：`experience add` 写成 `source=manual`，`experience learn --task <TASK.md>` 写成 `source=task:<TASK.md>`。需要审计“为什么选中这条经验”时，加 `--explain`；输出会给出分数、命中的 query 词、存储的 failure cause、当前启用的 cause filter，以及这条经验的来源。
 需要更保守时，可以在带 query 的手动 recall 上加 `--min-score <n>`；低于这个分数的弱匹配会从本次 recall 结果里被丢掉。
 
 ```bash
@@ -188,7 +188,7 @@ fuguectl experience recall code \
   --explain
 ```
 
-这个方向借鉴的是 Agent Workflow Memory、AgentHER、MemRL 和最新 agent-native memory 研究里的共同结论：不要回放所有 trace，而是选择角色、失败模式、检索证据和效用门槛都匹配当前问题的经验。
+这个方向借鉴的是 Agent Workflow Memory、AgentHER、MemRL、agent-native memory 与 workflow provenance 研究里的共同结论：不要回放所有 trace，而是选择角色、来源、失败模式、检索证据和效用门槛都匹配当前问题的经验。
 
 ## TypeScript Engine
 
@@ -339,8 +339,9 @@ npm run test:engine
 - [Zleap-AI/Zleap-Agent](https://github.com/Zleap-AI/Zleap-Agent) 启发了 workspace isolation 和 experience memory。
 - [SeemSeam/claude_codex_bridge](https://github.com/SeemSeam/claude_codex_bridge) 作为 provider-runtime bridge 的参考。
 - 上海人工智能实验室的 [Self-Harness 论文](https://arxiv.org/abs/2606.09498) 启发了 `fuguectl self-harness` 的 harness-improvement loop。
-- [Agent Workflow Memory](https://arxiv.org/abs/2409.07429)、[AgentHER](https://arxiv.org/abs/2603.21357)、[MemRL](https://arxiv.org/abs/2601.03192)、[How Memory Management Impacts LLM Agents](https://arxiv.org/abs/2505.16067)、[Agent-Native Memory Systems](https://arxiv.org/abs/2606.24775)、[Graph Memory for LLM Agents](https://arxiv.org/abs/2606.06036)、[Externalization in LLM Agents](https://arxiv.org/abs/2604.08224)、[Cost-Sensitive Store Routing](https://arxiv.org/abs/2603.15658) 和 [RecoAtlas](https://arxiv.org/abs/2605.18805) 启发了按失败原因过滤、可解释、带效用门控的 experience replay。
-- [Securing LLM-Agent Long-Term Memory Against Poisoning](https://arxiv.org/abs/2606.24322) 提醒了相邻的 origin-bound authority 问题，这是后续 memory security 工作需要处理的边界。
+- [Agent Workflow Memory](https://arxiv.org/abs/2409.07429)、[AgentHER](https://arxiv.org/abs/2603.21357)、[MemRL](https://arxiv.org/abs/2601.03192)、[How Memory Management Impacts LLM Agents](https://arxiv.org/abs/2505.16067)、[Agent-Native Memory Systems](https://arxiv.org/abs/2606.24775)、[Graph Memory for LLM Agents](https://arxiv.org/abs/2606.06036)、[Externalization in LLM Agents](https://arxiv.org/abs/2604.08224)、[Cost-Sensitive Store Routing](https://arxiv.org/abs/2603.15658) 和 [RecoAtlas](https://arxiv.org/abs/2605.18805) 启发了按失败原因过滤、来源可见、可解释、带效用门控的 experience replay。
+- [PROV-AGENT](https://arxiv.org/abs/2508.02866) 与 [LLM Agents for Interactive Workflow Provenance](https://arxiv.org/abs/2509.13978) 支撑了 task-derived memory source metadata 这类轻量 agentic-workflow provenance 设计。
+- [Securing LLM-Agent Long-Term Memory Against Poisoning](https://arxiv.org/abs/2606.24322) 和 [From Untrusted Input to Trusted Memory](https://arxiv.org/abs/2606.04329) 提醒了相邻的 origin-bound authority 与 memory write-channel 风险，这是后续 memory security 工作需要处理的边界。
 - [kunchenguid/no-mistakes](https://github.com/kunchenguid/no-mistakes) 与 [lavish-axi](https://github.com/kunchenguid/lavish-axi) 启发了 loop-state 和 docs-drift 思路。
 - [merkyor/Lynn](https://gitee.com/merkyor/Lynn) 启发了编排器侧 ownership enforcement。
 - Anthropic 官方 `skill-creator` meta-skill 支撑了 skill authoring 和 validation flow。

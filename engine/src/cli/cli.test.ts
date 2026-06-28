@@ -1397,16 +1397,18 @@ describe('fugue CLI', () => {
         stdin: Readable.from(['check cache before curl']),
       });
       const list = await run(['experience', 'list', '--store', store, 'code']);
-      const recall = await run(['experience', 'recall', '--store', store, 'code']);
+      const recall = await run(['experience', 'recall', '--store', store, 'code', '--explain']);
       const show = await run(['experience', 'show', '--store', store, 'code', 'cache-first']);
 
       expect(add.code).toBe(0);
       expect(add.out).toContain('cache-first.md');
       expect(list.out).toContain('cache first');
+      expect(recall.out).toContain('source=manual');
       expect(recall.out).toContain('[experience] cache first');
       expect(recall.out).toContain('check cache before curl');
       expect(show.out).toContain('workspace: code');
       expect(show.out).toContain('title: cache first');
+      expect(show.out).toContain('sourceKind: manual');
     });
 
     it('uses FUGUE_EXPERIENCE when --store is omitted', async () => {
@@ -1481,10 +1483,20 @@ describe('fugue CLI', () => {
         '--task',
         task,
       ]);
+      const show = await run([
+        'experience',
+        'show',
+        '--store',
+        store,
+        'code',
+        'dispatch-obs-boundary',
+      ]);
       const recalled = await run(['experience', 'recall', '--store', store, 'code']);
 
       expect(learned.code).toBe(0);
       expect(learned.out).toContain('dispatch-obs-boundary.md');
+      expect(show.out).toContain('sourceKind: task');
+      expect(show.out).toContain(`sourceRef: ${task}`);
       expect(recalled.out).toContain('[experience] dispatch obs boundary');
       expect(recalled.out).toContain(`Source task: ${task}`);
       expect(recalled.out).toContain('Keep model stdout clean');
@@ -1725,6 +1737,7 @@ describe('fugue CLI', () => {
       expect(recalled.out).toContain(
         '[experience:explain] score=2 minScore=- matched=dispatch,output failureCause=retrieval filter=retrieval',
       );
+      expect(recalled.out).toContain(`source=task:${retrievalTask}`);
       expect(recalled.out).toContain('[experience] retrieval relabel');
       expect(recalled.out).toContain('Failure cause:\nretrieval');
       expect(recalled.out).not.toContain('[experience] verification relabel');
@@ -1791,6 +1804,7 @@ describe('fugue CLI', () => {
       expect(recalled.out).toContain(
         '[experience:explain] score=3 minScore=2 matched=dispatch,output,anchors',
       );
+      expect(recalled.out).toContain('source=manual');
       expect(recalled.out).not.toContain('[experience] weak dispatch');
       expect(invalid.code).toBe(1);
       expect(invalid.err).toContain('unknown --min-score');

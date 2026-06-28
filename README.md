@@ -205,8 +205,11 @@ relabels it with `--allow-failure --lesson`. Relabeled failures can carry a
 bounded `--failure-cause` tag (`planning`, `context`, `retrieval`, `tooling`,
 `implementation`, `verification`, `integration`, `runtime`, `policy`, `other`),
 and recall can use that tag as a first-pass filter before query ranking.
-Add `--explain` to recall when you want the audit line that shows score, matched
-query terms, stored failure cause, and the active cause filter.
+Each record also carries lightweight provenance: `experience add` writes
+`source=manual`, while `experience learn --task <TASK.md>` writes
+`source=task:<TASK.md>`. Add `--explain` to recall when you want the audit line
+that shows score, matched query terms, stored failure cause, active cause
+filter, and provenance source.
 Add `--min-score <n>` with a query when you want a stricter manual recall gate:
 weak one-token matches are dropped from that recall result.
 
@@ -225,9 +228,9 @@ fuguectl experience recall code \
 ```
 
 This follows the same direction as Agent Workflow Memory, AgentHER, MemRL, and
-recent agent-native memory studies: do not replay every trace; select the memory
-whose role, failure mode, retrieval evidence, and utility threshold match the
-current task.
+recent agent-native memory and provenance studies: do not replay every trace;
+select the memory whose role, source, failure mode, retrieval evidence, and
+utility threshold match the current task.
 
 ## TypeScript Engine
 
@@ -405,8 +408,9 @@ GitHub Security Advisory.
 - [Zleap-AI/Zleap-Agent](https://github.com/Zleap-AI/Zleap-Agent) for workspace isolation and experience-memory inspiration.
 - [SeemSeam/claude_codex_bridge](https://github.com/SeemSeam/claude_codex_bridge) as a reference for the provider-runtime bridge.
 - Shanghai Artificial Intelligence Laboratory's [Self-Harness paper](https://arxiv.org/abs/2606.09498) for the harness-improvement loop that inspired `fuguectl self-harness`.
-- [Agent Workflow Memory](https://arxiv.org/abs/2409.07429), [AgentHER](https://arxiv.org/abs/2603.21357), [MemRL](https://arxiv.org/abs/2601.03192), [How Memory Management Impacts LLM Agents](https://arxiv.org/abs/2505.16067), [Agent-Native Memory Systems](https://arxiv.org/abs/2606.24775), [Graph Memory for LLM Agents](https://arxiv.org/abs/2606.06036), [Externalization in LLM Agents](https://arxiv.org/abs/2604.08224), [Cost-Sensitive Store Routing](https://arxiv.org/abs/2603.15658), and [RecoAtlas](https://arxiv.org/abs/2605.18805) for the cause-aware, explainable, utility-gated experience replay direction.
-- [Securing LLM-Agent Long-Term Memory Against Poisoning](https://arxiv.org/abs/2606.24322) for the adjacent origin-bound authority problem that future memory security work must address.
+- [Agent Workflow Memory](https://arxiv.org/abs/2409.07429), [AgentHER](https://arxiv.org/abs/2603.21357), [MemRL](https://arxiv.org/abs/2601.03192), [How Memory Management Impacts LLM Agents](https://arxiv.org/abs/2505.16067), [Agent-Native Memory Systems](https://arxiv.org/abs/2606.24775), [Graph Memory for LLM Agents](https://arxiv.org/abs/2606.06036), [Externalization in LLM Agents](https://arxiv.org/abs/2604.08224), [Cost-Sensitive Store Routing](https://arxiv.org/abs/2603.15658), and [RecoAtlas](https://arxiv.org/abs/2605.18805) for the cause-aware, provenance-visible, explainable, utility-gated experience replay direction.
+- [PROV-AGENT](https://arxiv.org/abs/2508.02866) and [LLM Agents for Interactive Workflow Provenance](https://arxiv.org/abs/2509.13978) for the lightweight agentic-workflow provenance framing behind task-derived memory source metadata.
+- [Securing LLM-Agent Long-Term Memory Against Poisoning](https://arxiv.org/abs/2606.24322) and [From Untrusted Input to Trusted Memory](https://arxiv.org/abs/2606.04329) for the adjacent origin-bound authority and memory write-channel risks that future memory security work must address.
 - [kunchenguid/no-mistakes](https://github.com/kunchenguid/no-mistakes) and [lavish-axi](https://github.com/kunchenguid/lavish-axi) for loop-state and docs-drift ideas.
 - [merkyor/Lynn](https://gitee.com/merkyor/Lynn) for orchestrator-side ownership enforcement inspiration.
 - Anthropic's official `skill-creator` meta-skill for the skill authoring and validation flow.

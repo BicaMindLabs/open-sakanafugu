@@ -7,14 +7,25 @@ export interface Method {
   readonly title: string;
   readonly slug: string;
   readonly created: number; // epoch seconds (bash `date +%s`)
+  readonly sourceKind: ExperienceSourceKind;
+  readonly sourceRef?: string;
   readonly body: string;
 }
 
 export interface AddMethod {
   readonly workspace: string;
   readonly title: string;
+  readonly sourceKind?: ExperienceSourceKind;
+  readonly sourceRef?: string;
   readonly body: string;
 }
+
+export const EXPERIENCE_SOURCE_KINDS = ['manual', 'task'] as const;
+
+export type ExperienceSourceKind = (typeof EXPERIENCE_SOURCE_KINDS)[number];
+
+export const isExperienceSourceKind = (value: string): value is ExperienceSourceKind =>
+  (EXPERIENCE_SOURCE_KINDS as readonly string[]).includes(value);
 
 export const FAILURE_CAUSES = [
   'planning',
@@ -90,20 +101,27 @@ export const experienceFailureCause = (method: Pick<Method, 'body'>): FailureCau
 export interface RecallMatchExplanation {
   readonly score: number;
   readonly matchedTerms: readonly string[];
+  readonly sourceKind: ExperienceSourceKind;
+  readonly sourceRef?: string;
   readonly failureCause?: FailureCause;
   readonly minScore?: number;
 }
 
 export const explainRecallMatch = (
-  method: Pick<Method, 'title' | 'body'>,
+  method: Pick<Method, 'title' | 'body'> & Partial<Pick<Method, 'sourceKind' | 'sourceRef'>>,
   options: RecallOptions = {},
 ): RecallMatchExplanation => {
   const terms = experienceQueryTerms(options.query);
   const matchedTerms = experienceMatchedTerms(method, terms);
   const failureCause = experienceFailureCause(method);
+  const sourceKind = method.sourceKind ?? 'manual';
   return {
     score: matchedTerms.length,
     matchedTerms,
+    sourceKind,
+    ...(method.sourceRef === undefined || method.sourceRef.length === 0
+      ? {}
+      : { sourceRef: method.sourceRef }),
     ...(failureCause === undefined ? {} : { failureCause }),
     ...(options.minScore === undefined ? {} : { minScore: options.minScore }),
   };

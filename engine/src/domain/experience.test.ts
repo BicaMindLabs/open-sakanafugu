@@ -21,6 +21,7 @@ describe('explainRecallMatch', () => {
     expect(explanation).toEqual({
       score: 2,
       matchedTerms: ['dispatch', 'output'],
+      sourceKind: 'manual',
       failureCause: 'retrieval',
     });
   });
@@ -34,7 +35,7 @@ describe('explainRecallMatch', () => {
       { query: 'the and to' },
     );
 
-    expect(explanation).toEqual({ score: 0, matchedTerms: [] });
+    expect(explanation).toEqual({ score: 0, matchedTerms: [], sourceKind: 'manual' });
   });
 
   it('includes the active minimum score gate when provided', () => {
@@ -49,7 +50,27 @@ describe('explainRecallMatch', () => {
     expect(explanation).toEqual({
       score: 3,
       matchedTerms: ['dispatch', 'output', 'anchors'],
+      sourceKind: 'manual',
       minScore: 2,
+    });
+  });
+
+  it('reports stored provenance when available', () => {
+    const explanation = explainRecallMatch(
+      {
+        title: 'task-derived retro',
+        body: 'Use source task provenance in recall audits.',
+        sourceKind: 'task',
+        sourceRef: '/tmp/TASK.md',
+      },
+      { query: 'source task provenance' },
+    );
+
+    expect(explanation).toEqual({
+      score: 3,
+      matchedTerms: ['source', 'task', 'provenance'],
+      sourceKind: 'task',
+      sourceRef: '/tmp/TASK.md',
     });
   });
 });

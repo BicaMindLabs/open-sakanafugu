@@ -1,4 +1,5 @@
 import {
+  isExperienceSourceKind,
   experienceFailureCause,
   experienceQueryTerms,
   experienceScore,
@@ -12,8 +13,20 @@ import type { Clock } from '../../infra/clock.js';
 import type { FileSystem } from '../../infra/file-system.js';
 import { joinPath } from '../store/paths.js';
 
+const singleLine = (value: string): string => value.replace(/[\r\n]+/gu, ' ').trim();
+
 const renderMethod = (m: Method): string =>
-  `---\nworkspace: ${m.workspace}\ntitle: ${m.title}\ncreated: ${m.created}\n---\n${m.body}\n`;
+  [
+    '---',
+    `workspace: ${m.workspace}`,
+    `title: ${m.title}`,
+    `created: ${m.created}`,
+    `sourceKind: ${m.sourceKind}`,
+    ...(m.sourceRef === undefined || m.sourceRef.length === 0 ? [] : [`sourceRef: ${m.sourceRef}`]),
+    '---',
+    m.body,
+    '',
+  ].join('\n');
 
 const parseMethod = (content: string, workspace: string, slug: string): Method => {
   const lines = content.split(/\r?\n/u);
@@ -35,6 +48,8 @@ const parseMethod = (content: string, workspace: string, slug: string): Method =
     return line !== undefined ? line.slice(prefix.length) : '';
   };
   const created = Number.parseInt(fmField('created'), 10);
+  const sourceKind = fmField('sourceKind');
+  const sourceRef = singleLine(fmField('sourceRef'));
   const body =
     end !== -1
       ? lines
@@ -47,6 +62,8 @@ const parseMethod = (content: string, workspace: string, slug: string): Method =
     title: fmField('title'),
     slug,
     created: Number.isFinite(created) ? created : 0,
+    sourceKind: isExperienceSourceKind(sourceKind) ? sourceKind : 'manual',
+    ...(sourceRef.length === 0 ? {} : { sourceRef }),
     body,
   };
 };
@@ -75,11 +92,14 @@ export class FsExperienceStore implements ExperienceStore {
         detail: 'body contains a suspected key; redact first',
       });
     }
+    const sourceRef = input.sourceRef === undefined ? undefined : singleLine(input.sourceRef);
     const method: Method = {
       workspace: input.workspace,
       title: input.title,
       slug: slugify(input.title),
       created: Math.floor(this.clock.now() / 1000),
+      sourceKind: input.sourceKind ?? 'manual',
+      ...(sourceRef === undefined || sourceRef.length === 0 ? {} : { sourceRef }),
       body: input.body,
     };
     await this.fs.write(this.path(method.workspace, method.slug), renderMethod(method));
