@@ -10,6 +10,7 @@ export interface Method {
   readonly sourceKind: ExperienceSourceKind;
   readonly sourceRef?: string;
   readonly trustKind: ExperienceTrustKind;
+  readonly confirmedBy?: readonly string[];
   readonly supersedes?: readonly string[];
   readonly body: string;
 }
@@ -22,6 +23,13 @@ export interface AddMethod {
   readonly trustKind?: ExperienceTrustKind;
   readonly supersedes?: readonly string[];
   readonly body: string;
+}
+
+export interface PromoteMethod {
+  readonly workspace: string;
+  readonly slug: string;
+  readonly sourceRef: string;
+  readonly confirmSourceRefs: readonly string[];
 }
 
 export const EXPERIENCE_SOURCE_KINDS = ['manual', 'task'] as const;
@@ -121,6 +129,7 @@ interface ExperienceMethodAnnotation {
   readonly sourceKind: ExperienceSourceKind;
   readonly sourceRef?: string;
   readonly trustKind: ExperienceTrustKind;
+  readonly confirmedBy?: readonly string[];
   readonly created: number;
   readonly failureCause?: FailureCause;
   readonly supersedes?: readonly string[];
@@ -135,6 +144,9 @@ export const renderExperienceMethod = (method: Method): string => {
       ? {}
       : { sourceRef: method.sourceRef }),
     trustKind: method.trustKind,
+    ...(method.confirmedBy === undefined || method.confirmedBy.length === 0
+      ? {}
+      : { confirmedBy: method.confirmedBy }),
     created: method.created,
     ...(failureCause === undefined ? {} : { failureCause }),
     ...(method.supersedes === undefined || method.supersedes.length === 0
@@ -190,9 +202,16 @@ export const explainRecallMatch = (
 };
 
 export type ExperienceErrorKind = 'empty-body' | 'contains-secret';
+export type ExperiencePromotionErrorKind =
+  | 'not-found'
+  | 'already-trusted'
+  | 'missing-source-ref'
+  | 'source-ref-mismatch'
+  | 'missing-confirmation'
+  | 'confirmation-source-conflict';
 
 export interface ExperienceError {
-  readonly kind: ExperienceErrorKind;
+  readonly kind: ExperienceErrorKind | ExperiencePromotionErrorKind;
   readonly detail: string;
 }
 

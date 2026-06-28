@@ -1,4 +1,10 @@
-import type { AddMethod, ExperienceError, Method, RecallOptions } from '../experience.js';
+import type {
+  AddMethod,
+  ExperienceError,
+  Method,
+  PromoteMethod,
+  RecallOptions,
+} from '../experience.js';
 import type { Result } from '../result.js';
 
 /**
@@ -8,6 +14,7 @@ import type { Result } from '../result.js';
  */
 export interface ExperienceStore {
   add(method: AddMethod): Promise<Result<Method, ExperienceError>>;
+  promote(method: PromoteMethod): Promise<Result<Method, ExperienceError>>;
   /** Most-recent-first, optionally filtered by a fixed-substring query, capped at limit (default 3). */
   recall(workspace: string, options?: RecallOptions): Promise<readonly Method[]>;
   /** All methods (optionally scoped to one workspace). */

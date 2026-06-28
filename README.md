@@ -194,7 +194,7 @@ so final status updates do not clobber concurrent audit lines.
 | Routing and context    | `fuguectl allocate <type>`, `fuguectl workspace list\|show\|model\|context`, `fuguectl agents template\|validate\|list\|resolve`, `fuguectl skills index\|list\|match\|show\|inject\|validate\|forge`                                                                                                         |
 | Dispatch and gather    | `fuguectl dispatch <target>`, `fuguectl cache init\|put\|fail\|barrier\|collect\|resume`                                                                                                                                                                                                                      |
 | Integration and loop   | `fuguectl integrate --work <repo>`, `fuguectl loop init\|record\|decide\|status`, `fuguectl run set\|round\|status\|next\|clear`, `fuguectl summary <round>`                                                                                                                                                  |
-| Memory and maintenance | `fuguectl experience add\|learn\|list\|recall\|show`, `fuguectl self-harness template\|run`, `fuguectl runtime check\|adapt` (provider + installed workflow bundle drift), `fuguectl selftest`                                                                                                                |
+| Memory and maintenance | `fuguectl experience add\|eval\|learn\|list\|promote\|recall\|show`, `fuguectl self-harness template\|run`, `fuguectl runtime check\|adapt` (provider + installed workflow bundle drift), `fuguectl selftest`                                                                                                 |
 
 ## Experience Memory
 
@@ -212,14 +212,20 @@ origin with `experience add --source-ref <url|path|note>`, so browser notes,
 paper summaries, and model-derived imports remain origin-visible during later
 recall. Use `--source manual|task` when manual notes and task-derived memories
 should be routed separately, and `--source-ref <url|path|note>` when a recall
-should route by one exact write-time origin. These are operator routing/audit
-controls, not full authority or poisoning defenses. Records also
-carry `trustKind=trusted|untrusted`: `experience add --trust untrusted` marks
-content imported from a browser, model, or other unreviewed channel, while
-operator notes and learned TASK audits default to `trusted`. Add `--explain` to
-recall when you want the audit line that shows score, matched query terms,
-stored failure cause, active cause filter, active source filter, active trust
-filter, active source-ref filter, provenance source, and stored trust.
+should route by one exact write-time origin. Records also carry
+`trustKind=trusted|untrusted`: `experience add --trust untrusted` marks content
+imported from a browser, model, or other unreviewed channel, while operator
+notes and learned TASK audits default to `trusted`. `experience promote` is the
+deliberate elevation path for imported memory: it rewrites an `untrusted` record
+to `trusted` only when the caller supplies the stored write-time `--source-ref`
+and at least one distinct `--confirm-source-ref`. The command stores that
+corroboration as `confirmedBy` metadata. This is still an operator-side
+governance primitive, not a full formal authority system, but it avoids asking
+the LLM to decide from content alone whether a memory has become trustworthy.
+Add `--explain` to recall when you want the audit line that shows score,
+matched query terms, stored failure cause, active cause filter, active source
+filter, active trust filter, active source-ref filter, provenance source, and
+stored trust.
 When a newer correction replaces an older method, write it with
 `--supersedes <old-slug>`; recall and automatic prompt injection hide superseded
 records by default so stale or conflicting methods are not replayed beside their
@@ -233,7 +239,8 @@ Add `--json` when you want the same post-filter recall set as a stable
 machine-readable array for precision-aware retrieval checks independent of any
 downstream LLM answer. JSON recall emits `workspace`, `title`, `slug`,
 `created`, `sourceKind`, optional `sourceRef`, `trustKind`, optional
-`supersedes`, optional `failureCause`, `score`, `matchedTerms`, and `body`.
+`confirmedBy`, optional `supersedes`, optional `failureCause`, `score`,
+`matchedTerms`, and `body`.
 JSON output includes match evidence directly, so `--json --explain` stays JSON
 only instead of mixing human-readable audit lines into the stream.
 Add `--metadata-only` with `--json` when the recall audit needs to cross a
@@ -270,6 +277,10 @@ inspect why that memory was in the context.
 cat web-note.md | fuguectl experience add code "browser memory import" \
   --trust untrusted \
   --source-ref https://example.com/original-note
+
+fuguectl experience promote code browser-memory-import \
+  --source-ref https://example.com/original-note \
+  --confirm-source-ref https://example.com/operator-review
 
 printf "Use the corrected dispatch route." | fuguectl experience add code "new route" \
   --supersedes old-route
@@ -332,10 +343,12 @@ class, exact write-time source reference, trust mark, explicit supersession,
 failure mode, retrieval evidence, utility threshold, freshness window, and an
 explicit recall cap; expose the recalled set as JSON for retrieval-precision
 audits; run local JSON/JSONL recall eval cases with precision/recall/F1/MRR;
-support body-hashed metadata-only audits for privacy-sensitive review; then
+support body-hashed metadata-only audits for privacy-sensitive review; require
+source-bound confirmation before imported memory is promoted to trusted; then
 render injected memories with source/trust metadata. Learned budget-tier
 routing, semantic conflict adjudication, richer provenance graphs, and formal
-authority elevation are future work. The newest references in this direction are
+machine-checked authority are future work. The newest references in this
+direction are
 [MemConflict](https://arxiv.org/abs/2605.20926),
 [Don't Ask the LLM to Track Freshness](https://arxiv.org/abs/2606.01435),
 [Agent-Native Memory Systems](https://arxiv.org/abs/2606.24775),
@@ -381,6 +394,7 @@ fugue template <name> --dir <templates> [--set KEY=VALUE ...]
 fugue workspace list|show|model|context [context: --experience-source manual|task --experience-source-ref ref --experience-limit n --experience-trust trusted|all --experience-max-age-days n]
 fugue experience add|list|show --store <dir> [add: --trust trusted|untrusted --source-ref ref --supersedes slug]
 fugue experience learn --store <dir> [--failure-cause cause] [--supersedes slug]
+fugue experience promote --store <dir> <workspace> <slug> --source-ref ref --confirm-source-ref ref
 fugue experience recall --store <dir> [--failure-cause cause] [--source manual|task] [--source-ref ref] [--trust trusted|untrusted|all] [--min-score n] [--max-age-days n] [--include-superseded] [--explain] [--json] [--metadata-only]
 fugue experience eval --store <dir> <workspace> --cases <json|jsonl> --json
 fugue summary <round> --cache <dir> [--task <file>]
@@ -527,7 +541,7 @@ GitHub Security Advisory.
 - [From Agent Traces to Trust](https://arxiv.org/abs/2606.04990), [PROV-AGENT](https://arxiv.org/abs/2508.02866), [LLM Agents for Interactive Workflow Provenance](https://arxiv.org/abs/2509.13978), [Distilling Feedback into Memory-as-a-Tool](https://arxiv.org/abs/2601.05960), and [Structured Belief State](https://arxiv.org/abs/2605.11325) for the evidence-tracing, workflow-provenance, and retrieval-precision framing behind provenance-bearing injected memory and `experience recall --json`.
 - [MemoryAgentBench](https://openreview.net/forum?id=DT7JyQC3MR) and [StructMemEval](https://arxiv.org/abs/2602.11243) for treating memory as a separately evaluated capability, which motivates `experience eval` cases over raw recall results.
 - [MRMMIA](https://arxiv.org/abs/2605.27825) for the memory-membership privacy risk that motivates metadata-only recall audits with body hashes instead of raw memory text.
-- [Securing LLM-Agent Long-Term Memory Against Poisoning](https://arxiv.org/abs/2606.24322) and [From Untrusted Input to Trusted Memory](https://arxiv.org/abs/2606.04329) / [OpenReview](https://openreview.net/forum?id=5cgg9yenCZ) for the write-time trust metadata and trusted-only automatic injection gate that starts addressing memory write-channel risks.
+- [Securing LLM-Agent Long-Term Memory Against Poisoning](https://arxiv.org/abs/2606.24322), [From Untrusted Input to Trusted Memory](https://arxiv.org/abs/2606.04329) / [OpenReview](https://openreview.net/forum?id=5cgg9yenCZ), and [Agents That Know Too Much](https://arxiv.org/abs/2606.26627) for the write-time trust metadata, trusted-only automatic injection gate, and origin-bound `experience promote` path that starts addressing memory write-channel and cross-session privacy risks.
 - [kunchenguid/no-mistakes](https://github.com/kunchenguid/no-mistakes) and [lavish-axi](https://github.com/kunchenguid/lavish-axi) for loop-state and docs-drift ideas.
 - [merkyor/Lynn](https://gitee.com/merkyor/Lynn) for orchestrator-side ownership enforcement inspiration.
 - Anthropic's official `skill-creator` meta-skill for the skill authoring and validation flow.

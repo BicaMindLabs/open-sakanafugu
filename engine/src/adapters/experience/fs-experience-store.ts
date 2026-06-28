@@ -5,7 +5,13 @@ import {
   experienceQueryTerms,
   experienceScore,
 } from '../../domain/experience.js';
-import type { AddMethod, ExperienceError, Method, RecallOptions } from '../../domain/experience.js';
+import type {
+  AddMethod,
+  ExperienceError,
+  Method,
+  PromoteMethod,
+  RecallOptions,
+} from '../../domain/experience.js';
 import { containsSecret, slugify } from '../../domain/experience-redact.js';
 import type { ExperienceStore } from '../../domain/ports/experience-store.js';
 import { err, ok } from '../../domain/result.js';
@@ -25,6 +31,32 @@ const cleanSupersedes = (values: readonly string[] | undefined): readonly string
   ),
 ];
 
+const cleanConfirmationRefs = (values: readonly string[] | undefined): readonly string[] =>
+  (values ?? []).map((value) => singleLine(value)).filter((value) => value.length > 0);
+
+const hasDuplicate = (values: readonly string[]): boolean => new Set(values).size !== values.length;
+
+const parseConfirmedBy = (value: string): readonly string[] => {
+  const cleaned = singleLine(value);
+  if (cleaned.length === 0) return [];
+  if (cleaned.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(cleaned) as unknown;
+      if (Array.isArray(parsed)) {
+        return cleanConfirmationRefs(
+          parsed.map((entry) => (typeof entry === 'string' ? entry : '')),
+        );
+      }
+    } catch {
+      return [];
+    }
+  }
+  return cleaned
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+};
+
 const renderMethod = (m: Method): string =>
   [
     '---',
@@ -34,6 +66,9 @@ const renderMethod = (m: Method): string =>
     `sourceKind: ${m.sourceKind}`,
     ...(m.sourceRef === undefined || m.sourceRef.length === 0 ? [] : [`sourceRef: ${m.sourceRef}`]),
     `trustKind: ${m.trustKind}`,
+    ...(m.confirmedBy === undefined || m.confirmedBy.length === 0
+      ? []
+      : [`confirmedBy: ${JSON.stringify(m.confirmedBy)}`]),
     ...(m.supersedes === undefined || m.supersedes.length === 0
       ? []
       : [`supersedes: ${m.supersedes.join(', ')}`]),
@@ -65,6 +100,7 @@ const parseMethod = (content: string, workspace: string, slug: string): Method =
   const sourceKind = fmField('sourceKind');
   const sourceRef = singleLine(fmField('sourceRef'));
   const trustKind = fmField('trustKind');
+  const confirmedBy = parseConfirmedBy(fmField('confirmedBy'));
   const supersedes = cleanSupersedes([fmField('supersedes')]);
   const body =
     end !== -1
@@ -81,6 +117,7 @@ const parseMethod = (content: string, workspace: string, slug: string): Method =
     sourceKind: isExperienceSourceKind(sourceKind) ? sourceKind : 'manual',
     ...(sourceRef.length === 0 ? {} : { sourceRef }),
     trustKind: isExperienceTrustKind(trustKind) ? trustKind : 'trusted',
+    ...(confirmedBy.length === 0 ? {} : { confirmedBy }),
     ...(supersedes.length === 0 ? {} : { supersedes }),
     body,
   };
@@ -137,6 +174,73 @@ export class FsExperienceStore implements ExperienceStore {
     };
     await this.fs.write(this.path(method.workspace, method.slug), renderMethod(method));
     return ok(method);
+  }
+
+  async promote(input: PromoteMethod): Promise<Result<Method, ExperienceError>> {
+    const method = await this.get(input.workspace, input.slug);
+    if (method === null) {
+      return err({
+        kind: 'not-found',
+        detail: `no experience ${input.workspace}/${input.slug}`,
+      });
+    }
+    if (method.trustKind === 'trusted') {
+      return err({
+        kind: 'already-trusted',
+        detail: `experience ${input.workspace}/${input.slug} is already trusted`,
+      });
+    }
+    if (method.sourceRef === undefined || method.sourceRef.length === 0) {
+      return err({
+        kind: 'missing-source-ref',
+        detail: `experience ${input.workspace}/${input.slug} has no write-time sourceRef`,
+      });
+    }
+    const sourceRef = singleLine(input.sourceRef);
+    if (sourceRef.length === 0 || method.sourceRef !== sourceRef) {
+      return err({
+        kind: 'source-ref-mismatch',
+        detail: `--source-ref must match stored sourceRef for ${input.workspace}/${input.slug}`,
+      });
+    }
+    if (containsSecret(sourceRef)) {
+      return err({
+        kind: 'contains-secret',
+        detail: 'sourceRef contains a suspected key; redact first',
+      });
+    }
+    const confirmedBy = cleanConfirmationRefs(input.confirmSourceRefs);
+    if (confirmedBy.length === 0) {
+      return err({
+        kind: 'missing-confirmation',
+        detail: 'promotion requires at least one --confirm-source-ref',
+      });
+    }
+    if (confirmedBy.some((ref) => containsSecret(ref))) {
+      return err({
+        kind: 'contains-secret',
+        detail: 'confirmSourceRefs contains a suspected key; redact first',
+      });
+    }
+    if (confirmedBy.some((ref) => ref === sourceRef)) {
+      return err({
+        kind: 'confirmation-source-conflict',
+        detail: '--confirm-source-ref must be distinct from the original --source-ref',
+      });
+    }
+    if (hasDuplicate(confirmedBy)) {
+      return err({
+        kind: 'confirmation-source-conflict',
+        detail: '--confirm-source-ref values must be distinct',
+      });
+    }
+    const promoted: Method = {
+      ...method,
+      trustKind: 'trusted',
+      confirmedBy,
+    };
+    await this.fs.write(this.path(promoted.workspace, promoted.slug), renderMethod(promoted));
+    return ok(promoted);
   }
 
   async get(workspace: string, slug: string): Promise<Method | null> {

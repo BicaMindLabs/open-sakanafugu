@@ -69,6 +69,7 @@ interface RecallJsonBaseEntry {
   readonly sourceKind: ExperienceSourceKind;
   readonly sourceRef?: string;
   readonly trustKind: Method['trustKind'];
+  readonly confirmedBy?: readonly string[];
   readonly supersedes?: readonly string[];
   readonly failureCause?: FailureCause;
   readonly score: number;
@@ -104,6 +105,9 @@ const recallJsonEntry = (
       ? {}
       : { sourceRef: method.sourceRef }),
     trustKind: method.trustKind,
+    ...(method.confirmedBy === undefined || method.confirmedBy.length === 0
+      ? {}
+      : { confirmedBy: method.confirmedBy }),
     ...(method.supersedes === undefined || method.supersedes.length === 0
       ? {}
       : { supersedes: method.supersedes }),
@@ -275,6 +279,19 @@ const parseSupersedes = (raw: readonly string[]): readonly string[] | null => {
 };
 
 const supersedesError = (): string => '--supersedes must be a non-empty slug\n';
+
+const parseConfirmationRefs = (raw: readonly string[]): readonly string[] | null => {
+  const refs: string[] = [];
+  for (const value of raw) {
+    const ref = singleLine(value);
+    if (ref.length === 0) return null;
+    refs.push(ref);
+  }
+  return refs;
+};
+
+const confirmationRefsError = (): string =>
+  '--confirm-source-ref must be a non-empty source reference\n';
 
 const normalizeTrustKind = (raw: string | undefined): string | undefined =>
   raw?.trim().toLowerCase();
@@ -657,6 +674,42 @@ export class ExperienceLearnCommand extends ExperienceCommand {
     }
     this.context.stdout.write(
       `✓ experience learned: ${joinPath(this.store, result.value.workspace, `${result.value.slug}.md`)}\n`,
+    );
+    return 0;
+  }
+}
+
+export class ExperiencePromoteCommand extends ExperienceCommand {
+  static override paths = [['experience', 'promote']];
+
+  workspace = Option.String();
+  slug = Option.String();
+  sourceRef = Option.String('--source-ref');
+  confirmSourceRefs = Option.Array('--confirm-source-ref', []);
+
+  override async execute(): Promise<number> {
+    const sourceRef = this.sourceRef?.trim();
+    if (this.sourceRef === undefined || sourceRef === undefined || sourceRef.length === 0) {
+      this.context.stderr.write(sourceRefError());
+      return 1;
+    }
+    const confirmSourceRefs = parseConfirmationRefs(this.confirmSourceRefs);
+    if (confirmSourceRefs === null || confirmSourceRefs.length === 0) {
+      this.context.stderr.write(confirmationRefsError());
+      return 1;
+    }
+    const result = await this.experienceStore().promote({
+      workspace: this.workspace,
+      slug: this.slug,
+      sourceRef,
+      confirmSourceRefs,
+    });
+    if (!isOk(result)) {
+      this.context.stderr.write(`${result.error.detail}\n`);
+      return 1;
+    }
+    this.context.stdout.write(
+      `✓ experience promoted: ${joinPath(this.store, result.value.workspace, `${result.value.slug}.md`)}\n`,
     );
     return 0;
   }

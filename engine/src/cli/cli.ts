@@ -16,6 +16,7 @@ import {
   ExperienceEvalCommand,
   ExperienceLearnCommand,
   ExperienceListCommand,
+  ExperiencePromoteCommand,
   ExperienceRecallCommand,
   ExperienceShowCommand,
 } from './commands/experience.js';
@@ -64,6 +65,7 @@ export const buildCli = (): Cli => {
   cli.register(ExperienceEvalCommand);
   cli.register(ExperienceLearnCommand);
   cli.register(ExperienceListCommand);
+  cli.register(ExperiencePromoteCommand);
   cli.register(ExperienceRecallCommand);
   cli.register(ExperienceShowCommand);
   cli.register(TaskNewCommand);

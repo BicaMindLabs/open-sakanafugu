@@ -2126,6 +2126,158 @@ describe('fugue CLI', () => {
       expect(hugeAge.err).toContain('maxAgeDays is too large');
     });
 
+    it('promotes untrusted source-bound experience through a confirmation gate', async () => {
+      const add = await run(
+        [
+          'experience',
+          'add',
+          '--store',
+          store,
+          'code',
+          'browser import',
+          '--trust',
+          'untrusted',
+          '--source-ref',
+          'https://example.test/original',
+        ],
+        {
+          stdin: Readable.from(['Use dispatch provenance anchors.']),
+        },
+      );
+      const missingConfirmation = await run([
+        'experience',
+        'promote',
+        '--store',
+        store,
+        'code',
+        'browser-import',
+        '--source-ref',
+        'https://example.test/original',
+      ]);
+      const mismatch = await run([
+        'experience',
+        'promote',
+        '--store',
+        store,
+        'code',
+        'browser-import',
+        '--source-ref',
+        'https://example.test/other',
+        '--confirm-source-ref',
+        'https://example.test/review',
+      ]);
+      const echoConfirmation = await run([
+        'experience',
+        'promote',
+        '--store',
+        store,
+        'code',
+        'browser-import',
+        '--source-ref',
+        'https://example.test/original',
+        '--confirm-source-ref',
+        'https://example.test/original',
+      ]);
+      const duplicateConfirmation = await run([
+        'experience',
+        'promote',
+        '--store',
+        store,
+        'code',
+        'browser-import',
+        '--source-ref',
+        'https://example.test/original',
+        '--confirm-source-ref',
+        'https://example.test/review',
+        '--confirm-source-ref',
+        'https://example.test/review',
+      ]);
+      const promoted = await run([
+        'experience',
+        'promote',
+        '--store',
+        store,
+        'code',
+        'browser-import',
+        '--source-ref',
+        'https://example.test/original',
+        '--confirm-source-ref',
+        'https://example.test/review',
+        '--confirm-source-ref',
+        '/tmp/operator-review.md',
+      ]);
+      const alreadyTrusted = await run([
+        'experience',
+        'promote',
+        '--store',
+        store,
+        'code',
+        'browser-import',
+        '--source-ref',
+        'https://example.test/original',
+        '--confirm-source-ref',
+        'https://example.test/review-2',
+      ]);
+      const show = await run(['experience', 'show', '--store', store, 'code', 'browser-import']);
+      const trustedRecall = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--query',
+        'dispatch provenance',
+        '--trust',
+        'trusted',
+        '--json',
+      ]);
+      const untrustedRecall = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--query',
+        'dispatch provenance',
+        '--trust',
+        'untrusted',
+        '--json',
+      ]);
+      type PromotionRecall = Array<{
+        readonly slug: string;
+        readonly trustKind: string;
+        readonly sourceRef?: string;
+        readonly confirmedBy?: readonly string[];
+      }>;
+      const trustedEntries = JSON.parse(trustedRecall.out) as PromotionRecall;
+      const untrustedEntries = JSON.parse(untrustedRecall.out) as PromotionRecall;
+
+      expect(add.code).toBe(0);
+      expect(missingConfirmation.code).toBe(1);
+      expect(missingConfirmation.err).toContain('--confirm-source-ref');
+      expect(mismatch.code).toBe(1);
+      expect(mismatch.err).toContain('--source-ref must match stored sourceRef');
+      expect(echoConfirmation.code).toBe(1);
+      expect(echoConfirmation.err).toContain('distinct from the original');
+      expect(duplicateConfirmation.code).toBe(1);
+      expect(duplicateConfirmation.err).toContain('must be distinct');
+      expect(promoted.code).toBe(0);
+      expect(show.out).toContain('trustKind: trusted\n');
+      expect(show.out).toContain(
+        'confirmedBy: ["https://example.test/review","/tmp/operator-review.md"]\n',
+      );
+      expect(trustedEntries).toHaveLength(1);
+      expect(trustedEntries[0]).toMatchObject({
+        slug: 'browser-import',
+        sourceRef: 'https://example.test/original',
+        trustKind: 'trusted',
+        confirmedBy: ['https://example.test/review', '/tmp/operator-review.md'],
+      });
+      expect(untrustedEntries).toEqual([]);
+      expect(alreadyTrusted.code).toBe(1);
+      expect(alreadyTrusted.err).toContain('is already trusted');
+    });
+
     it('marks superseded experience and hides it from recall by default', async () => {
       await run(['experience', 'add', '--store', store, 'code', 'old route'], {
         stdin: Readable.from(['Use the old dispatch route with obsolete evidence.']),

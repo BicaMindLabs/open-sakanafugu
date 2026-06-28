@@ -146,6 +146,150 @@ describe('FsExperienceStore', () => {
     expect(raw).not.toContain('\r');
   });
 
+  it('promotes an untrusted source-bound method with independent confirmation refs', async () => {
+    const clock = fakeClock(5_000);
+    const fs = new MemoryFileSystem(clock);
+    const store = new FsExperienceStore(fs, clock, '/exp');
+    await store.add({
+      workspace: 'code',
+      title: 'browser memory import',
+      sourceRef: 'https://example.test/original',
+      trustKind: 'untrusted',
+      supersedes: ['old-browser-note'],
+      body: 'Use the dispatch provenance anchor.',
+    });
+
+    const result = await store.promote({
+      workspace: 'code',
+      slug: 'browser-memory-import',
+      sourceRef: 'https://example.test/original',
+      confirmSourceRefs: ['https://example.test/review', '/tmp/operator-review.md'],
+    });
+
+    expect(isOk(result)).toBe(true);
+    expect(await store.get('code', 'browser-memory-import')).toEqual({
+      workspace: 'code',
+      title: 'browser memory import',
+      slug: 'browser-memory-import',
+      created: 5,
+      sourceKind: 'manual',
+      sourceRef: 'https://example.test/original',
+      trustKind: 'trusted',
+      confirmedBy: ['https://example.test/review', '/tmp/operator-review.md'],
+      supersedes: ['old-browser-note'],
+      body: 'Use the dispatch provenance anchor.',
+    });
+    const raw = await fs.read('/exp/code/browser-memory-import.md');
+    expect(raw).toContain('trustKind: trusted\n');
+    expect(raw).toContain(
+      'confirmedBy: ["https://example.test/review","/tmp/operator-review.md"]\n',
+    );
+  });
+
+  it('rejects trust promotion without non-malleable source corroboration', async () => {
+    const clock = fakeClock(5_000);
+    const fs = new MemoryFileSystem(clock);
+    const store = new FsExperienceStore(fs, clock, '/exp');
+    await store.add({
+      workspace: 'code',
+      title: 'unbound import',
+      trustKind: 'untrusted',
+      body: 'No write-time source.',
+    });
+    await store.add({
+      workspace: 'code',
+      title: 'source-bound import',
+      sourceRef: 'https://example.test/original',
+      trustKind: 'untrusted',
+      body: 'Has a write-time source.',
+    });
+    await store.add({
+      workspace: 'code',
+      title: 'comma source import',
+      sourceRef: 'https://example.test/a,b',
+      trustKind: 'untrusted',
+      body: 'Has a comma-bearing write-time source.',
+    });
+    await store.add({
+      workspace: 'code',
+      title: 'trusted note',
+      sourceRef: 'https://example.test/trusted',
+      trustKind: 'trusted',
+      body: 'Already trusted.',
+    });
+
+    const missing = await store.promote({
+      workspace: 'code',
+      slug: 'missing',
+      sourceRef: 'https://example.test/original',
+      confirmSourceRefs: ['https://example.test/review'],
+    });
+    const alreadyTrusted = await store.promote({
+      workspace: 'code',
+      slug: 'trusted-note',
+      sourceRef: 'https://example.test/trusted',
+      confirmSourceRefs: ['https://example.test/review'],
+    });
+    const unbound = await store.promote({
+      workspace: 'code',
+      slug: 'unbound-import',
+      sourceRef: 'https://example.test/original',
+      confirmSourceRefs: ['https://example.test/review'],
+    });
+    const mismatch = await store.promote({
+      workspace: 'code',
+      slug: 'source-bound-import',
+      sourceRef: 'https://example.test/other',
+      confirmSourceRefs: ['https://example.test/review'],
+    });
+    const noConfirmation = await store.promote({
+      workspace: 'code',
+      slug: 'source-bound-import',
+      sourceRef: 'https://example.test/original',
+      confirmSourceRefs: [],
+    });
+    const echoConfirmation = await store.promote({
+      workspace: 'code',
+      slug: 'source-bound-import',
+      sourceRef: 'https://example.test/original',
+      confirmSourceRefs: ['https://example.test/original'],
+    });
+    const duplicateConfirmation = await store.promote({
+      workspace: 'code',
+      slug: 'source-bound-import',
+      sourceRef: 'https://example.test/original',
+      confirmSourceRefs: ['https://example.test/review', 'https://example.test/review'],
+    });
+    const commaEchoConfirmation = await store.promote({
+      workspace: 'code',
+      slug: 'comma-source-import',
+      sourceRef: 'https://example.test/a,b',
+      confirmSourceRefs: ['https://example.test/a,b'],
+    });
+    const secretConfirmation = await store.promote({
+      workspace: 'code',
+      slug: 'source-bound-import',
+      sourceRef: 'https://example.test/original',
+      confirmSourceRefs: [`https://example.test/?token=sk-${'abcdefghijklmnopqrstuvwxyz'}`],
+    });
+
+    expect(isErr(missing) && missing.error.kind).toBe('not-found');
+    expect(isErr(alreadyTrusted) && alreadyTrusted.error.kind).toBe('already-trusted');
+    expect(isErr(unbound) && unbound.error.kind).toBe('missing-source-ref');
+    expect(isErr(mismatch) && mismatch.error.kind).toBe('source-ref-mismatch');
+    expect(isErr(noConfirmation) && noConfirmation.error.kind).toBe('missing-confirmation');
+    expect(isErr(echoConfirmation) && echoConfirmation.error.kind).toBe(
+      'confirmation-source-conflict',
+    );
+    expect(isErr(duplicateConfirmation) && duplicateConfirmation.error.kind).toBe(
+      'confirmation-source-conflict',
+    );
+    expect(isErr(commaEchoConfirmation) && commaEchoConfirmation.error.kind).toBe(
+      'confirmation-source-conflict',
+    );
+    expect(isErr(secretConfirmation) && secretConfirmation.error.kind).toBe('contains-secret');
+  });
+
   it('rejects a body containing a suspected key (redaction gate)', async () => {
     const result = await make(fakeClock(0)).add({
       workspace: 'code',
