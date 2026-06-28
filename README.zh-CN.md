@@ -171,7 +171,7 @@ stdout 或 durable artifact。`task new` 使用独占创建避免并发 operator
 ## Experience Memory
 
 FuguNano 现在把 memory 当成一个小型的 write-manage-read loop，而不是把日志原样塞回上下文。完成的 TASK 可以蒸馏成 reusable method；终态失败或 blocked 的 TASK 默认仍会被拒绝，只有 operator 明确提供 `--allow-failure --lesson` 时才会作为“重标注失败经验”进入 memory。重标注失败还可以携带受控的 `--failure-cause` 标签（`planning`、`context`、`retrieval`、`tooling`、`implementation`、`verification`、`integration`、`runtime`、`policy`、`other`），recall 时可以先按失败原因过滤，再做 query ranking。
-每条记录也会带轻量 provenance：`experience add` 写成 `source=manual`，`experience learn --task <TASK.md>` 写成 `source=task:<TASK.md>`。需要审计“为什么选中这条经验”时，加 `--explain`；输出会给出分数、命中的 query 词、存储的 failure cause、当前启用的 cause filter，以及这条经验的来源。
+每条记录也会带轻量 provenance：`experience add` 写成 `source=manual`，`experience learn --task <TASK.md>` 写成 `source=task:<TASK.md>`。需要把手写经验和 TASK 蒸馏经验分开路由时，用 `--source manual|task`；这是 operator 侧的路由/审计控制，不是完整的 authority 或 poisoning 防御。需要审计“为什么选中这条经验”时，加 `--explain`；输出会给出分数、命中的 query 词、存储的 failure cause、当前启用的 cause filter、source filter，以及这条经验的来源。
 需要更保守时，可以在带 query 的手动 recall 上加 `--min-score <n>`；低于这个分数的弱匹配会从本次 recall 结果里被丢掉。
 
 ```bash
@@ -183,12 +183,13 @@ fuguectl experience learn code "failed-query retro" \
 
 fuguectl experience recall code \
   --failure-cause retrieval \
+  --source task \
   --query "dispatch output" \
   --min-score 2 \
   --explain
 ```
 
-这个方向借鉴的是 Agent Workflow Memory、AgentHER、MemRL、agent-native memory 与 workflow provenance 研究里的共同结论：不要回放所有 trace，而是选择角色、来源、失败模式、检索证据和效用门槛都匹配当前问题的经验。
+这个方向借鉴的是 Agent Workflow Memory、AgentHER、MemRL、agent-native memory、store routing 与 workflow provenance 研究里的共同结论：不要回放所有 trace，而是选择角色、来源、失败模式、检索证据和效用门槛都匹配当前问题的经验。
 
 ## TypeScript Engine
 
@@ -221,7 +222,7 @@ fugue template <name> --dir <templates> [--set KEY=VALUE ...]
 fugue workspace list|show|model|context
 fugue experience add|list|show --store <dir>
 fugue experience learn --store <dir> [--failure-cause cause]
-fugue experience recall --store <dir> [--failure-cause cause] [--min-score n] [--explain]
+fugue experience recall --store <dir> [--failure-cause cause] [--source manual|task] [--min-score n] [--explain]
 fugue summary <round> --cache <dir> [--task <file>]
 fugue runtime check [--strict] --state <dir> [--skill <installed SKILL.md>] [--alias-skill <legacy SKILL.md>] [--repo-skill <repo SKILL.md>]
 fugue runtime adapt --state <dir> [--skill <installed SKILL.md>] [--alias-skill <legacy SKILL.md>] [--repo-skill <repo SKILL.md>]

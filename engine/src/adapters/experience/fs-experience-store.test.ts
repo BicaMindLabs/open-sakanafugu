@@ -175,6 +175,39 @@ describe('FsExperienceStore', () => {
     expect(recalled.map((m) => m.title)).toEqual(['dispatch observations']);
   });
 
+  it('recall can filter by source kind before query ranking', async () => {
+    const clock = fakeClock(1_000);
+    const store = make(clock);
+    await store.add({
+      workspace: 'code',
+      title: 'manual dispatch output',
+      sourceKind: 'manual',
+      body: 'Manual dispatch output anchors.',
+    });
+    clock.set(2_000);
+    await store.add({
+      workspace: 'code',
+      title: 'task dispatch output',
+      sourceKind: 'task',
+      sourceRef: '/tmp/TASK.md',
+      body: 'Task dispatch output anchors.',
+    });
+
+    const taskOnly = await store.recall('code', {
+      query: 'dispatch output anchors',
+      sourceKind: 'task',
+      limit: 3,
+    });
+    const manualOnly = await store.recall('code', {
+      query: 'dispatch output anchors',
+      sourceKind: 'manual',
+      limit: 3,
+    });
+
+    expect(taskOnly.map((m) => m.title)).toEqual(['task dispatch output']);
+    expect(manualOnly.map((m) => m.title)).toEqual(['manual dispatch output']);
+  });
+
   it('recall can reject weak query matches with a minimum score gate', async () => {
     const clock = fakeClock(1_000);
     const store = make(clock);

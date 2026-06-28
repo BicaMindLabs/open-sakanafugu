@@ -207,9 +207,12 @@ bounded `--failure-cause` tag (`planning`, `context`, `retrieval`, `tooling`,
 and recall can use that tag as a first-pass filter before query ranking.
 Each record also carries lightweight provenance: `experience add` writes
 `source=manual`, while `experience learn --task <TASK.md>` writes
-`source=task:<TASK.md>`. Add `--explain` to recall when you want the audit line
-that shows score, matched query terms, stored failure cause, active cause
-filter, and provenance source.
+`source=task:<TASK.md>`. Use `--source manual|task` when manual notes and
+task-derived memories should be routed separately; this is an operator
+routing/audit control, not a full authority or poisoning defense. Add
+`--explain` to recall when you want the audit line that shows score, matched
+query terms, stored failure cause, active cause filter, active source filter,
+and provenance source.
 Add `--min-score <n>` with a query when you want a stricter manual recall gate:
 weak one-token matches are dropped from that recall result.
 
@@ -222,15 +225,16 @@ fuguectl experience learn code "failed-query retro" \
 
 fuguectl experience recall code \
   --failure-cause retrieval \
+  --source task \
   --query "dispatch output" \
   --min-score 2 \
   --explain
 ```
 
 This follows the same direction as Agent Workflow Memory, AgentHER, MemRL, and
-recent agent-native memory and provenance studies: do not replay every trace;
-select the memory whose role, source, failure mode, retrieval evidence, and
-utility threshold match the current task.
+recent agent-native memory, store-routing, and provenance studies: do not replay
+every trace; select the memory whose role, source, failure mode, retrieval
+evidence, and utility threshold match the current task.
 
 ## TypeScript Engine
 
@@ -267,7 +271,7 @@ fugue template <name> --dir <templates> [--set KEY=VALUE ...]
 fugue workspace list|show|model|context
 fugue experience add|list|show --store <dir>
 fugue experience learn --store <dir> [--failure-cause cause]
-fugue experience recall --store <dir> [--failure-cause cause] [--min-score n] [--explain]
+fugue experience recall --store <dir> [--failure-cause cause] [--source manual|task] [--min-score n] [--explain]
 fugue summary <round> --cache <dir> [--task <file>]
 fugue runtime check [--strict] --state <dir> [--skill <installed SKILL.md>] [--alias-skill <legacy SKILL.md>] [--repo-skill <repo SKILL.md>]
 fugue runtime adapt --state <dir> [--skill <installed SKILL.md>] [--alias-skill <legacy SKILL.md>] [--repo-skill <repo SKILL.md>]

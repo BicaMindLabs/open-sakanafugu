@@ -1505,6 +1505,102 @@ describe('fugue CLI', () => {
       expect(recalled.out).toContain('VERDICT: ACCEPTED');
     });
 
+    it('recalls experience by source kind', async () => {
+      const task = join(dir, 'TASK-source.md');
+      await writeFile(
+        task,
+        [
+          '# TASK-2026-06-28-997: Source-filtered task',
+          'Status: DONE',
+          'Priority: P2',
+          'Created: 2026-06-28 20:00',
+          'Completed: 2026-06-28 20:10',
+          '',
+          '## Requirements',
+          'Keep dispatch output source filtering deterministic.',
+          '',
+          '## Output files',
+          '- engine/src/cli/commands/experience.ts',
+          '',
+          '## Log',
+          '- [2026-06-28 20:05] Verification green.',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      await run(['experience', 'add', '--store', store, 'code', 'manual dispatch source'], {
+        stdin: Readable.from(['Manual dispatch output source note.']),
+      });
+      await run([
+        'experience',
+        'learn',
+        '--store',
+        store,
+        'code',
+        'task dispatch source',
+        '--task',
+        task,
+      ]);
+
+      const taskOnly = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--query',
+        'dispatch source',
+        '--source',
+        'task',
+        '--explain',
+      ]);
+      const manualOnly = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--query',
+        'dispatch source',
+        '--source',
+        'manual',
+        '--explain',
+      ]);
+      const unknown = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--source',
+        'imported',
+      ]);
+      const empty = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--source',
+        '   ',
+      ]);
+
+      expect(taskOnly.code).toBe(0);
+      expect(taskOnly.out).toContain('sourceFilter=task');
+      expect(taskOnly.out).toContain(`source=task:${task}`);
+      expect(taskOnly.out).toContain('[experience] task dispatch source');
+      expect(taskOnly.out).not.toContain('[experience] manual dispatch source');
+      expect(manualOnly.code).toBe(0);
+      expect(manualOnly.out).toContain('sourceFilter=manual');
+      expect(manualOnly.out).toContain('source=manual');
+      expect(manualOnly.out).toContain('[experience] manual dispatch source');
+      expect(manualOnly.out).not.toContain('[experience] task dispatch source');
+      expect(unknown.code).toBe(1);
+      expect(unknown.err).toContain('unknown --source imported');
+      expect(empty.code).toBe(1);
+      expect(empty.err).toContain('unknown --source <empty>');
+    });
+
     it('rejects learning from a missing task audit', async () => {
       const learned = await run([
         'experience',

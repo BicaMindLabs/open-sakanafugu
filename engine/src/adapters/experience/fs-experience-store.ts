@@ -122,6 +122,9 @@ export class FsExperienceStore implements ExperienceStore {
   async recall(workspace: string, options: RecallOptions = {}): Promise<readonly Method[]> {
     const limit = options.limit ?? 3;
     let methods = await this.methodsIn(workspace);
+    if (options.sourceKind !== undefined) {
+      methods = methods.filter((method) => method.sourceKind === options.sourceKind);
+    }
     if (options.failureCause !== undefined) {
       methods = methods.filter((method) => experienceFailureCause(method) === options.failureCause);
     }

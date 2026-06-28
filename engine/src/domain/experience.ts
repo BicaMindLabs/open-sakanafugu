@@ -105,6 +105,7 @@ export interface RecallMatchExplanation {
   readonly sourceRef?: string;
   readonly failureCause?: FailureCause;
   readonly minScore?: number;
+  readonly sourceFilter?: ExperienceSourceKind;
 }
 
 export const explainRecallMatch = (
@@ -124,6 +125,7 @@ export const explainRecallMatch = (
       : { sourceRef: method.sourceRef }),
     ...(failureCause === undefined ? {} : { failureCause }),
     ...(options.minScore === undefined ? {} : { minScore: options.minScore }),
+    ...(options.sourceKind === undefined ? {} : { sourceFilter: options.sourceKind }),
   };
 };
 
@@ -139,4 +141,5 @@ export interface RecallOptions {
   readonly limit?: number;
   readonly failureCause?: FailureCause;
   readonly minScore?: number;
+  readonly sourceKind?: ExperienceSourceKind;
 }

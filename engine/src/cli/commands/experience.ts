@@ -3,8 +3,19 @@ import { join as joinPath } from 'node:path';
 import { Command, Option } from 'clipanion';
 
 import { FsExperienceStore } from '../../adapters/experience/fs-experience-store.js';
-import { FAILURE_CAUSES, explainRecallMatch, isFailureCause } from '../../domain/experience.js';
-import type { FailureCause, Method, RecallOptions } from '../../domain/experience.js';
+import {
+  EXPERIENCE_SOURCE_KINDS,
+  FAILURE_CAUSES,
+  explainRecallMatch,
+  isExperienceSourceKind,
+  isFailureCause,
+} from '../../domain/experience.js';
+import type {
+  ExperienceSourceKind,
+  FailureCause,
+  Method,
+  RecallOptions,
+} from '../../domain/experience.js';
 import { isOk } from '../../domain/result.js';
 import { systemClock } from '../../infra/clock.js';
 import { NodeFileSystem } from '../../infra/node-file-system.js';
@@ -31,11 +42,12 @@ const renderRecallExplanation = (
   const failureCause = explanation.failureCause ?? '-';
   const filter = options.failureCause ?? '-';
   const minScore = explanation.minScore ?? '-';
+  const sourceFilter = explanation.sourceFilter ?? '-';
   const source =
     explanation.sourceRef === undefined
       ? explanation.sourceKind
       : `${explanation.sourceKind}:${explanation.sourceRef}`;
-  return `[experience:explain] score=${explanation.score} minScore=${minScore} matched=${matched} failureCause=${failureCause} filter=${filter} source=${source}\n`;
+  return `[experience:explain] score=${explanation.score} minScore=${minScore} matched=${matched} failureCause=${failureCause} filter=${filter} sourceFilter=${sourceFilter} source=${source}\n`;
 };
 
 const parseLimit = (raw: string): number => {
@@ -133,6 +145,14 @@ const normalizeFailureCause = (raw: string | undefined): string | undefined =>
 const failureCauseError = (cause: string | undefined): string => {
   const rendered = cause === undefined || cause.length === 0 ? '<empty>' : cause;
   return `unknown --failure-cause ${rendered}; expected one of ${FAILURE_CAUSES.join(', ')}\n`;
+};
+
+const normalizeSourceKind = (raw: string | undefined): string | undefined =>
+  raw?.trim().toLowerCase();
+
+const sourceKindError = (sourceKind: string | undefined): string => {
+  const rendered = sourceKind === undefined || sourceKind.length === 0 ? '<empty>' : sourceKind;
+  return `unknown --source ${rendered}; expected one of ${EXPERIENCE_SOURCE_KINDS.join(', ')}\n`;
 };
 
 abstract class ExperienceCommand extends Command {
@@ -292,6 +312,7 @@ export class ExperienceRecallCommand extends ExperienceCommand {
   query = Option.String('--query');
   limit = Option.String('--limit', '3');
   failureCause = Option.String('--failure-cause');
+  sourceKind = Option.String('--source');
   minScore = Option.String('--min-score');
   explain = Option.Boolean('--explain', false);
 
@@ -300,6 +321,17 @@ export class ExperienceRecallCommand extends ExperienceCommand {
     if (this.failureCause !== undefined) {
       if (cause === undefined || cause.length === 0 || !isFailureCause(cause)) {
         this.context.stderr.write(failureCauseError(cause));
+        return 1;
+      }
+    }
+    const sourceKind = normalizeSourceKind(this.sourceKind);
+    if (this.sourceKind !== undefined) {
+      if (
+        sourceKind === undefined ||
+        sourceKind.length === 0 ||
+        !isExperienceSourceKind(sourceKind)
+      ) {
+        this.context.stderr.write(sourceKindError(sourceKind));
         return 1;
       }
     }
@@ -320,6 +352,11 @@ export class ExperienceRecallCommand extends ExperienceCommand {
       cause !== undefined && isFailureCause(cause) ? cause : undefined;
     if (recallFailureCause !== undefined) {
       options = { ...options, failureCause: recallFailureCause };
+    }
+    const recallSourceKind: ExperienceSourceKind | undefined =
+      sourceKind !== undefined && isExperienceSourceKind(sourceKind) ? sourceKind : undefined;
+    if (recallSourceKind !== undefined) {
+      options = { ...options, sourceKind: recallSourceKind };
     }
     if (minScore !== undefined) {
       options = { ...options, minScore };
