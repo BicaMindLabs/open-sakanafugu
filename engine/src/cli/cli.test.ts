@@ -1165,6 +1165,64 @@ describe('fugue CLI', () => {
       expect(called).toContain('fix redis cache expiration');
     });
 
+    it('can source-filter dispatch workspace experience before injection', async () => {
+      await mkdir(join(experience, 'code'), { recursive: true });
+      await writeFile(
+        join(experience, 'code', 'manual-redis.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Manual redis',
+          'created: 1',
+          'sourceKind: manual',
+          '---',
+          'Manual redis cache recipe.',
+        ].join('\n'),
+        'utf8',
+      );
+      await writeFile(
+        join(experience, 'code', 'task-redis.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Task redis',
+          'created: 2',
+          'sourceKind: task',
+          'sourceRef: /tmp/TASK.md',
+          '---',
+          'Task redis cache recipe.',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const dispatched = await run(
+        args(
+          'cc-x',
+          '--workspace',
+          'code',
+          '--experience-source',
+          'TASK',
+          '--prompt',
+          'fix redis cache expiration',
+        ),
+      );
+      const invalid = await run(
+        args('cc-x', '--workspace', 'code', '--experience-source', 'imported', '--prompt', 'x'),
+      );
+      const withoutWorkspace = await run(
+        args('cc-x', '--experience-source', 'task', '--prompt', 'x'),
+      );
+      const called = await readFile(fugueCcCalled, 'utf8');
+
+      expect(dispatched.code).toBe(0);
+      expect(called).toContain('[experience] Task redis');
+      expect(called).not.toContain('[experience] Manual redis');
+      expect(invalid.code).toBe(2);
+      expect(invalid.err).toContain('unknown --experience-source imported');
+      expect(withoutWorkspace.code).toBe(2);
+      expect(withoutWorkspace.err).toContain('--experience-source requires --workspace');
+    });
+
     it('rejects invalid harnesses and missing prompt sources', async () => {
       const unknownHarness = await run(
         args('cc-x', '--harness', 'bogus', '--prompt-file', promptFile),
@@ -4748,6 +4806,80 @@ describe('fugue CLI', () => {
       expect(context.out).toContain('[experience] Redis cache');
       expect(context.out).not.toContain('[experience] Recent docs');
       expect(context.out).not.toContain('[experience] Fast path');
+    });
+
+    it('can source-filter workspace context experience before query ranking', async () => {
+      await writeFile(
+        join(experience, 'code', 'manual-redis.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Manual redis',
+          'created: 3',
+          'sourceKind: manual',
+          '---',
+          'Manual redis cache recipe.',
+        ].join('\n'),
+        'utf8',
+      );
+      await writeFile(
+        join(experience, 'code', 'task-redis.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Task redis',
+          'created: 4',
+          'sourceKind: task',
+          'sourceRef: /tmp/TASK.md',
+          '---',
+          'Task redis cache recipe.',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const context = await run([
+        'workspace',
+        'context',
+        ...wsArgs(),
+        ...modelArgs(),
+        '--experience',
+        experience,
+        '--experience-source',
+        'task',
+        'code',
+        '--task',
+        'fix redis cache expiration',
+      ]);
+      const unknown = await run([
+        'workspace',
+        'context',
+        ...wsArgs(),
+        ...modelArgs(),
+        '--experience',
+        experience,
+        '--experience-source',
+        'imported',
+        'code',
+      ]);
+      const empty = await run([
+        'workspace',
+        'context',
+        ...wsArgs(),
+        ...modelArgs(),
+        '--experience',
+        experience,
+        '--experience-source',
+        '   ',
+        'code',
+      ]);
+
+      expect(context.code).toBe(0);
+      expect(context.out).toContain('[experience] Task redis');
+      expect(context.out).not.toContain('[experience] Manual redis');
+      expect(unknown.code).toBe(2);
+      expect(unknown.err).toContain('unknown --experience-source imported');
+      expect(empty.code).toBe(2);
+      expect(empty.err).toContain('unknown --experience-source <empty>');
     });
   });
 

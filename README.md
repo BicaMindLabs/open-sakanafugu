@@ -215,6 +215,9 @@ query terms, stored failure cause, active cause filter, active source filter,
 and provenance source.
 Add `--min-score <n>` with a query when you want a stricter manual recall gate:
 weak one-token matches are dropped from that recall result.
+For automatic memory injection, pass `--experience-source manual|task` to
+`workspace context` or `dispatch --workspace`; it applies the same source route
+before query ranking and prompt assembly.
 
 ```bash
 fuguectl experience learn code "failed-query retro" \
@@ -229,6 +232,10 @@ fuguectl experience recall code \
   --query "dispatch output" \
   --min-score 2 \
   --explain
+
+fuguectl workspace context code \
+  --experience-source task \
+  --task "fix dispatch output"
 ```
 
 This follows the same direction as Agent Workflow Memory, AgentHER, MemRL, and
@@ -260,7 +267,7 @@ fugue init [--dry-run|--write]
 fugue fleet status|up|down
 fugue allocate <task-type>|list|record|feed|stats|reset|decay
 fugue smoke [--harness all|codex|opencode|agy] [--timeout-ms n] [--task <file>] [--out-dir <dir>]
-fugue dispatch <target> --harness fugue-cc|codex|opencode|agy [--timeout-ms n] [--codex-clean] [--harness-arg x] [--out <file>] [--require-output] [--verbose] --template <name>|--prompt-file <file>|--prompt <text>
+fugue dispatch <target> --harness fugue-cc|codex|opencode|agy [--timeout-ms n] [--codex-clean] [--harness-arg x] [--out <file>] [--require-output] [--verbose] [--workspace ws [--experience-query q] [--experience-source manual|task]] --template <name>|--prompt-file <file>|--prompt <text>
 fugue integrate --work <repo> --agents "a b" [--ownership file] [--dry]
 fugue skills index|list|match|show|inject|validate|forge
 fugue preflight [--harness fugue-cc|codex|opencode|agy|lite|all] [--model provider/model|--target provider/model] [--config-only] [provider.config]
@@ -268,7 +275,7 @@ fugue cache init|put|fail|status|barrier|collect|list|resume --cache <dir>
 fugue plan "<goal>" --harness fugue-cc|codex|opencode|agy|lite --out <dir> [--models m1,m2] [--timeout-ms n] [--allow-partial] [--codex-clean] [--harness-arg x] [--codex-arg x] [--opencode-arg x] [--agy-arg x] [--task <file>]
 fugue task new|log|done
 fugue template <name> --dir <templates> [--set KEY=VALUE ...]
-fugue workspace list|show|model|context
+fugue workspace list|show|model|context [context: --experience-source manual|task]
 fugue experience add|list|show --store <dir>
 fugue experience learn --store <dir> [--failure-cause cause]
 fugue experience recall --store <dir> [--failure-cause cause] [--source manual|task] [--min-score n] [--explain]

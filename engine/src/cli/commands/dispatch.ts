@@ -20,7 +20,8 @@ import {
   type StrategyState,
 } from '../../domain/allocation.js';
 import { rankAgents } from '../../domain/allocation-score.js';
-import type { RecallOptions } from '../../domain/experience.js';
+import { EXPERIENCE_SOURCE_KINDS, isExperienceSourceKind } from '../../domain/experience.js';
+import type { ExperienceSourceKind, RecallOptions } from '../../domain/experience.js';
 import { HARNESS_NAMES, type Harness, type HarnessName } from '../../domain/ports/harness.js';
 import { assembleContext, renderBundle, renderTemplate } from '../../domain/prompt-render.js';
 import { isOk } from '../../domain/result.js';
@@ -50,8 +51,34 @@ const splitCsv = (raw: string): readonly string[] =>
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
 
-const recallOptions = (query: string | undefined): RecallOptions =>
-  query === undefined || query.trim().length === 0 ? { limit: 3 } : { limit: 3, query };
+const recallOptions = (
+  query: string | undefined,
+  sourceKind: ExperienceSourceKind | undefined,
+): RecallOptions => {
+  const options: RecallOptions =
+    query === undefined || query.trim().length === 0 ? { limit: 3 } : { limit: 3, query };
+  return sourceKind === undefined ? options : { ...options, sourceKind };
+};
+
+const normalizeExperienceSource = (raw: string | undefined): string | undefined =>
+  raw?.trim().toLowerCase();
+
+const parseExperienceSource = (
+  raw: string | undefined,
+): ExperienceSourceKind | null | undefined => {
+  const source = normalizeExperienceSource(raw);
+  if (raw === undefined) return undefined;
+  if (source === undefined || source.length === 0 || !isExperienceSourceKind(source)) {
+    return null;
+  }
+  return source;
+};
+
+const experienceSourceError = (raw: string | undefined): string => {
+  const source = normalizeExperienceSource(raw);
+  const rendered = source === undefined || source.length === 0 ? '<empty>' : source;
+  return `unknown --experience-source ${rendered}; expected one of ${EXPERIENCE_SOURCE_KINDS.join(', ')}\n`;
+};
 
 const parseSet = (raw: string): readonly [string, string] => {
   const eq = raw.indexOf('=');
@@ -195,6 +222,7 @@ export class DispatchCommand extends Command {
   inlinePrompt = Option.String('--prompt');
   workspace = Option.String('--workspace');
   experienceQuery = Option.String('--experience-query');
+  experienceSource = Option.String('--experience-source');
   task = Option.String('--task');
   taskType = Option.String('--task-type');
   skills = Option.String('--skills');
@@ -223,7 +251,17 @@ export class DispatchCommand extends Command {
       return 2;
     }
 
-    const prompt = await this.prompt();
+    const experienceSource = parseExperienceSource(this.experienceSource);
+    if (experienceSource === null) {
+      this.context.stderr.write(experienceSourceError(this.experienceSource));
+      return 2;
+    }
+    if (experienceSource !== undefined && (this.workspace === undefined || this.workspace === '')) {
+      this.context.stderr.write('--experience-source requires --workspace\n');
+      return 2;
+    }
+
+    const prompt = await this.prompt(experienceSource);
     if (prompt === null) return 2;
     const timeoutMs = parseTimeoutMs(this.timeoutMs);
     if (timeoutMs === null) {
@@ -332,7 +370,7 @@ export class DispatchCommand extends Command {
     }
   }
 
-  private async prompt(): Promise<string | null> {
+  private async prompt(experienceSource: ExperienceSourceKind | undefined): Promise<string | null> {
     const body = await this.promptBody();
     if (body === null) return null;
     let prefix = '';
@@ -343,7 +381,7 @@ export class DispatchCommand extends Command {
     }
     if (this.workspace !== undefined && this.workspace.length > 0) {
       const query = this.experienceQuery ?? (body.trim().length > 0 ? body : undefined);
-      const context = await this.workspaceContext(this.workspace, query);
+      const context = await this.workspaceContext(this.workspace, query, experienceSource);
       if (context === null) return null;
       prefix += context;
     }
@@ -372,7 +410,11 @@ export class DispatchCommand extends Command {
     return null;
   }
 
-  private async workspaceContext(name: string, query: string | undefined): Promise<string | null> {
+  private async workspaceContext(
+    name: string,
+    query: string | undefined,
+    experienceSource: ExperienceSourceKind | undefined,
+  ): Promise<string | null> {
     const store = new FsWorkspaceStore(this.fs, this.workspaces);
     const workspace = await store.get(name);
     if (workspace === null) {
@@ -381,7 +423,7 @@ export class DispatchCommand extends Command {
     }
     const methods = await new FsExperienceStore(this.fs, systemClock, this.experience).recall(
       name,
-      recallOptions(query),
+      recallOptions(query, experienceSource),
     );
     return renderBundle(
       assembleContext({

@@ -11,7 +11,8 @@ import {
   type StrategyState,
 } from '../../domain/allocation.js';
 import { rankAgents } from '../../domain/allocation-score.js';
-import type { Method, RecallOptions } from '../../domain/experience.js';
+import { EXPERIENCE_SOURCE_KINDS, isExperienceSourceKind } from '../../domain/experience.js';
+import type { ExperienceSourceKind, Method, RecallOptions } from '../../domain/experience.js';
 import { assembleContext, renderBundle } from '../../domain/prompt-render.js';
 import type { Workspace } from '../../domain/workspace.js';
 import { systemClock } from '../../infra/clock.js';
@@ -95,8 +96,34 @@ const loadWorkspace = async (dir: string, name: string): Promise<Workspace | nul
 const renderExperience = (methods: readonly Method[]): readonly string[] =>
   methods.map((method) => `[experience] ${method.title}\n${method.body}\n`);
 
-const recallOptions = (query: string | undefined): RecallOptions =>
-  query === undefined || query.trim().length === 0 ? { limit: 3 } : { limit: 3, query };
+const recallOptions = (
+  query: string | undefined,
+  sourceKind: ExperienceSourceKind | undefined,
+): RecallOptions => {
+  const options: RecallOptions =
+    query === undefined || query.trim().length === 0 ? { limit: 3 } : { limit: 3, query };
+  return sourceKind === undefined ? options : { ...options, sourceKind };
+};
+
+const normalizeExperienceSource = (raw: string | undefined): string | undefined =>
+  raw?.trim().toLowerCase();
+
+const parseExperienceSource = (
+  raw: string | undefined,
+): ExperienceSourceKind | null | undefined => {
+  const source = normalizeExperienceSource(raw);
+  if (raw === undefined) return undefined;
+  if (source === undefined || source.length === 0 || !isExperienceSourceKind(source)) {
+    return null;
+  }
+  return source;
+};
+
+const experienceSourceError = (raw: string | undefined): string => {
+  const source = normalizeExperienceSource(raw);
+  const rendered = source === undefined || source.length === 0 ? '<empty>' : source;
+  return `unknown --experience-source ${rendered}; expected one of ${EXPERIENCE_SOURCE_KINDS.join(', ')}\n`;
+};
 
 const optionsFor = (
   command: WorkspaceCommandOptions,
@@ -165,8 +192,14 @@ export class WorkspaceContextCommand extends WorkspaceCommandOptions {
   task = Option.String('--task');
   query = Option.String('--query');
   experience = Option.String('--experience', defaultExperienceDir());
+  experienceSource = Option.String('--experience-source');
 
   override async execute(): Promise<number> {
+    const experienceSource = parseExperienceSource(this.experienceSource);
+    if (experienceSource === null) {
+      this.context.stderr.write(experienceSourceError(this.experienceSource));
+      return 2;
+    }
     const fileSystem = fs();
     const store = new FsWorkspaceStore(fileSystem, this.dir);
     const workspace = await store.get(this.name);
@@ -176,7 +209,10 @@ export class WorkspaceContextCommand extends WorkspaceCommandOptions {
     }
     const models = await resolveModels(workspace.models, optionsFor(this));
     const experienceStore = new FsExperienceStore(fileSystem, systemClock, this.experience);
-    const methods = await experienceStore.recall(this.name, recallOptions(this.query ?? this.task));
+    const methods = await experienceStore.recall(
+      this.name,
+      recallOptions(this.query ?? this.task, experienceSource),
+    );
     this.context.stdout.write(
       renderBundle(
         assembleContext({
