@@ -22,6 +22,7 @@ const harnessPort = path("engine", "src", "domain", "ports", "harness.ts");
 const selfDoc = path("docs", "SELF_HARNESS.md");
 const selfDomain = path("engine", "src", "domain", "self-harness.ts");
 const selfCli = path("engine", "src", "cli", "commands", "self-harness.ts");
+const fugueFiles = readdirSync(fugueDir);
 
 let failed = false;
 const ok = (message) => console.log(`  ✓ ${message}`);
@@ -87,6 +88,71 @@ const subcommands = [
 if (subcommands.length === 0)
   die("check-docs: parsed no subcommands from the driver");
 
+const routedSubcommands = nodeSubcommands;
+const wrapperExemptCommands = new Set(["self-harness"]);
+const supportTestFiles = new Set(["e2e", "node-bridge"]);
+const commandWrappers = new Set(
+  fugueFiles
+    .map((file) => /^fuguectl-([a-z][a-z0-9-]*)$/u.exec(file)?.[1] ?? "")
+    .filter((command) => command.length > 0),
+);
+const commandTests = new Set(
+  fugueFiles
+    .map(
+      (file) =>
+        /^fuguectl-([a-z][a-z0-9-]*)\.test\.mjs$/u.exec(file)?.[1] ?? "",
+    )
+    .filter((command) => command.length > 0),
+);
+const wrapperRequiredSubcommands = routedSubcommands.filter(
+  (command) => !wrapperExemptCommands.has(command),
+);
+const missingWrappers = wrapperRequiredSubcommands.filter(
+  (command) => !commandWrappers.has(command),
+);
+const orphanWrappers = [...commandWrappers].filter(
+  (command) => !wrapperRequiredSubcommands.includes(command),
+);
+const missingTests = routedSubcommands.filter(
+  (command) => !commandTests.has(command),
+);
+const orphanTests = [...commandTests].filter(
+  (command) =>
+    !routedSubcommands.includes(command) && !supportTestFiles.has(command),
+);
+
+if (missingWrappers.length === 0)
+  ok(
+    `fuguectl wrappers cover ${String(wrapperRequiredSubcommands.length)} routed subcommands`,
+  );
+else
+  no(
+    `missing fuguectl wrapper(s): ${missingWrappers.map((command) => `fuguectl-${command}`).join(", ")}`,
+  );
+
+if (orphanWrappers.length === 0)
+  ok("fuguectl wrappers have no orphan command bridges");
+else
+  no(
+    `orphan fuguectl wrapper(s): ${orphanWrappers.map((command) => `fuguectl-${command}`).join(", ")}`,
+  );
+
+if (missingTests.length === 0)
+  ok(
+    `fuguectl command tests cover ${String(routedSubcommands.length)} routed subcommands`,
+  );
+else
+  no(
+    `missing fuguectl command test(s): ${missingTests.map((command) => `fuguectl-${command}.test.mjs`).join(", ")}`,
+  );
+
+if (orphanTests.length === 0)
+  ok("fuguectl command tests have no orphan command suites");
+else
+  no(
+    `orphan fuguectl command test(s): ${orphanTests.map((command) => `fuguectl-${command}.test.mjs`).join(", ")}`,
+  );
+
 const en = text(readmeEn);
 const zh = text(readmeZh);
 const overviewEnText = text(overviewEn);
@@ -128,7 +194,7 @@ else
     `${basename(readmeZh)}: did not find '${String(subcommands.length)} 个子命令' (actual ${String(subcommands.length)}; fix README.zh-CN's subcommand count)`,
   );
 
-const testSuites = readdirSync(fugueDir).filter((file) =>
+const testSuites = fugueFiles.filter((file) =>
   file.endsWith(".test.mjs"),
 ).length;
 if (en.includes(`${String(testSuites)} test suites`))
@@ -145,9 +211,7 @@ else
     `${basename(readmeZh)}: did not find '${String(testSuites)} 套测试' (actual ${String(testSuites)}; fix README.zh-CN's test-suite count)`,
   );
 
-const testFiles = readdirSync(fugueDir).filter((file) =>
-  file.endsWith(".test.mjs"),
-);
+const testFiles = fugueFiles.filter((file) => file.endsWith(".test.mjs"));
 const countSuiteAssertions = (source) => {
   const staticAssertions = [...source.matchAll(/suite\.ok\s*\(/gu)].length;
   const loopExpansion = [
