@@ -242,8 +242,8 @@ describe('fugue CLI', () => {
       expect(out).toContain('FuguNano init (dry-run)');
       expect(out).toContain('would create secrets template');
       expect(out).toContain('would copy provider config example');
-      expect(out).toContain('fuguectl preflight --harness codex');
-      expect(out).toContain('fuguectl preflight --harness agy');
+      expect(out).toContain('fuguectl preflight --harness lite');
+      expect(out).toContain('fuguectl smoke --harness all');
       await expect(readFile(secrets, 'utf8')).rejects.toThrow();
       await expect(readFile(providerConfig, 'utf8')).rejects.toThrow();
     });
@@ -2495,6 +2495,39 @@ describe('fugue CLI', () => {
       expect(result.out).toContain(codex);
       expect(result.out).not.toContain('missing fugue-cc');
       expect(result.out).not.toContain('FUGUE_CC_WORK unset');
+    });
+
+    it('can preflight all lite runtime harnesses without requiring fugue-cc', async () => {
+      const codex = join(dir, 'codex');
+      const opencode = join(dir, 'opencode');
+      const agy = join(dir, 'agy');
+      await writeFile(codex, '#!/usr/bin/env bash\nexit 0\n', 'utf8');
+      await writeFile(opencode, '#!/usr/bin/env bash\nexit 0\n', 'utf8');
+      await writeFile(agy, '#!/usr/bin/env bash\nexit 0\n', 'utf8');
+      await chmod(codex, 0o755);
+      await chmod(opencode, 0o755);
+      await chmod(agy, 0o755);
+
+      const result = await run([
+        'preflight',
+        '--harness',
+        'lite',
+        '--codex-bin',
+        codex,
+        '--opencode-bin',
+        opencode,
+        '--agy-bin',
+        agy,
+      ]);
+
+      expect(result.code).toBe(0);
+      expect(result.out).toContain('harness=lite');
+      expect(result.out).toContain(codex);
+      expect(result.out).toContain(opencode);
+      expect(result.out).toContain(agy);
+      expect(result.out).not.toContain('missing fugue-cc');
+      expect(result.out).not.toContain('FUGUE_CC_WORK unset');
+      expect(result.out).not.toContain('provider config not located');
     });
 
     it('requires the selected opencode harness binary', async () => {

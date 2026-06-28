@@ -12,7 +12,7 @@ import { NodeFileSystem } from '../../infra/node-file-system.js';
 import type { CommandRunner } from '../../infra/command-runner.js';
 import { fuguectlScript } from '../default-paths.js';
 
-type PreflightHarness = HarnessName | 'all';
+type PreflightHarness = HarnessName | 'all' | 'lite';
 
 interface MutableStatus {
   fail: boolean;
@@ -30,7 +30,7 @@ const fs = (): NodeFileSystem => new NodeFileSystem();
 const nonEmptyEnv = (value: string | undefined): string | undefined =>
   value !== undefined && value.length > 0 ? value : undefined;
 
-const PREFLIGHT_HARNESSES: readonly PreflightHarness[] = [...HARNESS_NAMES, 'all'];
+const PREFLIGHT_HARNESSES: readonly PreflightHarness[] = [...HARNESS_NAMES, 'lite', 'all'];
 
 const parseHarness = (value: string): PreflightHarness | null =>
   PREFLIGHT_HARNESSES.includes(value as PreflightHarness) ? (value as PreflightHarness) : null;
@@ -39,12 +39,13 @@ const includesFugueCc = (harness: PreflightHarness): boolean =>
   harness === 'fugue-cc' || harness === 'all';
 
 const includesCodex = (harness: PreflightHarness): boolean =>
-  harness === 'codex' || harness === 'all';
+  harness === 'codex' || harness === 'lite' || harness === 'all';
 
 const includesOpencode = (harness: PreflightHarness): boolean =>
-  harness === 'opencode' || harness === 'all';
+  harness === 'opencode' || harness === 'lite' || harness === 'all';
 
-const includesAgy = (harness: PreflightHarness): boolean => harness === 'agy' || harness === 'all';
+const includesAgy = (harness: PreflightHarness): boolean =>
+  harness === 'agy' || harness === 'lite' || harness === 'all';
 
 const trimNonEmpty = (value: string | undefined): string | undefined => {
   const trimmed = value?.trim();
@@ -191,7 +192,7 @@ export class PreflightCommand extends Command {
     const harness = parseHarness(this.harness);
     if (harness === null) {
       this.context.stderr.write(
-        `unknown --harness '${this.harness}' (${[...HARNESS_NAMES, 'all'].join('|')})\n`,
+        `unknown --harness '${this.harness}' (${PREFLIGHT_HARNESSES.join('|')})\n`,
       );
       return 1;
     }

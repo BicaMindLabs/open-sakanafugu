@@ -19,6 +19,11 @@ const pullRequestTemplate = path(".github", "PULL_REQUEST_TEMPLATE.md");
 const engineCommandDir = path("engine", "src", "cli", "commands");
 const fugueDir = path("orchestration", "fuguectl");
 const planWrapper = path("orchestration", "fuguectl", "fuguectl-plan");
+const preflightWrapper = path(
+  "orchestration",
+  "fuguectl",
+  "fuguectl-preflight",
+);
 const workflowSkill = path("orchestration", "fuguectl", "SKILL.md");
 const harnessPort = path("engine", "src", "domain", "ports", "harness.ts");
 const selfDoc = path("docs", "SELF_HARNESS.md");
@@ -59,6 +64,7 @@ requireFile(
 );
 requireFile(engineCommandDir, `check-docs: cannot find ${engineCommandDir}`);
 requireFile(planWrapper, `check-docs: cannot find ${planWrapper}`);
+requireFile(preflightWrapper, `check-docs: cannot find ${preflightWrapper}`);
 requireFile(workflowSkill, `check-docs: cannot find ${workflowSkill}`);
 requireFile(harnessPort, `check-docs: cannot find ${harnessPort}`);
 requireFile(selfDoc, `check-docs: cannot find ${selfDoc}`);
@@ -216,6 +222,7 @@ const workflowText = text(workflowDoc);
 const agentRuntimeText = text(agentRuntimeDoc);
 const pullRequestTemplateText = text(pullRequestTemplate);
 const planWrapperText = text(planWrapper);
+const preflightWrapperText = text(preflightWrapper);
 const workflowSkillText = text(workflowSkill);
 const harnessPortText = text(harnessPort);
 for (const command of subcommands) {
@@ -421,6 +428,20 @@ else
   no(
     `${basename(pullRequestTemplate)}: missing retired Gemini CLI entrypoint wording`,
   );
+
+for (const [file, content] of [
+  [fuguectl, driver],
+  [preflightWrapper, preflightWrapperText],
+  [readmeEn, en],
+  [readmeZh, zh],
+  [agentsDoc, agentsText],
+  [workflowDoc, workflowText],
+  [workflowSkill, workflowSkillText],
+]) {
+  if (content.includes("preflight --harness lite"))
+    ok(`${basename(file)}: documents lite preflight`);
+  else no(`${basename(file)}: missing 'preflight --harness lite'`);
+}
 
 const selfCliText = text(selfCli);
 const selfCommands = [

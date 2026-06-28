@@ -48,6 +48,7 @@ Reviewer (`coder`) and planner are likewise harness-agnostic. For Antigravity,
 fuguectl preflight --harness codex                         # selected runtime path
 fuguectl preflight --harness opencode --target opencode/deepseek-v4-flash-free
 fuguectl preflight --harness agy
+fuguectl preflight --harness lite                          # all lite runtimes: codex + opencode + agy
 fuguectl smoke --harness all --codex-clean --timeout-ms 120000 --task TASK.md --out-dir /tmp/fugunano-smoke
 fuguectl preflight --harness fugue-cc                      # full worktree fleet path
 fuguectl plan "<goal>" --harness fugue-cc|codex|opencode|agy [--models a,b] [--out <dir>] [--timeout-ms n] [--harness-arg x] --task TASK.md

@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Runtime-Node%20%E2%89%A518.18-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js >= 18.18" />
   <img src="https://img.shields.io/badge/Engine-TypeScript-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript engine" />
   <img src="https://img.shields.io/badge/fuguectl-25%20suites-7c3aed?style=for-the-badge" alt="25 fuguectl test suites" />
-  <img src="https://img.shields.io/badge/assertions-335-brightgreen?style=for-the-badge" alt="335 fuguectl assertions" />
+  <img src="https://img.shields.io/badge/assertions-337-brightgreen?style=for-the-badge" alt="337 fuguectl assertions" />
   <a href="https://github.com/BicaMindLabs/FuguNano/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/BicaMindLabs/FuguNano/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status" /></a>
   <img src="https://img.shields.io/badge/license-Apache--2.0-yellowgreen?style=for-the-badge" alt="Apache-2.0 license" />
 </p>
@@ -125,6 +125,7 @@ dispatch through the same agent profiles. Smoke-test the installed bundle:
 fuguectl preflight --harness codex        # lite reviewer path
 fuguectl preflight --harness opencode --target opencode/deepseek-v4-flash-free
 fuguectl preflight --harness agy
+fuguectl preflight --harness lite         # all lite runtimes: codex + opencode + agy
 fuguectl preflight --harness fugue-cc     # full worktree fleet path
 fuguectl task new "implement feature"
 fuguectl dispatch cc-deepseek --template impl --task TASK.md --task-type backend
@@ -220,7 +221,7 @@ fugue smoke [--harness all|codex|opencode|agy] [--timeout-ms n] [--task <file>] 
 fugue dispatch <target> --harness fugue-cc|codex|opencode|agy [--timeout-ms n] [--codex-clean] [--harness-arg x] [--out <file>] [--require-output] [--verbose] --template <name>|--prompt-file <file>|--prompt <text>
 fugue integrate --work <repo> --agents "a b" [--ownership file] [--dry]
 fugue skills index|list|match|show|inject|validate|forge
-fugue preflight [--harness fugue-cc|codex|opencode|agy|all] [--model provider/model|--target provider/model] [--config-only] [provider.config]
+fugue preflight [--harness fugue-cc|codex|opencode|agy|lite|all] [--model provider/model|--target provider/model] [--config-only] [provider.config]
 fugue cache init|put|fail|status|barrier|collect|list|resume --cache <dir>
 fugue plan "<goal>" --harness fugue-cc|codex|opencode|agy --out <dir> [--models m1,m2] [--timeout-ms n] [--harness-arg x] [--task <file>]
 fugue task new|log|done
@@ -237,9 +238,10 @@ fugue agent-registry template|validate|list|resolve
 fugue self-harness template|run
 ```
 
-Quick live smoke, after preflight passes:
+Quick live smoke, after `preflight --harness lite` passes:
 
 ```bash
+fuguectl preflight --harness lite
 fuguectl smoke --harness all --codex-clean --timeout-ms 120000 --task TASK.md --out-dir /tmp/fugunano-smoke
 ```
 

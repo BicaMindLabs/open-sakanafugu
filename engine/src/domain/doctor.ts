@@ -34,7 +34,10 @@ export const recommend = (report: DoctorReport): readonly string[] => {
   const fugueCc = hasRole(report, 'fugue-cc');
   const codex = hasRole(report, 'codex');
   const lite = liteHarnesses(report);
-  const litePreflight = lite.map((harness) => `fuguectl preflight --harness ${harness}`);
+  const litePreflight =
+    lite.length === 3
+      ? ['fuguectl preflight --harness lite']
+      : lite.map((harness) => `fuguectl preflight --harness ${harness}`);
 
   if (fugueCc && ready >= 2 && codex) {
     recs.push(
