@@ -4,19 +4,7 @@ import { runRecon } from '../../adapters/doctor/recon.js';
 import type { DoctorReport } from '../../domain/doctor.js';
 import { recommend } from '../../domain/doctor.js';
 import { NodeCommandRunner } from '../../infra/node-command-runner.js';
-
-/** Backends probed by `fugue doctor` (launcher + the env vars that count as a configured key). */
-const BACKENDS = [
-  { launcher: 'cc-deepseek', keys: ['DEEPSEEK_API_KEY'] },
-  { launcher: 'cc-glm', keys: ['GLM_API_KEY', 'ZAI_API_KEY', 'BIGMODEL_API_KEY'] },
-  { launcher: 'cc-kimi', keys: ['KIMI_API_KEY', 'MOONSHOT_API_KEY'] },
-  { launcher: 'cc-qwen', keys: ['QWEN_API_KEY', 'DASHSCOPE_API_KEY', 'BAILIAN_API_KEY'] },
-  { launcher: 'cc-doubao', keys: ['DOUBAO_API_KEY', 'ARK_API_KEY', 'VOLC_API_KEY'] },
-  { launcher: 'cc-minimax', keys: ['MINIMAX_API_KEY'] },
-  { launcher: 'cc-mimo', keys: ['MIMO_API_KEY', 'XIAOMI_API_KEY'] },
-  { launcher: 'cc-stepfun', keys: ['STEPFUN_API_KEY', 'STEP_API_KEY'] },
-  { launcher: 'cc-longcat', keys: ['LONGCAT_API_KEY'] },
-] as const;
+import { BACKEND_CREDENTIAL_SPECS } from '../backend-credentials.js';
 
 const CORE_ROLE_NAMES = ['claude', 'codex', 'fugue-cc', 'agy', 'opencode'] as const;
 
@@ -30,7 +18,7 @@ export class DoctorCommand extends Command {
   quiet = Option.Boolean('--quiet', false);
 
   override async execute(): Promise<void> {
-    const report = await runRecon(new NodeCommandRunner(), { backends: BACKENDS });
+    const report = await runRecon(new NodeCommandRunner(), { backends: BACKEND_CREDENTIAL_SPECS });
     const out = this.context.stdout;
 
     if (this.quiet) {

@@ -7,23 +7,8 @@ import { Command, Option } from 'clipanion';
 
 import type { CommandRunner } from '../../infra/command-runner.js';
 import { NodeCommandRunner } from '../../infra/node-command-runner.js';
+import { SECRET_KEYS } from '../backend-credentials.js';
 import { repoRoot } from '../default-paths.js';
-
-const SECRET_KEYS = [
-  'DEEPSEEK_API_KEY',
-  'GLM_API_KEY',
-  'ZAI_API_KEY',
-  'KIMI_API_KEY',
-  'MOONSHOT_API_KEY',
-  'QWEN_API_KEY',
-  'DASHSCOPE_API_KEY',
-  'ARK_API_KEY',
-  'DOUBAO_API_KEY',
-  'MINIMAX_API_KEY',
-  'MIMO_API_KEY',
-  'STEPFUN_API_KEY',
-  'OPENAI_API_KEY',
-] as const;
 
 const shellQuote = (value: string): string => `'${value.replace(/'/gu, "'\\''")}'`;
 

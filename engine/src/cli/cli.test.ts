@@ -174,7 +174,19 @@ describe('fugue CLI', () => {
       expect(out).toContain('FuguNano init (write)');
       expect(out).toContain('created secrets template');
       expect(out).toContain('copied provider config example');
-      expect(await readFile(secrets, 'utf8')).toContain('DEEPSEEK_API_KEY=');
+      const secretsText = await readFile(secrets, 'utf8');
+      for (const key of [
+        'DEEPSEEK_API_KEY',
+        'BIGMODEL_API_KEY',
+        'BAILIAN_API_KEY',
+        'VOLC_API_KEY',
+        'XIAOMI_API_KEY',
+        'STEP_API_KEY',
+        'LONGCAT_API_KEY',
+        'OPENAI_API_KEY',
+      ]) {
+        expect(secretsText).toContain(`${key}=`);
+      }
       expect(await readFile(providerConfig, 'utf8')).toContain('version = 2');
     });
 
