@@ -107,10 +107,16 @@ interface PlanSummary {
 const formatPlanResultLine = (entry: PlanRunResult): string => {
   const duration = ` (took ${formatDurationMs(entry.elapsedMs)})`;
   if (!isOk(entry.result) && entry.artifact === 'missing') {
-    return `  ✗ ${entry.label} dispatch failed${duration}`;
+    return `  ✗ ${entry.label} dispatch failed (${failureFields(
+      entry.result.error.kind,
+      entry.result.error.exitCode,
+    )})${duration}`;
   }
   if (!isOk(entry.result)) {
-    return `  ✗ ${entry.label} dispatch failed but left ${entry.artifact} artifact at ${entry.outfile}${duration}`;
+    return `  ✗ ${entry.label} dispatch failed (${failureFields(
+      entry.result.error.kind,
+      entry.result.error.exitCode,
+    )}) but left ${entry.artifact} artifact at ${entry.outfile}${duration}`;
   }
   if (entry.artifact === 'written') {
     return `  → dispatched to ${entry.label}, plan written to ${entry.outfile}${duration}`;
@@ -332,20 +338,23 @@ export class PlanCommand extends Command {
       })`,
     );
 
-    const availableArtifacts = results.filter((entry) => entry.artifact !== 'missing');
     const successfulArtifacts = results.filter(
       (entry) => isOk(entry.result) && entry.artifact !== 'missing',
     );
+    const failedArtifacts = results.filter(
+      (entry) => !isOk(entry.result) && entry.artifact !== 'missing',
+    );
     const partialAccepted = this.allowPartial && successfulArtifacts.length > 0;
     const lines: string[] = [];
-    if (availableArtifacts.length > 0) {
-      lines.push(
-        '',
-        successfulArtifacts.length > 0
-          ? 'collect: successful plan artifacts available for synthesis:'
-          : 'collect: failed planner artifacts available for inspection:',
-      );
-      for (const entry of availableArtifacts) lines.push(`  ${entry.outfile}`);
+    if (successfulArtifacts.length > 0 || failedArtifacts.length > 0) {
+      if (successfulArtifacts.length > 0) {
+        lines.push('', 'collect: successful plan artifacts available for synthesis:');
+        for (const entry of successfulArtifacts) lines.push(`  ${entry.outfile}`);
+      }
+      if (failedArtifacts.length > 0) {
+        lines.push('', 'collect: failed planner artifacts available for inspection:');
+        for (const entry of failedArtifacts) lines.push(`  ${entry.outfile}`);
+      }
       if (
         partialAccepted &&
         results.some((entry) => !isOk(entry.result) || entry.artifact === 'missing')

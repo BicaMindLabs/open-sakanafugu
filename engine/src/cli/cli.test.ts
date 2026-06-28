@@ -2390,7 +2390,9 @@ describe('fugue CLI', () => {
 
         expect(planned.code).toBe(0);
         expect(planned.out).toContain('codex:gpt-5.5');
-        expect(planned.out).toContain('opencode:opencode/deepseek-v4-flash-free dispatch failed');
+        expect(planned.out).toContain(
+          'opencode:opencode/deepseek-v4-flash-free dispatch failed (error=spawn-failed rc=1)',
+        );
         expect(planned.out).toContain('partial: --allow-partial accepted successful artifacts');
         expect(planned.out).toContain(`summary: ${join(out, 'summary.json')}`);
         const summary = JSON.parse(await readFile(join(out, 'summary.json'), 'utf8')) as {
@@ -2437,6 +2439,73 @@ describe('fugue CLI', () => {
       }
     });
 
+    it('separates failed salvaged artifacts from successful synthesis artifacts', async () => {
+      await writeFile(
+        bin,
+        [
+          '#!/usr/bin/env bash',
+          'model="$2"',
+          `printf '%s\\n' "$model" >> "${calls}"`,
+          'prompt="$(cat)"',
+          `printf '%s\\n' "$prompt" >> "${prompts}"`,
+          'if [ "$model" = "cc-b" ]; then',
+          "  outfile=$(printf '%s' \"$prompt\" | sed -n 's/.*write to \\([^*]*\\)\\*\\*.*/\\1/p' | head -1)",
+          '  mkdir -p "$(dirname "$outfile")"',
+          '  printf "# failed-but-written plan\\n" > "$outfile"',
+          '  exit 1',
+          'fi',
+          "printf '# successful plan\\n'",
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      await chmod(bin, 0o755);
+
+      const planned = await run([
+        'plan',
+        'mixed successful and salvaged planners',
+        '--models',
+        'cc-a,cc-b',
+        '--out',
+        out,
+        '--bin',
+        bin,
+        '--allow-partial',
+      ]);
+      const successHeading = planned.out.indexOf(
+        'collect: successful plan artifacts available for synthesis:',
+      );
+      const failedHeading = planned.out.indexOf(
+        'collect: failed planner artifacts available for inspection:',
+      );
+      const successBlock = planned.out.slice(successHeading, failedHeading);
+      const failedBlock = planned.out.slice(failedHeading);
+      const summary = JSON.parse(await readFile(join(out, 'summary.json'), 'utf8')) as {
+        readonly status: string;
+        readonly exitCode: number;
+        readonly succeeded: number;
+        readonly available: number;
+        readonly failed: number;
+      };
+
+      expect(planned.code).toBe(0);
+      expect(planned.out).toContain(
+        'cc-b dispatch failed (error=nonzero-exit rc=1) but left written artifact',
+      );
+      expect(successHeading).toBeGreaterThanOrEqual(0);
+      expect(failedHeading).toBeGreaterThan(successHeading);
+      expect(successBlock).toContain('cc-a.plan.md');
+      expect(successBlock).not.toContain('cc-b.plan.md');
+      expect(failedBlock).toContain('cc-b.plan.md');
+      expect(summary).toMatchObject({
+        status: 'partial',
+        exitCode: 0,
+        succeeded: 1,
+        available: 2,
+        failed: 1,
+      });
+    });
+
     it('salvages a plan artifact from a failed planner without accepting partial success', async () => {
       await writeFile(
         codexBin,
@@ -2465,7 +2534,12 @@ describe('fugue CLI', () => {
         ]);
 
         expect(planned.code).toBe(1);
-        expect(planned.out).toContain('dispatch failed but left written artifact');
+        expect(planned.out).toContain(
+          'dispatch failed (error=nonzero-exit rc=1) but left written artifact',
+        );
+        expect(planned.out).toContain(
+          'collect: failed planner artifacts available for inspection:',
+        );
         expect(planned.out).not.toContain('partial: --allow-partial accepted successful artifacts');
         const summary = JSON.parse(await readFile(join(out, 'summary.json'), 'utf8')) as {
           readonly status: string;
