@@ -52,6 +52,44 @@ const byWorkspaceSlug = (a: Method, b: Method): number => {
   return a.slug < b.slug ? -1 : 1;
 };
 
+const QUERY_STOP_WORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'are',
+  'as',
+  'at',
+  'be',
+  'by',
+  'for',
+  'from',
+  'in',
+  'into',
+  'is',
+  'it',
+  'of',
+  'on',
+  'or',
+  'should',
+  'that',
+  'the',
+  'this',
+  'to',
+  'use',
+  'with',
+]);
+
+const queryTerms = (query: string | undefined): readonly string[] => {
+  if (query === undefined) return [];
+  const terms = query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+  return [...new Set(terms.filter((term) => !QUERY_STOP_WORDS.has(term)))];
+};
+
+const experienceScore = (method: Method, terms: readonly string[]): number => {
+  const methodTerms = new Set(queryTerms(`${method.title}\n${method.body}`));
+  return terms.filter((term) => methodTerms.has(term)).length;
+};
+
 /** Filesystem-backed experience store: `<root>/<workspace>/<slug>.md` (frontmatter + body). */
 export class FsExperienceStore implements ExperienceStore {
   constructor(
@@ -97,11 +135,16 @@ export class FsExperienceStore implements ExperienceStore {
   async recall(workspace: string, options: RecallOptions = {}): Promise<readonly Method[]> {
     const limit = options.limit ?? 3;
     let methods = await this.methodsIn(workspace);
-    const query = options.query;
-    if (query !== undefined && query.length > 0) {
-      methods = methods.filter((method) => renderMethod(method).includes(query));
+    const terms = queryTerms(options.query);
+    if (terms.length > 0) {
+      methods = methods
+        .map((method) => ({ method, score: experienceScore(method, terms) }))
+        .filter((entry) => entry.score > 0)
+        .sort((a, b) => b.score - a.score || b.method.created - a.method.created)
+        .map((entry) => entry.method);
+    } else {
+      methods.sort((a, b) => b.created - a.created); // most recent first
     }
-    methods.sort((a, b) => b.created - a.created); // most recent first
     return methods.slice(0, Math.max(0, limit));
   }
 

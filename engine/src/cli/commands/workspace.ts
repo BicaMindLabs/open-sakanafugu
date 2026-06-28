@@ -11,7 +11,7 @@ import {
   type StrategyState,
 } from '../../domain/allocation.js';
 import { rankAgents } from '../../domain/allocation-score.js';
-import type { Method } from '../../domain/experience.js';
+import type { Method, RecallOptions } from '../../domain/experience.js';
 import { assembleContext, renderBundle } from '../../domain/prompt-render.js';
 import type { Workspace } from '../../domain/workspace.js';
 import { systemClock } from '../../infra/clock.js';
@@ -95,6 +95,9 @@ const loadWorkspace = async (dir: string, name: string): Promise<Workspace | nul
 const renderExperience = (methods: readonly Method[]): readonly string[] =>
   methods.map((method) => `[experience] ${method.title}\n${method.body}\n`);
 
+const recallOptions = (query: string | undefined): RecallOptions =>
+  query === undefined || query.trim().length === 0 ? { limit: 3 } : { limit: 3, query };
+
 const optionsFor = (
   command: WorkspaceCommandOptions,
 ): { readonly allocation: string; readonly stats: string } => ({
@@ -160,6 +163,7 @@ export class WorkspaceContextCommand extends WorkspaceCommandOptions {
 
   name = Option.String();
   task = Option.String('--task');
+  query = Option.String('--query');
   experience = Option.String('--experience', defaultExperienceDir());
 
   override async execute(): Promise<number> {
@@ -172,7 +176,7 @@ export class WorkspaceContextCommand extends WorkspaceCommandOptions {
     }
     const models = await resolveModels(workspace.models, optionsFor(this));
     const experienceStore = new FsExperienceStore(fileSystem, systemClock, this.experience);
-    const methods = await experienceStore.recall(this.name, { limit: 3 });
+    const methods = await experienceStore.recall(this.name, recallOptions(this.query ?? this.task));
     this.context.stdout.write(
       renderBundle(
         assembleContext({

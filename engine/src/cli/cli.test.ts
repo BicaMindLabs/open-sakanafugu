@@ -1130,6 +1130,41 @@ describe('fugue CLI', () => {
       expect(called).toContain('custom prompt content');
     });
 
+    it('selects dispatch workspace experience from the prompt body', async () => {
+      await mkdir(join(experience, 'code'), { recursive: true });
+      await writeFile(
+        join(experience, 'code', 'redis-cache.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Redis cache',
+          'created: 1',
+          '---',
+          'Use the redis cache invalidation recipe.',
+        ].join('\n'),
+        'utf8',
+      );
+      await writeFile(
+        join(experience, 'code', 'recent-docs.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Recent docs',
+          'created: 3',
+          '---',
+          'Refresh onboarding prose.',
+        ].join('\n'),
+        'utf8',
+      );
+
+      await run(args('cc-x', '--workspace', 'code', '--prompt', 'fix redis cache expiration'));
+      const called = await readFile(fugueCcCalled, 'utf8');
+
+      expect(called).toContain('[experience] Redis cache');
+      expect(called).not.toContain('[experience] Recent docs');
+      expect(called).toContain('fix redis cache expiration');
+    });
+
     it('rejects invalid harnesses and missing prompt sources', async () => {
       const unknownHarness = await run(
         args('cc-x', '--harness', 'bogus', '--prompt-file', promptFile),
@@ -4107,7 +4142,7 @@ describe('fugue CLI', () => {
         experience,
         'code',
         '--task',
-        'do X',
+        'reuse fast path for X',
       ]);
 
       expect(list.code).toBe(0);
@@ -4117,7 +4152,7 @@ describe('fugue CLI', () => {
       expect(context.code).toBe(0);
       expect(context.out).toContain('Keep review independent from implementation.');
       expect(context.out).toContain('[experience] Fast path');
-      expect(context.out).toContain('do X');
+      expect(context.out).toContain('reuse fast path for X');
       expect(context.out).toContain('> suggested model(bench): minimax,doubao,glm');
     });
 
@@ -4134,6 +4169,50 @@ describe('fugue CLI', () => {
       expect(model.out.trim()).toBe('minimax,doubao,glm');
       expect(context.code).toBe(0);
       expect(context.out).toContain('[experience] Fast path');
+    });
+
+    it('selects workspace experience by the task query', async () => {
+      await writeFile(
+        join(experience, 'code', 'redis-cache.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Redis cache',
+          'created: 1',
+          '---',
+          'Use the redis cache invalidation recipe.',
+        ].join('\n'),
+        'utf8',
+      );
+      await writeFile(
+        join(experience, 'code', 'recent-docs.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Recent docs',
+          'created: 3',
+          '---',
+          'Refresh onboarding prose.',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const context = await run([
+        'workspace',
+        'context',
+        ...wsArgs(),
+        ...modelArgs(),
+        '--experience',
+        experience,
+        'code',
+        '--task',
+        'fix redis cache expiration',
+      ]);
+
+      expect(context.code).toBe(0);
+      expect(context.out).toContain('[experience] Redis cache');
+      expect(context.out).not.toContain('[experience] Recent docs');
+      expect(context.out).not.toContain('[experience] Fast path');
     });
   });
 

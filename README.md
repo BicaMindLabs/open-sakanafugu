@@ -56,7 +56,7 @@
   non-convergence states keep the loop from spinning forever.
 - **Learning without training** - allocation blends benchmark priors with live
   review outcomes, and completed TASK traces can be distilled into replayed
-  experience memory for later rounds.
+  experience memory selected by the next task or prompt.
 - **Self-Harness ready** - the TypeScript engine can mine failed runs, propose
   bounded harness edits, and promote only non-regressing changes.
 

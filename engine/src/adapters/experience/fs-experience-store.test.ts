@@ -72,6 +72,47 @@ describe('FsExperienceStore', () => {
     expect(recalled.map((m) => m.title)).toEqual(['alpha']);
   });
 
+  it('recall ranks query token matches before newer unrelated methods', async () => {
+    const clock = fakeClock(1_000);
+    const store = make(clock);
+    await store.add({
+      workspace: 'code',
+      title: 'dispatch observations',
+      body: 'Fix dispatch verbose boundary and output file anchors.',
+    });
+    clock.set(2_000);
+    await store.add({
+      workspace: 'code',
+      title: 'recent unrelated',
+      body: 'Refresh docs for onboarding.',
+    });
+
+    const recalled = await store.recall('code', { query: 'dispatch output anchors', limit: 2 });
+    expect(recalled.map((m) => m.title)).toEqual(['dispatch observations']);
+  });
+
+  it('recall ignores query stop words instead of treating them as relevance', async () => {
+    const clock = fakeClock(1_000);
+    const store = make(clock);
+    await store.add({ workspace: 'code', title: 'one', body: 'first method' });
+    clock.set(2_000);
+    await store.add({ workspace: 'code', title: 'two', body: 'second method' });
+
+    const recalled = await store.recall('code', { query: 'the and to', limit: 2 });
+    expect(recalled.map((m) => m.title)).toEqual(['two', 'one']);
+  });
+
+  it('recall does not score workspace frontmatter as relevant content', async () => {
+    const store = make(fakeClock(1_000));
+    await store.add({
+      workspace: 'code',
+      title: 'unrelated',
+      body: 'Refresh onboarding prose.',
+    });
+
+    expect(await store.recall('code', { query: 'code' })).toEqual([]);
+  });
+
   it('recall on an unknown workspace is empty', async () => {
     expect(await make(fakeClock(0)).recall('nope')).toEqual([]);
   });

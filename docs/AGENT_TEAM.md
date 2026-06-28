@@ -79,8 +79,8 @@ Task completes -> distill the reusable method -> sanitize -> store per workstati
 ```bash
 echo "use a defensive copy to avoid mutating the input range" | fuguectl experience add code "defensive-copy trick"   # sanitization gate (plaintext keys rejected)
 fuguectl experience learn code "dispatch-observability retro" --task ~/.claude/tasks/TASK-2026-06-28-050.md
-fuguectl experience recall code              # recall this workstation's experience
-fuguectl workspace context code              # the Memory segment has auto-injected the experience above
+fuguectl experience recall code --query "dispatch output anchors"  # query-rank this workstation's experience
+fuguectl workspace context code --task "fix dispatch output anchors" # Memory auto-injects relevant experience
 ```
 
-The store lives in `${FUGUNANO_STATE:-~/.config/fugunano}/experience/<ws>/` (not in the repo, accumulated at runtime). This is isomorphic to Leo's habit of "distilling skills" — completed work settles into a reusable method. `experience learn` turns a completed TASK audit into reusable memory, including the task's output-file anchors, so Reflexion-style trace learning becomes part of the normal operator loop. `FUGUE_STATE` remains a compatibility fallback for existing local setups.
+The store lives in `${FUGUNANO_STATE:-~/.config/fugunano}/experience/<ws>/` (not in the repo, accumulated at runtime). This is isomorphic to Leo's habit of "distilling skills" — completed work settles into a reusable method. `experience learn` turns a completed TASK audit into reusable memory, including the task's output-file anchors, so Reflexion-style trace learning becomes part of the normal operator loop. Recall is task-aware: `workspace context --task/--query` and `dispatch --workspace` rank experience by the current task or prompt body, while `--experience-query` can override the dispatch query explicitly. `FUGUE_STATE` remains a compatibility fallback for existing local setups.

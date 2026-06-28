@@ -20,6 +20,7 @@ import {
   type StrategyState,
 } from '../../domain/allocation.js';
 import { rankAgents } from '../../domain/allocation-score.js';
+import type { RecallOptions } from '../../domain/experience.js';
 import { HARNESS_NAMES, type Harness, type HarnessName } from '../../domain/ports/harness.js';
 import { assembleContext, renderBundle, renderTemplate } from '../../domain/prompt-render.js';
 import { isOk } from '../../domain/result.js';
@@ -48,6 +49,9 @@ const splitCsv = (raw: string): readonly string[] =>
     .split(',')
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
+
+const recallOptions = (query: string | undefined): RecallOptions =>
+  query === undefined || query.trim().length === 0 ? { limit: 3 } : { limit: 3, query };
 
 const parseSet = (raw: string): readonly [string, string] => {
   const eq = raw.indexOf('=');
@@ -190,6 +194,7 @@ export class DispatchCommand extends Command {
   promptFile = Option.String('--prompt-file');
   inlinePrompt = Option.String('--prompt');
   workspace = Option.String('--workspace');
+  experienceQuery = Option.String('--experience-query');
   task = Option.String('--task');
   taskType = Option.String('--task-type');
   skills = Option.String('--skills');
@@ -328,6 +333,8 @@ export class DispatchCommand extends Command {
   }
 
   private async prompt(): Promise<string | null> {
+    const body = await this.promptBody();
+    if (body === null) return null;
     let prefix = '';
     if (this.skills !== undefined && this.skills.length > 0) {
       prefix += `${await new FsSkillCatalog(this.fs, await skillSources()).inject(
@@ -335,12 +342,12 @@ export class DispatchCommand extends Command {
       )}\n`;
     }
     if (this.workspace !== undefined && this.workspace.length > 0) {
-      const context = await this.workspaceContext(this.workspace);
+      const query = this.experienceQuery ?? (body.trim().length > 0 ? body : undefined);
+      const context = await this.workspaceContext(this.workspace, query);
       if (context === null) return null;
       prefix += context;
     }
-    const body = await this.promptBody();
-    return body === null ? null : `${prefix}${body}`;
+    return `${prefix}${body}`;
   }
 
   private async promptBody(): Promise<string | null> {
@@ -365,7 +372,7 @@ export class DispatchCommand extends Command {
     return null;
   }
 
-  private async workspaceContext(name: string): Promise<string | null> {
+  private async workspaceContext(name: string, query: string | undefined): Promise<string | null> {
     const store = new FsWorkspaceStore(this.fs, this.workspaces);
     const workspace = await store.get(name);
     if (workspace === null) {
@@ -374,9 +381,7 @@ export class DispatchCommand extends Command {
     }
     const methods = await new FsExperienceStore(this.fs, systemClock, this.experience).recall(
       name,
-      {
-        limit: 3,
-      },
+      recallOptions(query),
     );
     return renderBundle(
       assembleContext({

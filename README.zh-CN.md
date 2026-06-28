@@ -45,7 +45,7 @@
 - **审查保持独立** - implementer 写代码，Codex 或另一个配置好的独立 reviewer 给出 `ACCEPTED` / `NEEDS FIX`。
 - **输出不会丢** - dispatch 可用 `--out` 持久化 reviewer/agent 输出；join barrier 仍强制“派出 N 个，收回 N 个”。
 - **修复有边界** - keep-best、二次确认、询问用户、升级和非收敛状态避免无限循环。
-- **免训练学习** - allocation 用 benchmark prior 加 live review outcome 迭代路由，已完成的 TASK trace 也可以沉淀成后续自动回放的 experience memory。
+- **免训练学习** - allocation 用 benchmark prior 加 live review outcome 迭代路由，已完成的 TASK trace 也可以沉淀成后续按任务或 prompt 相关性回放的 experience memory。
 - **Self-Harness 就绪** - TypeScript engine 能挖失败 run、提出有界 harness edits，并只 promote 不回退的改动。
 
 ## 快速开始
