@@ -2505,6 +2505,58 @@ describe('fugue CLI', () => {
       }
     });
 
+    it('applies clean Codex mode only to Codex planning targets', async () => {
+      await writeFile(
+        codexBin,
+        [
+          '#!/usr/bin/env bash',
+          `printf 'codex-argv:%s\\n' "$*" >> "${calls}"`,
+          "printf '# clean codex plan\\n'",
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      await writeFile(
+        opencodeBin,
+        [
+          '#!/usr/bin/env bash',
+          `printf 'opencode-argv:%s\\n' "$*" >> "${calls}"`,
+          "printf '# opencode plan\\n'",
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      await chmod(codexBin, 0o755);
+      await chmod(opencodeBin, 0o755);
+      process.env.FUGUE_CODEX = codexBin;
+      process.env.FUGUE_OPENCODE = opencodeBin;
+      try {
+        const planned = await run([
+          'plan',
+          'plan with clean codex mode',
+          '--harness',
+          'lite',
+          '--models',
+          'codex:gpt-5.5,opencode:opencode/deepseek-v4-flash-free',
+          '--out',
+          out,
+          '--codex-clean',
+          '--opencode-arg=--trace',
+        ]);
+        const called = await readFile(calls, 'utf8');
+
+        expect(planned.code).toBe(0);
+        expect(called).toContain(
+          `codex-argv:exec --ignore-user-config --ignore-rules --ephemeral --color never --sandbox workspace-write --add-dir ${out} --model gpt-5.5`,
+        );
+        expect(called).toContain('opencode-argv:run --trace -m opencode/deepseek-v4-flash-free');
+        expect(called).not.toContain('opencode-argv:run --ignore-user-config');
+      } finally {
+        delete process.env.FUGUE_CODEX;
+        delete process.env.FUGUE_OPENCODE;
+      }
+    });
+
     it('uses a codex default model for codex planning', async () => {
       process.env.FUGUE_CODEX = codexBin;
       try {

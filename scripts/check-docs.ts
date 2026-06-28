@@ -350,6 +350,7 @@ const planningTokens = [
   "--out",
   "--timeout-ms",
   "--allow-partial",
+  "--codex-clean",
   "--harness-arg",
   "--codex-arg",
   "--opencode-arg",

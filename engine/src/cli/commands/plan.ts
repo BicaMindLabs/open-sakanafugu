@@ -44,6 +44,15 @@ const DEFAULT_CODEX_PLAN_AGENTS = ['gpt-5.5'] as const;
 const DEFAULT_OPENCODE_PLAN_AGENTS = ['opencode/deepseek-v4-flash-free'] as const;
 const DEFAULT_AGY_PLAN_AGENTS = ['default'] as const;
 const LITE_HARNESSES = ['codex', 'opencode', 'agy'] as const satisfies readonly HarnessName[];
+const CODEX_CLEAN_ARGS = [
+  '--ignore-user-config',
+  '--ignore-rules',
+  '--ephemeral',
+  '--color',
+  'never',
+  '--sandbox',
+  'workspace-write',
+] as const;
 type PlanHarness = HarnessName | 'lite';
 
 interface PlanTarget {
@@ -163,6 +172,7 @@ export class PlanCommand extends Command {
   bin = Option.String('--bin', process.env.FUGUE_CC_BIN ?? 'fugue-cc');
   timeoutMs = Option.String('--timeout-ms', process.env.FUGUE_PLAN_TIMEOUT_MS ?? '0');
   allowPartial = Option.Boolean('--allow-partial', false);
+  codexClean = Option.Boolean('--codex-clean', process.env.FUGUE_CODEX_CLEAN === '1');
   harnessArgs = Option.Array('--harness-arg', []);
   codexArgs = Option.Array('--codex-arg', []);
   opencodeArgs = Option.Array('--opencode-arg', []);
@@ -216,7 +226,7 @@ export class PlanCommand extends Command {
       requests.map(async ({ harness: harnessName, agent, label, outfile }) => {
         const startedAt = performance.now();
         await removePlanArtifact(outfile);
-        const harness = this.harnessFor(harnessName, timeoutMs);
+        const harness = this.harnessFor(harnessName, timeoutMs, outDir);
         const result = await harness.dispatch({
           agent,
           prompt: promptFor(label, this.goal, outfile),
@@ -309,10 +319,14 @@ export class PlanCommand extends Command {
     return parsed.filter((target): target is PlanTarget => target !== null);
   }
 
-  private argsFor(name: HarnessName): readonly string[] {
+  private argsFor(name: HarnessName, outDir: string): readonly string[] {
     switch (name) {
       case 'codex':
-        return [...this.harnessArgs, ...this.codexArgs];
+        return [
+          ...(this.codexClean ? [...CODEX_CLEAN_ARGS, '--add-dir', outDir] : []),
+          ...this.harnessArgs,
+          ...this.codexArgs,
+        ];
       case 'opencode':
         return [...this.harnessArgs, ...this.opencodeArgs];
       case 'agy':
@@ -322,9 +336,9 @@ export class PlanCommand extends Command {
     }
   }
 
-  private harnessFor(name: HarnessName, timeoutMs: number | undefined): Harness {
+  private harnessFor(name: HarnessName, timeoutMs: number | undefined, outDir: string): Harness {
     const runner = new NodeCommandRunner();
-    const args = this.argsFor(name);
+    const args = this.argsFor(name, outDir);
     switch (name) {
       case 'fugue-cc':
         return new FugueCcHarness(runner, {

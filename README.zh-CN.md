@@ -109,7 +109,7 @@ fuguectl preflight --harness agy
 fuguectl preflight --harness lite         # 全部轻量 runtime：codex + opencode + agy
 fuguectl preflight --harness fugue-cc     # 完整 worktree fleet 路径
 fuguectl task new "implement feature"
-fuguectl plan "implement feature" --harness lite --allow-partial --out /tmp/fugunano-plan --task TASK.md
+fuguectl plan "implement feature" --harness lite --codex-clean --allow-partial --out /tmp/fugunano-plan --task TASK.md
 fuguectl dispatch cc-deepseek --template impl --task TASK.md --task-type backend
 fuguectl cache barrier <round>
 fuguectl integrate --work /path/to/project --agents "cc-deepseek cc-kimi"
@@ -162,7 +162,7 @@ stdout 或 durable artifact。`task new` 使用独占创建避免并发 operator
 | 区域                   | 命令                                                                                                                                                                                                                                                                                          |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Setup and recon        | `fuguectl doctor`、`fuguectl init --dry-run\|--write`、`fuguectl version`、`fuguectl preflight --harness fugue-cc\|codex\|opencode\|agy\|lite\|all`、`fuguectl smoke`、`fuguectl fleet status\|up\|down`                                                                                      |
-| Planning               | `fuguectl task new\|log\|done`、`fuguectl template <name>`、`fuguectl plan "<goal>" [--harness h\|lite] [--models a,b] [--out <dir>] [--timeout-ms n] [--allow-partial] [--harness-arg x] [--codex-arg x] [--opencode-arg x] [--agy-arg x] [--task f]`、`fuguectl goal template\|show\|check` |
+| Planning               | `fuguectl task new\|log\|done`、`fuguectl template <name>`、`fuguectl plan "<goal>" [--harness h\|lite] [--models a,b] [--out <dir>] [--timeout-ms n] [--allow-partial] [--codex-clean] [--harness-arg x] [--codex-arg x] [--opencode-arg x] [--agy-arg x] [--task f]`、`fuguectl goal template\|show\|check` |
 | Routing and context    | `fuguectl allocate <type>`、`fuguectl workspace list\|show\|model\|context`、`fuguectl agents template\|validate\|list\|resolve`、`fuguectl skills index\|list\|match\|show\|inject\|validate\|forge`                                                                                         |
 | Dispatch and gather    | `fuguectl dispatch <target>`、`fuguectl cache init\|put\|fail\|barrier\|collect\|resume`                                                                                                                                                                                                      |
 | Integration and loop   | `fuguectl integrate --work <repo>`、`fuguectl loop init\|record\|decide\|status`、`fuguectl run set\|round\|status\|next\|clear`、`fuguectl summary <round>`                                                                                                                                  |
@@ -193,7 +193,7 @@ fugue integrate --work <repo> --agents "a b" [--ownership file] [--dry]
 fugue skills index|list|match|show|inject|validate|forge
 fugue preflight [--harness fugue-cc|codex|opencode|agy|lite|all] [--model provider/model|--target provider/model] [--config-only] [provider.config]
 fugue cache init|put|fail|status|barrier|collect|list|resume --cache <dir>
-fugue plan "<goal>" --harness fugue-cc|codex|opencode|agy|lite --out <dir> [--models m1,m2] [--timeout-ms n] [--allow-partial] [--harness-arg x] [--codex-arg x] [--opencode-arg x] [--agy-arg x] [--task <file>]
+fugue plan "<goal>" --harness fugue-cc|codex|opencode|agy|lite --out <dir> [--models m1,m2] [--timeout-ms n] [--allow-partial] [--codex-clean] [--harness-arg x] [--codex-arg x] [--opencode-arg x] [--agy-arg x] [--task <file>]
 fugue task new|log|done
 fugue template <name> --dir <templates> [--set KEY=VALUE ...]
 fugue workspace list|show|model|context
@@ -226,6 +226,7 @@ Antigravity 场景下，`--harness agy` 会走 `agy --prompt`；target 为
 `fuguectl plan --harness lite` 并行调用 Codex、OpenCode 和 Antigravity。
 自定义 lite planner target 时需要加前缀，例如
 `--models codex:gpt-5.5,opencode:opencode/deepseek-v4-flash-free,agy:default`。
+需要让 Codex planner 忽略本机配置和规则时，加 `--codex-clean`；它会保持 plan 输出目录可写，只作用于 Codex 规划目标，不会污染 OpenCode 或 Antigravity 参数。
 探索式规划时可以加 `--allow-partial`：某个 planner 慢或失败时，其他已经写出的计划仍然可以进入综合。
 
 `runtime check` 也会比较仓库里的 `orchestration/fuguectl/` bundle 和本机已安装的 workflow bundle；自动化需要把安装 skill 漂移视为失败时，加 `--strict`：

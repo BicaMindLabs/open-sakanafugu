@@ -109,6 +109,7 @@ suite.ok(
   () =>
     helpOut.includes('plan "<goal>"') &&
     helpOut.includes("[--allow-partial]") &&
+    helpOut.includes("[--codex-clean]") &&
     helpOut.includes("[--harness-arg x]") &&
     helpOut.includes("[--codex-arg x]") &&
     helpOut.includes("[--opencode-arg x]") &&
