@@ -91,6 +91,7 @@ export interface RecallMatchExplanation {
   readonly score: number;
   readonly matchedTerms: readonly string[];
   readonly failureCause?: FailureCause;
+  readonly minScore?: number;
 }
 
 export const explainRecallMatch = (
@@ -100,9 +101,12 @@ export const explainRecallMatch = (
   const terms = experienceQueryTerms(options.query);
   const matchedTerms = experienceMatchedTerms(method, terms);
   const failureCause = experienceFailureCause(method);
-  return failureCause === undefined
-    ? { score: matchedTerms.length, matchedTerms }
-    : { score: matchedTerms.length, matchedTerms, failureCause };
+  return {
+    score: matchedTerms.length,
+    matchedTerms,
+    ...(failureCause === undefined ? {} : { failureCause }),
+    ...(options.minScore === undefined ? {} : { minScore: options.minScore }),
+  };
 };
 
 export type ExperienceErrorKind = 'empty-body' | 'contains-secret';
@@ -116,4 +120,5 @@ export interface RecallOptions {
   readonly query?: string;
   readonly limit?: number;
   readonly failureCause?: FailureCause;
+  readonly minScore?: number;
 }

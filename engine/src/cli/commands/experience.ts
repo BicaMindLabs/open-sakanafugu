@@ -30,12 +30,21 @@ const renderRecallExplanation = (
   const matched = explanation.matchedTerms.length === 0 ? '-' : explanation.matchedTerms.join(',');
   const failureCause = explanation.failureCause ?? '-';
   const filter = options.failureCause ?? '-';
-  return `[experience:explain] score=${explanation.score} matched=${matched} failureCause=${failureCause} filter=${filter}\n`;
+  const minScore = explanation.minScore ?? '-';
+  return `[experience:explain] score=${explanation.score} minScore=${minScore} matched=${matched} failureCause=${failureCause} filter=${filter}\n`;
 };
 
 const parseLimit = (raw: string): number => {
   const limit = Number.parseInt(raw, 10);
   return Number.isFinite(limit) ? limit : 3;
+};
+
+const parseMinScore = (raw: string | undefined): number | null | undefined => {
+  if (raw === undefined) return undefined;
+  const value = raw.trim();
+  if (!/^\d+$/u.test(value)) return null;
+  const parsed = Number.parseInt(value, 10);
+  return parsed > 0 ? parsed : null;
 };
 
 const field = (content: string, key: string): string => {
@@ -276,6 +285,7 @@ export class ExperienceRecallCommand extends ExperienceCommand {
   query = Option.String('--query');
   limit = Option.String('--limit', '3');
   failureCause = Option.String('--failure-cause');
+  minScore = Option.String('--min-score');
   explain = Option.Boolean('--explain', false);
 
   override async execute(): Promise<number> {
@@ -286,6 +296,15 @@ export class ExperienceRecallCommand extends ExperienceCommand {
         return 1;
       }
     }
+    const minScore = parseMinScore(this.minScore);
+    if (minScore === null) {
+      this.context.stderr.write('unknown --min-score; expected a positive integer\n');
+      return 1;
+    }
+    if (minScore !== undefined && (this.query === undefined || this.query.trim().length === 0)) {
+      this.context.stderr.write('--min-score requires a non-empty --query\n');
+      return 1;
+    }
     let options: RecallOptions = { limit: parseLimit(this.limit) };
     if (this.query !== undefined) {
       options = { ...options, query: this.query };
@@ -294,6 +313,9 @@ export class ExperienceRecallCommand extends ExperienceCommand {
       cause !== undefined && isFailureCause(cause) ? cause : undefined;
     if (recallFailureCause !== undefined) {
       options = { ...options, failureCause: recallFailureCause };
+    }
+    if (minScore !== undefined) {
+      options = { ...options, minScore };
     }
     const methods = await this.experienceStore().recall(this.workspace, options);
     for (const method of methods) {

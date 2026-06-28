@@ -107,9 +107,10 @@ export class FsExperienceStore implements ExperienceStore {
     }
     const terms = experienceQueryTerms(options.query);
     if (terms.length > 0) {
+      const minScore = Math.max(1, options.minScore ?? 1);
       methods = methods
         .map((method) => ({ method, score: experienceScore(method, terms) }))
-        .filter((entry) => entry.score > 0)
+        .filter((entry) => entry.score >= minScore)
         .sort((a, b) => b.score - a.score || b.method.created - a.method.created)
         .map((entry) => entry.method);
     } else {

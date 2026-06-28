@@ -207,6 +207,8 @@ bounded `--failure-cause` tag (`planning`, `context`, `retrieval`, `tooling`,
 and recall can use that tag as a first-pass filter before query ranking.
 Add `--explain` to recall when you want the audit line that shows score, matched
 query terms, stored failure cause, and the active cause filter.
+Add `--min-score <n>` with a query when you want a stricter manual recall gate:
+weak one-token matches are dropped from that recall result.
 
 ```bash
 fuguectl experience learn code "failed-query retro" \
@@ -215,12 +217,17 @@ fuguectl experience learn code "failed-query retro" \
   --lesson "Score relevance on title/body tokens only" \
   --failure-cause retrieval
 
-fuguectl experience recall code --failure-cause retrieval --query "dispatch output" --explain
+fuguectl experience recall code \
+  --failure-cause retrieval \
+  --query "dispatch output" \
+  --min-score 2 \
+  --explain
 ```
 
 This follows the same direction as Agent Workflow Memory, AgentHER, MemRL, and
 recent agent-native memory studies: do not replay every trace; select the memory
-whose role, failure mode, and retrieval evidence match the current task.
+whose role, failure mode, retrieval evidence, and utility threshold match the
+current task.
 
 ## TypeScript Engine
 
@@ -257,7 +264,7 @@ fugue template <name> --dir <templates> [--set KEY=VALUE ...]
 fugue workspace list|show|model|context
 fugue experience add|list|show --store <dir>
 fugue experience learn --store <dir> [--failure-cause cause]
-fugue experience recall --store <dir> [--failure-cause cause] [--explain]
+fugue experience recall --store <dir> [--failure-cause cause] [--min-score n] [--explain]
 fugue summary <round> --cache <dir> [--task <file>]
 fugue runtime check [--strict] --state <dir> [--skill <installed SKILL.md>] [--alias-skill <legacy SKILL.md>] [--repo-skill <repo SKILL.md>]
 fugue runtime adapt --state <dir> [--skill <installed SKILL.md>] [--alias-skill <legacy SKILL.md>] [--repo-skill <repo SKILL.md>]
@@ -398,7 +405,8 @@ GitHub Security Advisory.
 - [Zleap-AI/Zleap-Agent](https://github.com/Zleap-AI/Zleap-Agent) for workspace isolation and experience-memory inspiration.
 - [SeemSeam/claude_codex_bridge](https://github.com/SeemSeam/claude_codex_bridge) as a reference for the provider-runtime bridge.
 - Shanghai Artificial Intelligence Laboratory's [Self-Harness paper](https://arxiv.org/abs/2606.09498) for the harness-improvement loop that inspired `fuguectl self-harness`.
-- [Agent Workflow Memory](https://arxiv.org/abs/2409.07429), [AgentHER](https://arxiv.org/abs/2603.21357), [MemRL](https://arxiv.org/abs/2601.03192), [How Memory Management Impacts LLM Agents](https://arxiv.org/abs/2505.16067), [Agent-Native Memory Systems](https://arxiv.org/abs/2606.24775), and [Graph Memory for LLM Agents](https://arxiv.org/abs/2606.06036) for the cause-aware, explainable experience replay direction.
+- [Agent Workflow Memory](https://arxiv.org/abs/2409.07429), [AgentHER](https://arxiv.org/abs/2603.21357), [MemRL](https://arxiv.org/abs/2601.03192), [How Memory Management Impacts LLM Agents](https://arxiv.org/abs/2505.16067), [Agent-Native Memory Systems](https://arxiv.org/abs/2606.24775), [Graph Memory for LLM Agents](https://arxiv.org/abs/2606.06036), [Externalization in LLM Agents](https://arxiv.org/abs/2604.08224), [Cost-Sensitive Store Routing](https://arxiv.org/abs/2603.15658), and [RecoAtlas](https://arxiv.org/abs/2605.18805) for the cause-aware, explainable, utility-gated experience replay direction.
+- [Securing LLM-Agent Long-Term Memory Against Poisoning](https://arxiv.org/abs/2606.24322) for the adjacent origin-bound authority problem that future memory security work must address.
 - [kunchenguid/no-mistakes](https://github.com/kunchenguid/no-mistakes) and [lavish-axi](https://github.com/kunchenguid/lavish-axi) for loop-state and docs-drift ideas.
 - [merkyor/Lynn](https://gitee.com/merkyor/Lynn) for orchestrator-side ownership enforcement inspiration.
 - Anthropic's official `skill-creator` meta-skill for the skill authoring and validation flow.

@@ -91,6 +91,44 @@ describe('FsExperienceStore', () => {
     expect(recalled.map((m) => m.title)).toEqual(['dispatch observations']);
   });
 
+  it('recall can reject weak query matches with a minimum score gate', async () => {
+    const clock = fakeClock(1_000);
+    const store = make(clock);
+    await store.add({
+      workspace: 'code',
+      title: 'one-token dispatch',
+      body: 'Only mentions dispatch.',
+    });
+    clock.set(2_000);
+    await store.add({
+      workspace: 'code',
+      title: 'strong dispatch output anchors',
+      body: 'Fix dispatch verbose boundary and output file anchors.',
+    });
+
+    const recalled = await store.recall('code', {
+      query: 'dispatch output anchors',
+      minScore: 2,
+      limit: 3,
+    });
+    expect(recalled.map((m) => m.title)).toEqual(['strong dispatch output anchors']);
+  });
+
+  it('recall clamps a zero minimum score so query recall cannot broaden', async () => {
+    const clock = fakeClock(1_000);
+    const store = make(clock);
+    await store.add({ workspace: 'code', title: 'match', body: 'dispatch output' });
+    clock.set(2_000);
+    await store.add({ workspace: 'code', title: 'unrelated', body: 'Refresh docs.' });
+
+    const recalled = await store.recall('code', {
+      query: 'dispatch output',
+      minScore: 0,
+      limit: 3,
+    });
+    expect(recalled.map((m) => m.title)).toEqual(['match']);
+  });
+
   it('recall filters by failure cause before query ranking', async () => {
     const clock = fakeClock(1_000);
     const store = make(clock);

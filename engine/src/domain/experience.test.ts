@@ -36,4 +36,20 @@ describe('explainRecallMatch', () => {
 
     expect(explanation).toEqual({ score: 0, matchedTerms: [] });
   });
+
+  it('includes the active minimum score gate when provided', () => {
+    const explanation = explainRecallMatch(
+      {
+        title: 'dispatch retrieval',
+        body: 'Use dispatch output anchors.',
+      },
+      { query: 'dispatch output anchors', minScore: 2 },
+    );
+
+    expect(explanation).toEqual({
+      score: 3,
+      matchedTerms: ['dispatch', 'output', 'anchors'],
+      minScore: 2,
+    });
+  });
 });

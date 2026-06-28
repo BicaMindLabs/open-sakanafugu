@@ -1723,7 +1723,7 @@ describe('fugue CLI', () => {
 
       expect(recalled.code).toBe(0);
       expect(recalled.out).toContain(
-        '[experience:explain] score=2 matched=dispatch,output failureCause=retrieval filter=retrieval',
+        '[experience:explain] score=2 minScore=- matched=dispatch,output failureCause=retrieval filter=retrieval',
       );
       expect(recalled.out).toContain('[experience] retrieval relabel');
       expect(recalled.out).toContain('Failure cause:\nretrieval');
@@ -1732,6 +1732,72 @@ describe('fugue CLI', () => {
       expect(unknown.err).toContain('unknown --failure-cause miscellaneous');
       expect(empty.code).toBe(1);
       expect(empty.err).toContain('unknown --failure-cause <empty>');
+    });
+
+    it('recall can require a minimum score for query-ranked experience', async () => {
+      await run(['experience', 'add', '--store', store, 'code', 'weak dispatch'], {
+        stdin: Readable.from(['Only dispatch overlaps with the query.']),
+      });
+      await run(['experience', 'add', '--store', store, 'code', 'strong dispatch output anchors'], {
+        stdin: Readable.from(['Fix dispatch output anchors.']),
+      });
+
+      const recalled = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--query',
+        'dispatch output anchors',
+        '--min-score',
+        '2',
+        '--explain',
+      ]);
+      const invalid = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--query',
+        'dispatch output',
+        '--min-score',
+        'not-a-score',
+      ]);
+      const zero = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--query',
+        'dispatch output',
+        '--min-score',
+        '0',
+      ]);
+      const missingQuery = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--min-score',
+        '2',
+      ]);
+
+      expect(recalled.code).toBe(0);
+      expect(recalled.out).toContain('[experience] strong dispatch output anchors');
+      expect(recalled.out).toContain(
+        '[experience:explain] score=3 minScore=2 matched=dispatch,output,anchors',
+      );
+      expect(recalled.out).not.toContain('[experience] weak dispatch');
+      expect(invalid.code).toBe(1);
+      expect(invalid.err).toContain('unknown --min-score');
+      expect(zero.code).toBe(1);
+      expect(zero.err).toContain('unknown --min-score');
+      expect(missingQuery.code).toBe(1);
+      expect(missingQuery.err).toContain('--min-score requires a non-empty --query');
     });
 
     it('rejects failure learning from a non-terminal task audit', async () => {
