@@ -19,7 +19,7 @@ const help = `fuguectl — fugue workflow control-plane entrypoint.
   fuguectl cache ...           result cache + join barrier
   fuguectl integrate --work <repo> --agents "a b" [--onconflict abort|skip]
   fuguectl allocate <task-type> [--top]|record|stats|reset
-  fuguectl skills index|list|match|show|inject
+  fuguectl skills index|list|match|show|inject|validate|forge
   fuguectl workspace list|show|model|context <name>
   fuguectl agents template|validate [file]|list [file]|resolve [file] <id>
   fuguectl experience add|list|recall|show <ws>

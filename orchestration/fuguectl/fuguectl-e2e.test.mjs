@@ -40,6 +40,11 @@ suite.ok("help lists runtime entrypoint", () =>
 suite.ok("help lists agents entrypoint", () =>
   helpOut.includes("fuguectl agents"),
 );
+suite.ok("help lists full skills surface", () =>
+  helpOut.includes(
+    "fuguectl skills index|list|match|show|inject|validate|forge",
+  ),
+);
 suite.ok("help lists inline prompt dispatch", () =>
   helpOut.includes("--prompt <text>"),
 );

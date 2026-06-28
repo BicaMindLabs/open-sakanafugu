@@ -32,7 +32,7 @@ preserved → `npx fugue`).
 | 6   | `integrate` (+ --ownership)                                  | `Integrator` + `VcsPort` + ownership                                     | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
 | 7   | `workspace` (list/show/model/context)                        | `Workspace` / `ContextAssembler`                                         | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
 | 8   | `experience` (add/recall/...)                                | `ExperienceStore`                                                        | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
-| 9   | `skills` (index/match/inject)                                | `SkillCatalog`                                                           | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
+| 9   | `skills` (index/list/match/show/inject/validate/forge)       | `SkillCatalog`                                                           | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
 | 10  | `dispatch` (--harness ...)                                   | `Harness` + `Phase`                                                      | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
 | 11  | `fleet` (status/up/down)                                     | `Harness.health` + launcher                                              | ✓ Node wrapper | ◐ health + cli (iter16)               | ☑       |
 | 12  | `doctor`                                                     | recon + recommend                                                        | ✓ Node wrapper | ◐ core + cli (iter13)                 | ☑       |
