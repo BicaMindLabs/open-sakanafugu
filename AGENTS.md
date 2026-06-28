@@ -49,7 +49,7 @@ fuguectl preflight --harness codex                         # selected runtime pa
 fuguectl preflight --harness opencode --target opencode/deepseek-v4-flash-free
 fuguectl preflight --harness agy
 fuguectl preflight --harness fugue-cc                      # full worktree fleet path
-fuguectl plan "<goal>" --harness fugue-cc|codex|opencode|agy [--timeout-ms n] [--harness-arg x] --task TASK.md
+fuguectl plan "<goal>" --harness fugue-cc|codex|opencode|agy [--models a,b] [--out <dir>] [--timeout-ms n] [--harness-arg x] --task TASK.md
 fuguectl fleet status     # is the backend fleet up? (if down → fuguectl fleet up)
 ```
 

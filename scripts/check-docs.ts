@@ -11,10 +11,12 @@ const readmeZh = path("README.zh-CN.md");
 const overviewEn = path("docs", "readme-overview-en.svg");
 const overviewZh = path("docs", "readme-overview-zh.svg");
 const agentsDoc = path("AGENTS.md");
+const agentTeamDoc = path("docs", "AGENT_TEAM.md");
 const changelog = path("CHANGELOG.md");
 const workflowDoc = path("docs", "WORKFLOW.md");
 const agentRuntimeDoc = path("docs", "AGENT_RUNTIME.md");
 const fugueDir = path("orchestration", "fuguectl");
+const planWrapper = path("orchestration", "fuguectl", "fuguectl-plan");
 const workflowSkill = path("orchestration", "fuguectl", "SKILL.md");
 const harnessPort = path("engine", "src", "domain", "ports", "harness.ts");
 const selfDoc = path("docs", "SELF_HARNESS.md");
@@ -44,9 +46,11 @@ requireFile(
 requireFile(overviewEn, `check-docs: cannot find ${overviewEn}`);
 requireFile(overviewZh, `check-docs: cannot find ${overviewZh}`);
 requireFile(agentsDoc, `check-docs: cannot find ${agentsDoc}`);
+requireFile(agentTeamDoc, `check-docs: cannot find ${agentTeamDoc}`);
 requireFile(changelog, `check-docs: cannot find ${changelog}`);
 requireFile(workflowDoc, `check-docs: cannot find ${workflowDoc}`);
 requireFile(agentRuntimeDoc, `check-docs: cannot find ${agentRuntimeDoc}`);
+requireFile(planWrapper, `check-docs: cannot find ${planWrapper}`);
 requireFile(workflowSkill, `check-docs: cannot find ${workflowSkill}`);
 requireFile(harnessPort, `check-docs: cannot find ${harnessPort}`);
 requireFile(selfDoc, `check-docs: cannot find ${selfDoc}`);
@@ -88,9 +92,11 @@ const zh = text(readmeZh);
 const overviewEnText = text(overviewEn);
 const overviewZhText = text(overviewZh);
 const agentsText = text(agentsDoc);
+const agentTeamText = text(agentTeamDoc);
 const changelogText = text(changelog);
 const workflowText = text(workflowDoc);
 const agentRuntimeText = text(agentRuntimeDoc);
+const planWrapperText = text(planWrapper);
 const workflowSkillText = text(workflowSkill);
 const harnessPortText = text(harnessPort);
 for (const command of subcommands) {
@@ -204,6 +210,7 @@ if (harnesses.length === 0)
 const harnessList = harnesses.join("|");
 for (const [file, content] of [
   [fuguectl, driver],
+  [planWrapper, planWrapperText],
   [readmeEn, en],
   [readmeZh, zh],
   [agentsDoc, agentsText],
@@ -212,6 +219,46 @@ for (const [file, content] of [
   if (content.includes(harnessList))
     ok(`${basename(file)}: documents harness list ${harnessList}`);
   else no(`${basename(file)}: missing canonical harness list '${harnessList}'`);
+}
+
+const planningTokens = [
+  "--models",
+  "--out",
+  "--timeout-ms",
+  "--harness-arg",
+  "--task",
+];
+const planningSurface = (content) =>
+  content
+    .split(/\r?\n/u)
+    .filter(
+      (line) =>
+        line.includes("fuguectl plan") ||
+        line.includes("fugue plan") ||
+        line.includes('"$FO" plan') ||
+        line.includes("fuguectl-plan"),
+    )
+    .join("\n");
+for (const [file, content] of [
+  [fuguectl, driver],
+  [planWrapper, planWrapperText],
+  [readmeEn, en],
+  [readmeZh, zh],
+  [agentsDoc, agentsText],
+  [agentTeamDoc, agentTeamText],
+  [workflowDoc, workflowText],
+  [workflowSkill, workflowSkillText],
+]) {
+  const surface = planningSurface(content);
+  const missing = planningTokens.filter((token) => !surface.includes(token));
+  if (missing.length === 0)
+    ok(
+      `${basename(file)}: documents planning options ${planningTokens.join(" ")}`,
+    );
+  else
+    no(
+      `${basename(file)}: planning docs missing ${missing.join(", ")} (keep fuguectl plan option surface in sync)`,
+    );
 }
 
 for (const [file, content] of [
