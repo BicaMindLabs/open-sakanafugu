@@ -8,7 +8,7 @@ Cross-harness entry for any coding agent (**Claude Code / Codex / OpenCode / Ant
 orchestration/fuguectl/fuguectl help
 ```
 
-Unified driver (23 subcommands): `doctor` · `init` · `version` · `fleet` · `preflight` · `task` · `template` · `dispatch` · `cache` · `integrate` · `allocate` · `skills` · `workspace` · `agents` · `experience` · `plan` · `goal` · `loop` · `run` · `summary` · `self-harness` · `runtime` · `selftest`. The production driver remains shell-callable from any harness; new orchestration primitives move into the strict TypeScript engine first, then get thin CLI wrappers.
+Unified driver (24 subcommands): `doctor` · `init` · `version` · `fleet` · `preflight` · `smoke` · `task` · `template` · `dispatch` · `cache` · `integrate` · `allocate` · `skills` · `workspace` · `agents` · `experience` · `plan` · `goal` · `loop` · `run` · `summary` · `self-harness` · `runtime` · `selftest`. The production driver remains shell-callable from any harness; new orchestration primitives move into the strict TypeScript engine first, then get thin CLI wrappers.
 
 ## The workflow (5 phases)
 
@@ -48,6 +48,7 @@ Reviewer (`coder`) and planner are likewise harness-agnostic. For Antigravity,
 fuguectl preflight --harness codex                         # selected runtime path
 fuguectl preflight --harness opencode --target opencode/deepseek-v4-flash-free
 fuguectl preflight --harness agy
+fuguectl smoke --harness all --codex-clean --timeout-ms 120000 --task TASK.md --out-dir /tmp/fugunano-smoke
 fuguectl preflight --harness fugue-cc                      # full worktree fleet path
 fuguectl plan "<goal>" --harness fugue-cc|codex|opencode|agy [--models a,b] [--out <dir>] [--timeout-ms n] [--harness-arg x] --task TASK.md
 fuguectl fleet status     # is the backend fleet up? (if down → fuguectl fleet up)

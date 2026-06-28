@@ -28,6 +28,7 @@ import { RuntimeAdaptCommand, RuntimeCheckCommand } from './commands/runtime.js'
 import { RunCommand } from './commands/run.js';
 import { SelfHarnessRunCommand, SelfHarnessTemplateCommand } from './commands/self-harness.js';
 import { SkillsCommand } from './commands/skills.js';
+import { SmokeCommand } from './commands/smoke.js';
 import { SummaryCommand } from './commands/summary.js';
 import { TaskDoneCommand, TaskLogCommand, TaskNewCommand } from './commands/task.js';
 import { TemplateRenderCommand } from './commands/template.js';
@@ -87,6 +88,7 @@ export const buildCli = (): Cli => {
   cli.register(SkillsCommand);
   cli.register(SelfHarnessTemplateCommand);
   cli.register(SelfHarnessRunCommand);
+  cli.register(SmokeCommand);
   cli.register(SummaryCommand);
   return cli;
 };

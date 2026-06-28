@@ -14,6 +14,7 @@ const help = `fuguectl — fugue workflow control-plane entrypoint.
   fuguectl version             print engine version
   fuguectl fleet status|up [--pty]|down  bring up/view/stop fugue-cc fleet
   fuguectl preflight [--harness fugue-cc|codex|opencode|agy|all] [--model m|--target m] [cfg]  pre-run go/no-go gate
+  fuguectl smoke [--harness all|codex|opencode|agy] [--timeout-ms n] [--task <file>] [--out-dir <dir>]  live lite-runtime smoke
   fuguectl task new|log|done   TASK file scaffold/log/finalize
   fuguectl template <n> [--set K=V]   render prompt template
   fuguectl dispatch <agent> [--harness fugue-cc|codex|opencode|agy] [--timeout-ms n] [--codex-clean] [--harness-arg x] [--out <file>] [--require-output] [--verbose] --template <n>|--prompt-file <f>|--prompt <text> [--task <file>]
@@ -42,7 +43,7 @@ const quickstartHelp = `fuguectl quickstart — safe first run
 
   2. Verify a lightweight runtime:
      fuguectl preflight --harness codex
-     fuguectl dispatch gpt-5.5 --harness codex --codex-clean --timeout-ms 60000 --prompt "Reply with OK"
+     fuguectl smoke --harness codex --codex-clean --timeout-ms 60000
 
   3. Create a durable planning artifact:
      fuguectl plan "your goal" --harness codex --timeout-ms 120000 --out /tmp/fugunano-plan --task TASK.md
@@ -74,6 +75,7 @@ const commandMap = new Map([
   ["init", "init"],
   ["version", "version"],
   ["preflight", "preflight"],
+  ["smoke", "smoke"],
   ["fleet", "fleet"],
   ["task", "task"],
   ["template", "template"],
@@ -111,7 +113,7 @@ if (subcommand === "help" || subcommand === "-h" || subcommand === "--help") {
   runEngine([commandMap.get(subcommand), ...rest]);
 } else {
   console.error(
-    `fuguectl: unknown subcommand '${subcommand}' (doctor|init|version|fleet|preflight|task|template|dispatch|cache|integrate|allocate|skills|workspace|agents|experience|plan|goal|loop|run|summary|self-harness|runtime|selftest|help)`,
+    `fuguectl: unknown subcommand '${subcommand}' (doctor|init|version|fleet|preflight|smoke|task|template|dispatch|cache|integrate|allocate|skills|workspace|agents|experience|plan|goal|loop|run|summary|self-harness|runtime|selftest|help)`,
   );
   console.error("try: fuguectl help or fuguectl help quickstart");
   process.exit(2);

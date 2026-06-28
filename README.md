@@ -9,8 +9,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Runtime-Node%20%E2%89%A518.18-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js >= 18.18" />
   <img src="https://img.shields.io/badge/Engine-TypeScript-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript engine" />
-  <img src="https://img.shields.io/badge/fuguectl-24%20suites-7c3aed?style=for-the-badge" alt="24 fuguectl test suites" />
-  <img src="https://img.shields.io/badge/assertions-330-brightgreen?style=for-the-badge" alt="330 fuguectl assertions" />
+  <img src="https://img.shields.io/badge/fuguectl-25%20suites-7c3aed?style=for-the-badge" alt="25 fuguectl test suites" />
+  <img src="https://img.shields.io/badge/assertions-333-brightgreen?style=for-the-badge" alt="333 fuguectl assertions" />
   <a href="https://github.com/BicaMindLabs/FuguNano/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/BicaMindLabs/FuguNano/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status" /></a>
   <img src="https://img.shields.io/badge/license-Apache--2.0-yellowgreen?style=for-the-badge" alt="Apache-2.0 license" />
 </p>
@@ -182,11 +182,11 @@ so final status updates do not clobber concurrent audit lines.
 ## Command Surface
 
 `orchestration/fuguectl/fuguectl` is the production operator entry point. It has
-23 subcommands and 24 test suites.
+24 subcommands and 25 test suites.
 
 | Area                   | Commands                                                                                                                                                                                                             |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Setup and recon        | `fuguectl doctor`, `fuguectl init --dry-run\|--write`, `fuguectl version`, `fuguectl preflight --harness fugue-cc\|codex\|opencode\|agy\|all`, `fuguectl fleet status\|up\|down`                                     |
+| Setup and recon        | `fuguectl doctor`, `fuguectl init --dry-run\|--write`, `fuguectl version`, `fuguectl preflight --harness fugue-cc\|codex\|opencode\|agy\|all`, `fuguectl smoke`, `fuguectl fleet status\|up\|down`                   |
 | Planning               | `fuguectl task new\|log\|done`, `fuguectl template <name>`, `fuguectl plan "<goal>" [--harness h] [--models a,b] [--out <dir>] [--timeout-ms n] [--harness-arg x] [--task f]`, `fuguectl goal template\|show\|check` |
 | Routing and context    | `fuguectl allocate <type>`, `fuguectl workspace list\|show\|model\|context`, `fuguectl agents template\|validate\|list\|resolve`, `fuguectl skills index\|list\|match\|show\|inject\|validate\|forge`                |
 | Dispatch and gather    | `fuguectl dispatch <target>`, `fuguectl cache init\|put\|fail\|barrier\|collect\|resume`                                                                                                                             |
@@ -216,6 +216,7 @@ fugue doctor
 fugue init [--dry-run|--write]
 fugue fleet status|up|down
 fugue allocate <task-type>|list|record|feed|stats|reset|decay
+fugue smoke [--harness all|codex|opencode|agy] [--timeout-ms n] [--task <file>] [--out-dir <dir>]
 fugue dispatch <target> --harness fugue-cc|codex|opencode|agy [--timeout-ms n] [--codex-clean] [--harness-arg x] [--out <file>] [--require-output] [--verbose] --template <name>|--prompt-file <file>|--prompt <text>
 fugue integrate --work <repo> --agents "a b" [--ownership file] [--dry]
 fugue skills index|list|match|show|inject|validate|forge
@@ -239,9 +240,7 @@ fugue self-harness template|run
 Quick live smoke, after preflight passes:
 
 ```bash
-fuguectl dispatch gpt-5.5 --harness codex --codex-clean --prompt "Reply exactly: OK"
-fuguectl dispatch opencode/deepseek-v4-flash-free --harness opencode --prompt "Reply exactly: OK"
-fuguectl dispatch default --harness agy --prompt "Reply exactly: OK"
+fuguectl smoke --harness all --codex-clean --timeout-ms 120000 --task TASK.md --out-dir /tmp/fugunano-smoke
 ```
 
 For OpenCode, `preflight --target <provider/model>` checks the local

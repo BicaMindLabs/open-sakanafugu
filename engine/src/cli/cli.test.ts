@@ -130,6 +130,89 @@ describe('fugue CLI', () => {
     }
   });
 
+  describe('smoke command', () => {
+    let dir: string;
+    let codex: string;
+    let opencode: string;
+    let agy: string;
+
+    const writeExecutable = async (path: string, body: string): Promise<void> => {
+      await writeFile(path, `#!/bin/sh\n${body}\n`, 'utf8');
+      await chmod(path, 0o755);
+    };
+
+    beforeEach(async () => {
+      dir = await mkdtemp(join(tmpdir(), 'fugue-smoke-'));
+      codex = join(dir, 'codex');
+      opencode = join(dir, 'opencode');
+      agy = join(dir, 'agy');
+      await writeExecutable(codex, 'printf "FUGUNANO_CODEX_SMOKE_OK\\n"');
+      await writeExecutable(opencode, 'printf "FUGUNANO_OPENCODE_SMOKE_OK\\n"');
+      await writeExecutable(agy, 'printf "FUGUNANO_AGY_SMOKE_OK\\n"');
+    });
+
+    afterEach(async () => {
+      await rm(dir, { recursive: true, force: true });
+    });
+
+    it('runs all lite runtime smokes, writes artifacts, and records the task audit', async () => {
+      const task = join(dir, 'TASK.md');
+      const outDir = join(dir, 'smoke-out');
+      await writeFile(task, '## Log\n', 'utf8');
+
+      const result = await run([
+        'smoke',
+        '--timeout-ms',
+        '5000',
+        '--out-dir',
+        outDir,
+        '--task',
+        task,
+        '--codex-bin',
+        codex,
+        '--opencode-bin',
+        opencode,
+        '--agy-bin',
+        agy,
+      ]);
+
+      expect(result.code).toBe(0);
+      expect(result.out).toContain('live runtime smoke (codex, opencode, agy)');
+      expect(result.out).toContain('✓ smoke GO (3/3)');
+      expect(await readFile(join(outDir, 'codex.txt'), 'utf8')).toContain(
+        'FUGUNANO_CODEX_SMOKE_OK',
+      );
+      const taskLog = await readFile(task, 'utf8');
+      expect(taskLog).toContain('smoke → codex [gpt-5.5] (status=started');
+      expect(taskLog).toContain('smoke → opencode [opencode/deepseek-v4-flash-free]');
+      expect(taskLog).toContain('smoke → agy [default] (status=ok rc=0');
+    });
+
+    it('returns nonzero when a smoke output has extra whitespace beyond one final newline', async () => {
+      const task = join(dir, 'TASK.md');
+      await writeFile(task, '## Log\n', 'utf8');
+      await writeExecutable(agy, 'printf "FUGUNANO_AGY_SMOKE_OK \\n"');
+
+      const result = await run([
+        'smoke',
+        '--harness',
+        'agy',
+        '--timeout-ms',
+        '5000',
+        '--task',
+        task,
+        '--agy-bin',
+        agy,
+      ]);
+
+      expect(result.code).toBe(1);
+      expect(result.out).toContain('✗ smoke NO-GO (1/1 failed)');
+      expect(result.out).toContain('expected FUGUNANO_AGY_SMOKE_OK');
+      expect(result.out).toContain('got "FUGUNANO_AGY_SMOKE_OK \\n"');
+      expect(await readFile(task, 'utf8')).toContain('error=output-mismatch');
+    });
+  });
+
   describe('init command', () => {
     let dir: string;
     let secrets: string;
