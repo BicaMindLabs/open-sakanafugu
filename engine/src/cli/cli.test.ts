@@ -1600,6 +1600,8 @@ describe('fugue CLI', () => {
         '--allow-failure',
         '--lesson',
         'Score experience relevance on title/body tokens only.',
+        '--failure-cause',
+        'retrieval',
       ]);
       const recalled = await run([
         'experience',
@@ -1617,6 +1619,8 @@ describe('fugue CLI', () => {
       expect(learned.out).toContain('failed-dispatch-relabel.md');
       expect(recalled.out).toContain('[experience] failed dispatch relabel');
       expect(recalled.out).toContain('Status: NEEDS_FIX');
+      expect(recalled.out).toContain('Failure cause:');
+      expect(recalled.out).toContain('retrieval');
       expect(recalled.out).toContain('Relabeled lesson:');
       expect(recalled.out).toContain('Score experience relevance on title/body tokens only.');
     });
@@ -1691,6 +1695,111 @@ describe('fugue CLI', () => {
 
       expect(learned.code).toBe(1);
       expect(learned.err).toContain('terminal non-DONE status');
+    });
+
+    it('rejects relabeled failure learning with an unknown failure cause', async () => {
+      const task = join(dir, 'TASK-unknown-cause.md');
+      await writeFile(
+        task,
+        [
+          '# TASK-2026-06-28-993: Unknown cause task',
+          'Status: FAILED',
+          'Priority: P2',
+          'Created: 2026-06-28 20:00',
+          'Completed: 2026-06-28 20:10',
+          '',
+          '## Requirements',
+          'Keep cause taxonomy bounded.',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const learned = await run([
+        'experience',
+        'learn',
+        '--store',
+        store,
+        'code',
+        'unknown cause relabel',
+        '--task',
+        task,
+        '--allow-failure',
+        '--lesson',
+        'This should not be accepted.',
+        '--failure-cause',
+        'miscellaneous',
+      ]);
+      const empty = await run([
+        'experience',
+        'learn',
+        '--store',
+        store,
+        'code',
+        'empty cause relabel',
+        '--task',
+        task,
+        '--allow-failure',
+        '--lesson',
+        'This should not be accepted.',
+        '--failure-cause',
+        '   ',
+      ]);
+
+      expect(learned.code).toBe(1);
+      expect(learned.err).toContain('unknown --failure-cause miscellaneous');
+      expect(learned.err).toContain('planning, context, retrieval');
+      expect(empty.code).toBe(1);
+      expect(empty.err).toContain('unknown --failure-cause <empty>');
+    });
+
+    it('rejects failure cause metadata on completed success learning', async () => {
+      const task = join(dir, 'TASK-done-cause.md');
+      await writeFile(
+        task,
+        [
+          '# TASK-2026-06-28-992: Done cause task',
+          'Status: DONE',
+          'Priority: P2',
+          'Created: 2026-06-28 20:00',
+          'Completed: 2026-06-28 20:10',
+          '',
+          '## Requirements',
+          'Successful task learning should stay unchanged.',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const learned = await run([
+        'experience',
+        'learn',
+        '--store',
+        store,
+        'code',
+        'done cause',
+        '--task',
+        task,
+        '--failure-cause',
+        'verification',
+      ]);
+      const empty = await run([
+        'experience',
+        'learn',
+        '--store',
+        store,
+        'code',
+        'done empty cause',
+        '--task',
+        task,
+        '--failure-cause',
+        '   ',
+      ]);
+
+      expect(learned.code).toBe(1);
+      expect(learned.err).toContain('--failure-cause is only supported with --allow-failure');
+      expect(empty.code).toBe(1);
+      expect(empty.err).toContain('--failure-cause is only supported with --allow-failure');
     });
 
     it('applies secret redaction when learning from a task audit', async () => {

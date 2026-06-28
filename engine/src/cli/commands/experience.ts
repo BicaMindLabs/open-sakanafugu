@@ -57,7 +57,7 @@ const meaningfulLogLines = (log: string): readonly string[] => {
 const renderTaskExperience = (
   path: string,
   content: string,
-  options: { readonly lesson?: string } = {},
+  options: { readonly lesson?: string; readonly failureCause?: string } = {},
 ): string => {
   const taskTitle = content.split(/\r?\n/u).find((line) => line.startsWith('# ')) ?? '# TASK';
   const status = field(content, 'Status');
@@ -84,6 +84,7 @@ const renderTaskExperience = (
     'Output files:',
     outputFiles.length > 0 ? outputFiles : '(none recorded)',
     '',
+    ...(options.failureCause === undefined ? [] : ['Failure cause:', options.failureCause, '']),
     ...(options.lesson === undefined ? [] : ['Relabeled lesson:', options.lesson, '']),
     'Reusable audit notes:',
     notes,
@@ -99,6 +100,21 @@ const isTerminalFailedTask = (content: string): boolean => {
   const status = field(content, 'Status');
   return TERMINAL_FAILURE_STATUSES.has(status) && !['', '-'].includes(field(content, 'Completed'));
 };
+
+const FAILURE_CAUSES = [
+  'planning',
+  'context',
+  'retrieval',
+  'tooling',
+  'implementation',
+  'verification',
+  'integration',
+  'runtime',
+  'policy',
+  'other',
+] as const;
+
+const FAILURE_CAUSE_SET: ReadonlySet<string> = new Set(FAILURE_CAUSES);
 
 abstract class ExperienceCommand extends Command {
   store = Option.String('--store', defaultExperienceDir());
@@ -146,6 +162,7 @@ export class ExperienceLearnCommand extends ExperienceCommand {
   task = Option.String('--task');
   allowFailure = Option.Boolean('--allow-failure', false);
   lesson = Option.String('--lesson');
+  failureCause = Option.String('--failure-cause');
 
   override async execute(): Promise<number> {
     if (this.task === undefined || this.task.length === 0) {
@@ -159,6 +176,14 @@ export class ExperienceLearnCommand extends ExperienceCommand {
     }
     const completed = isCompletedTask(content);
     const lesson = this.lesson?.trim();
+    const failureCauseProvided = this.failureCause !== undefined;
+    const failureCause = this.failureCause?.trim().toLowerCase();
+    if (completed && failureCauseProvided) {
+      this.context.stderr.write(
+        '--failure-cause is only supported with --allow-failure relabeling\n',
+      );
+      return 1;
+    }
     if (!completed && !this.allowFailure) {
       this.context.stderr.write(
         'task is not DONE with a completion timestamp; run task done first\n',
@@ -178,11 +203,37 @@ export class ExperienceLearnCommand extends ExperienceCommand {
         );
         return 1;
       }
+      if (
+        failureCauseProvided &&
+        (failureCause === undefined ||
+          failureCause.length === 0 ||
+          !FAILURE_CAUSE_SET.has(failureCause))
+      ) {
+        const cause =
+          failureCause === undefined || failureCause.length === 0 ? '<empty>' : failureCause;
+        this.context.stderr.write(
+          `unknown --failure-cause ${cause}; expected one of ${FAILURE_CAUSES.join(', ')}\n`,
+        );
+        return 1;
+      }
     }
-    const body =
-      completed || lesson === undefined
-        ? renderTaskExperience(this.task, content)
-        : renderTaskExperience(this.task, content, { lesson });
+    let body = renderTaskExperience(this.task, content);
+    if (!completed) {
+      const relabeledLesson = lesson;
+      if (relabeledLesson === undefined || relabeledLesson.length === 0) {
+        this.context.stderr.write(
+          'failed task learning requires --allow-failure and --lesson <reusable lesson>\n',
+        );
+        return 1;
+      }
+      body = renderTaskExperience(
+        this.task,
+        content,
+        failureCause === undefined
+          ? { lesson: relabeledLesson }
+          : { lesson: relabeledLesson, failureCause },
+      );
+    }
     const result = await this.experienceStore().add({
       workspace: this.workspace,
       title: this.title,
