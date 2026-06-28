@@ -99,9 +99,12 @@ const renderExperience = (methods: readonly Method[]): readonly string[] =>
 const recallOptions = (
   query: string | undefined,
   sourceKind: ExperienceSourceKind | undefined,
+  limit: number | undefined,
 ): RecallOptions => {
   const options: RecallOptions =
-    query === undefined || query.trim().length === 0 ? { limit: 3 } : { limit: 3, query };
+    query === undefined || query.trim().length === 0
+      ? { limit: limit ?? 3 }
+      : { limit: limit ?? 3, query };
   return sourceKind === undefined ? options : { ...options, sourceKind };
 };
 
@@ -123,6 +126,19 @@ const experienceSourceError = (raw: string | undefined): string => {
   const source = normalizeExperienceSource(raw);
   const rendered = source === undefined || source.length === 0 ? '<empty>' : source;
   return `unknown --experience-source ${rendered}; expected one of ${EXPERIENCE_SOURCE_KINDS.join(', ')}\n`;
+};
+
+const parseExperienceLimit = (raw: string | undefined): number | null | undefined => {
+  if (raw === undefined) return undefined;
+  const value = raw.trim();
+  if (!/^\d+$/u.test(value)) return null;
+  const parsed = Number.parseInt(value, 10);
+  return parsed > 0 ? parsed : null;
+};
+
+const experienceLimitError = (raw: string | undefined): string => {
+  const rendered = raw === undefined || raw.trim().length === 0 ? '<empty>' : raw.trim();
+  return `unknown --experience-limit ${rendered}; expected a positive integer\n`;
 };
 
 const optionsFor = (
@@ -193,11 +209,17 @@ export class WorkspaceContextCommand extends WorkspaceCommandOptions {
   query = Option.String('--query');
   experience = Option.String('--experience', defaultExperienceDir());
   experienceSource = Option.String('--experience-source');
+  experienceLimit = Option.String('--experience-limit');
 
   override async execute(): Promise<number> {
     const experienceSource = parseExperienceSource(this.experienceSource);
     if (experienceSource === null) {
       this.context.stderr.write(experienceSourceError(this.experienceSource));
+      return 2;
+    }
+    const experienceLimit = parseExperienceLimit(this.experienceLimit);
+    if (experienceLimit === null) {
+      this.context.stderr.write(experienceLimitError(this.experienceLimit));
       return 2;
     }
     const fileSystem = fs();
@@ -211,7 +233,7 @@ export class WorkspaceContextCommand extends WorkspaceCommandOptions {
     const experienceStore = new FsExperienceStore(fileSystem, systemClock, this.experience);
     const methods = await experienceStore.recall(
       this.name,
-      recallOptions(this.query ?? this.task, experienceSource),
+      recallOptions(this.query ?? this.task, experienceSource, experienceLimit),
     );
     this.context.stdout.write(
       renderBundle(

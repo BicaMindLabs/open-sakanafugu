@@ -1165,7 +1165,7 @@ describe('fugue CLI', () => {
       expect(called).toContain('fix redis cache expiration');
     });
 
-    it('can source-filter dispatch workspace experience before injection', async () => {
+    it('can source-filter and budget dispatch workspace experience before injection', async () => {
       await mkdir(join(experience, 'code'), { recursive: true });
       await writeFile(
         join(experience, 'code', 'manual-redis.md'),
@@ -1181,16 +1181,30 @@ describe('fugue CLI', () => {
         'utf8',
       );
       await writeFile(
-        join(experience, 'code', 'task-redis.md'),
+        join(experience, 'code', 'task-redis-old.md'),
         [
           '---',
           'workspace: code',
-          'title: Task redis',
+          'title: Task redis old',
           'created: 2',
           'sourceKind: task',
           'sourceRef: /tmp/TASK.md',
           '---',
-          'Task redis cache recipe.',
+          'Old task redis cache recipe.',
+        ].join('\n'),
+        'utf8',
+      );
+      await writeFile(
+        join(experience, 'code', 'task-redis-new.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Task redis new',
+          'created: 3',
+          'sourceKind: task',
+          'sourceRef: /tmp/TASK-new.md',
+          '---',
+          'New task redis cache recipe.',
         ].join('\n'),
         'utf8',
       );
@@ -1202,6 +1216,8 @@ describe('fugue CLI', () => {
           'code',
           '--experience-source',
           'TASK',
+          '--experience-limit',
+          '1',
           '--prompt',
           'fix redis cache expiration',
         ),
@@ -1212,15 +1228,26 @@ describe('fugue CLI', () => {
       const withoutWorkspace = await run(
         args('cc-x', '--experience-source', 'task', '--prompt', 'x'),
       );
+      const badLimit = await run(
+        args('cc-x', '--workspace', 'code', '--experience-limit', '0', '--prompt', 'x'),
+      );
+      const limitWithoutWorkspace = await run(
+        args('cc-x', '--experience-limit', '1', '--prompt', 'x'),
+      );
       const called = await readFile(fugueCcCalled, 'utf8');
 
       expect(dispatched.code).toBe(0);
-      expect(called).toContain('[experience] Task redis');
+      expect(called).toContain('[experience] Task redis new');
+      expect(called).not.toContain('[experience] Task redis old');
       expect(called).not.toContain('[experience] Manual redis');
       expect(invalid.code).toBe(2);
       expect(invalid.err).toContain('unknown --experience-source imported');
       expect(withoutWorkspace.code).toBe(2);
       expect(withoutWorkspace.err).toContain('--experience-source requires --workspace');
+      expect(badLimit.code).toBe(2);
+      expect(badLimit.err).toContain('unknown --experience-limit 0');
+      expect(limitWithoutWorkspace.code).toBe(2);
+      expect(limitWithoutWorkspace.err).toContain('--experience-limit requires --workspace');
     });
 
     it('rejects invalid harnesses and missing prompt sources', async () => {
@@ -4808,7 +4835,7 @@ describe('fugue CLI', () => {
       expect(context.out).not.toContain('[experience] Fast path');
     });
 
-    it('can source-filter workspace context experience before query ranking', async () => {
+    it('can source-filter and budget workspace context experience before query ranking', async () => {
       await writeFile(
         join(experience, 'code', 'manual-redis.md'),
         [
@@ -4823,16 +4850,30 @@ describe('fugue CLI', () => {
         'utf8',
       );
       await writeFile(
-        join(experience, 'code', 'task-redis.md'),
+        join(experience, 'code', 'task-redis-old.md'),
         [
           '---',
           'workspace: code',
-          'title: Task redis',
+          'title: Task redis old',
           'created: 4',
           'sourceKind: task',
           'sourceRef: /tmp/TASK.md',
           '---',
-          'Task redis cache recipe.',
+          'Old task redis cache recipe.',
+        ].join('\n'),
+        'utf8',
+      );
+      await writeFile(
+        join(experience, 'code', 'task-redis-new.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Task redis new',
+          'created: 5',
+          'sourceKind: task',
+          'sourceRef: /tmp/TASK-new.md',
+          '---',
+          'New task redis cache recipe.',
         ].join('\n'),
         'utf8',
       );
@@ -4846,6 +4887,8 @@ describe('fugue CLI', () => {
         experience,
         '--experience-source',
         'task',
+        '--experience-limit',
+        '1',
         'code',
         '--task',
         'fix redis cache expiration',
@@ -4872,14 +4915,28 @@ describe('fugue CLI', () => {
         '   ',
         'code',
       ]);
+      const badLimit = await run([
+        'workspace',
+        'context',
+        ...wsArgs(),
+        ...modelArgs(),
+        '--experience',
+        experience,
+        '--experience-limit',
+        'not-a-number',
+        'code',
+      ]);
 
       expect(context.code).toBe(0);
-      expect(context.out).toContain('[experience] Task redis');
+      expect(context.out).toContain('[experience] Task redis new');
+      expect(context.out).not.toContain('[experience] Task redis old');
       expect(context.out).not.toContain('[experience] Manual redis');
       expect(unknown.code).toBe(2);
       expect(unknown.err).toContain('unknown --experience-source imported');
       expect(empty.code).toBe(2);
       expect(empty.err).toContain('unknown --experience-source <empty>');
+      expect(badLimit.code).toBe(2);
+      expect(badLimit.err).toContain('unknown --experience-limit not-a-number');
     });
   });
 

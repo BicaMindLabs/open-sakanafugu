@@ -54,9 +54,12 @@ const splitCsv = (raw: string): readonly string[] =>
 const recallOptions = (
   query: string | undefined,
   sourceKind: ExperienceSourceKind | undefined,
+  limit: number | undefined,
 ): RecallOptions => {
   const options: RecallOptions =
-    query === undefined || query.trim().length === 0 ? { limit: 3 } : { limit: 3, query };
+    query === undefined || query.trim().length === 0
+      ? { limit: limit ?? 3 }
+      : { limit: limit ?? 3, query };
   return sourceKind === undefined ? options : { ...options, sourceKind };
 };
 
@@ -78,6 +81,19 @@ const experienceSourceError = (raw: string | undefined): string => {
   const source = normalizeExperienceSource(raw);
   const rendered = source === undefined || source.length === 0 ? '<empty>' : source;
   return `unknown --experience-source ${rendered}; expected one of ${EXPERIENCE_SOURCE_KINDS.join(', ')}\n`;
+};
+
+const parseExperienceLimit = (raw: string | undefined): number | null | undefined => {
+  if (raw === undefined) return undefined;
+  const value = raw.trim();
+  if (!/^\d+$/u.test(value)) return null;
+  const parsed = Number.parseInt(value, 10);
+  return parsed > 0 ? parsed : null;
+};
+
+const experienceLimitError = (raw: string | undefined): string => {
+  const rendered = raw === undefined || raw.trim().length === 0 ? '<empty>' : raw.trim();
+  return `unknown --experience-limit ${rendered}; expected a positive integer\n`;
 };
 
 const parseSet = (raw: string): readonly [string, string] => {
@@ -223,6 +239,7 @@ export class DispatchCommand extends Command {
   workspace = Option.String('--workspace');
   experienceQuery = Option.String('--experience-query');
   experienceSource = Option.String('--experience-source');
+  experienceLimit = Option.String('--experience-limit');
   task = Option.String('--task');
   taskType = Option.String('--task-type');
   skills = Option.String('--skills');
@@ -256,12 +273,21 @@ export class DispatchCommand extends Command {
       this.context.stderr.write(experienceSourceError(this.experienceSource));
       return 2;
     }
+    const experienceLimit = parseExperienceLimit(this.experienceLimit);
+    if (experienceLimit === null) {
+      this.context.stderr.write(experienceLimitError(this.experienceLimit));
+      return 2;
+    }
     if (experienceSource !== undefined && (this.workspace === undefined || this.workspace === '')) {
       this.context.stderr.write('--experience-source requires --workspace\n');
       return 2;
     }
+    if (experienceLimit !== undefined && (this.workspace === undefined || this.workspace === '')) {
+      this.context.stderr.write('--experience-limit requires --workspace\n');
+      return 2;
+    }
 
-    const prompt = await this.prompt(experienceSource);
+    const prompt = await this.prompt(experienceSource, experienceLimit);
     if (prompt === null) return 2;
     const timeoutMs = parseTimeoutMs(this.timeoutMs);
     if (timeoutMs === null) {
@@ -370,7 +396,10 @@ export class DispatchCommand extends Command {
     }
   }
 
-  private async prompt(experienceSource: ExperienceSourceKind | undefined): Promise<string | null> {
+  private async prompt(
+    experienceSource: ExperienceSourceKind | undefined,
+    experienceLimit: number | undefined,
+  ): Promise<string | null> {
     const body = await this.promptBody();
     if (body === null) return null;
     let prefix = '';
@@ -381,7 +410,12 @@ export class DispatchCommand extends Command {
     }
     if (this.workspace !== undefined && this.workspace.length > 0) {
       const query = this.experienceQuery ?? (body.trim().length > 0 ? body : undefined);
-      const context = await this.workspaceContext(this.workspace, query, experienceSource);
+      const context = await this.workspaceContext(
+        this.workspace,
+        query,
+        experienceSource,
+        experienceLimit,
+      );
       if (context === null) return null;
       prefix += context;
     }
@@ -414,6 +448,7 @@ export class DispatchCommand extends Command {
     name: string,
     query: string | undefined,
     experienceSource: ExperienceSourceKind | undefined,
+    experienceLimit: number | undefined,
   ): Promise<string | null> {
     const store = new FsWorkspaceStore(this.fs, this.workspaces);
     const workspace = await store.get(name);
@@ -423,7 +458,7 @@ export class DispatchCommand extends Command {
     }
     const methods = await new FsExperienceStore(this.fs, systemClock, this.experience).recall(
       name,
-      recallOptions(query, experienceSource),
+      recallOptions(query, experienceSource, experienceLimit),
     );
     return renderBundle(
       assembleContext({
