@@ -9,10 +9,11 @@ import {
   makeTempDir,
   run,
 } from "./fuguectl-testlib.mjs";
+import { repoRoot as resolveRepoRoot } from "./fuguectl-node-bridge.mjs";
 
 const suite = createSuite("fuguectl-plan");
 const plan = join(here, "fuguectl-plan");
-const repoRoot = resolve(here, "..", "..");
+const repoRoot = resolveRepoRoot();
 const realEngineCli = resolve(repoRoot, "engine", "dist", "cli", "main.js");
 if (!existsSync(realEngineCli)) {
   const built = run("npm", ["run", "build:engine"], {
