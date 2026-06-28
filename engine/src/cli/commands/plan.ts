@@ -1,4 +1,5 @@
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { join as joinPath } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
@@ -66,8 +67,10 @@ interface PlanTarget {
   readonly agent: string;
 }
 
-type PlanArtifactStatus = 'written' | 'captured' | 'missing';
-type PlanSummaryStatus = 'ok' | 'partial' | 'failed';
+type FinalPlanArtifactStatus = 'written' | 'captured' | 'missing';
+type PlanArtifactStatus = 'pending' | FinalPlanArtifactStatus;
+type PlanSummaryStatus = 'running' | 'ok' | 'partial' | 'failed';
+type PlanSummaryEntryStatus = 'running' | 'ok' | 'failed';
 
 interface PlanRunResult {
   readonly harness: HarnessName;
@@ -75,15 +78,20 @@ interface PlanRunResult {
   readonly label: string;
   readonly outfile: string;
   readonly result: Awaited<ReturnType<Harness['dispatch']>>;
-  readonly artifact: PlanArtifactStatus;
+  readonly artifact: FinalPlanArtifactStatus;
   readonly elapsedMs: number;
+}
+
+interface PlanRequest extends PlanTarget {
+  readonly label: string;
+  readonly outfile: string;
 }
 
 interface PlanSummaryEntry {
   readonly label: string;
   readonly harness: HarnessName;
   readonly target: string;
-  readonly status: 'ok' | 'failed';
+  readonly status: PlanSummaryEntryStatus;
   readonly artifactStatus: PlanArtifactStatus;
   readonly artifactPath: string;
   readonly durationMs: number;
@@ -173,7 +181,7 @@ const promptFor = (model: string, goal: string, outfile: string): string =>
 const ensurePlanArtifact = async (
   outfile: string,
   harnessOutput: string,
-): Promise<PlanArtifactStatus> => {
+): Promise<FinalPlanArtifactStatus> => {
   try {
     const existing = await readFile(outfile, 'utf8');
     if (existing.trim().length > 0) return 'written';
@@ -185,6 +193,12 @@ const ensurePlanArtifact = async (
   if (captured.length === 0) return 'missing';
   await writeFile(outfile, `${captured}\n`, 'utf8');
   return 'captured';
+};
+
+const writePlanSummaryFile = async (summaryPath: string, summary: PlanSummary): Promise<void> => {
+  const tmpPath = `${summaryPath}.${String(process.pid)}.${randomUUID()}.tmp`;
+  await writeFile(tmpPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+  await rename(tmpPath, summaryPath);
 };
 
 const removePlanArtifact = async (outfile: string): Promise<void> => {
@@ -272,7 +286,7 @@ export class PlanCommand extends Command {
       return 2;
     }
     const outDir = this.out ?? defaultPlanOut();
-    const requests = targets.map((target) => ({
+    const requests: readonly PlanRequest[] = targets.map((target) => ({
       ...target,
       label: targetLabel(target),
       outfile: joinPath(outDir, planFilename(targetLabel(target))),
@@ -285,6 +299,7 @@ export class PlanCommand extends Command {
       return 2;
     }
     await mkdir(outDir, { recursive: true });
+    await this.writeRunningSummary(requests);
 
     this.context.stdout.write(
       `── planning panel: goal decomposition (${this.harness}) → ${requests
@@ -386,7 +401,7 @@ export class PlanCommand extends Command {
     const allSucceeded = failed === 0;
     const status: PlanSummaryStatus = allSucceeded ? 'ok' : succeeded > 0 ? 'partial' : 'failed';
     const exitCode: 0 | 1 = allSucceeded || (this.allowPartial && succeeded > 0) ? 0 : 1;
-    const summaryPath = joinPath(this.out ?? defaultPlanOut(), 'summary.json');
+    const summaryPath = this.summaryPath();
     const summary: PlanSummary = {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
@@ -414,8 +429,41 @@ export class PlanCommand extends Command {
         };
       }),
     };
-    await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+    await writePlanSummaryFile(summaryPath, summary);
     return { ...summary, path: summaryPath };
+  }
+
+  private async writeRunningSummary(
+    requests: readonly PlanRequest[],
+  ): Promise<PlanSummary & { readonly path: string }> {
+    const summaryPath = this.summaryPath();
+    const summary: PlanSummary = {
+      schemaVersion: 1,
+      generatedAt: new Date().toISOString(),
+      status: 'running',
+      exitCode: 1,
+      allowPartial: this.allowPartial,
+      succeeded: 0,
+      available: 0,
+      failed: 0,
+      results: requests.map((request): PlanSummaryEntry => {
+        return {
+          label: request.label,
+          harness: request.harness,
+          target: request.agent,
+          status: 'running',
+          artifactStatus: 'pending',
+          artifactPath: request.outfile,
+          durationMs: 0,
+        };
+      }),
+    };
+    await writePlanSummaryFile(summaryPath, summary);
+    return { ...summary, path: summaryPath };
+  }
+
+  private summaryPath(): string {
+    return joinPath(this.out ?? defaultPlanOut(), 'summary.json');
   }
 
   private appendTaskLog(message: string): Promise<void> {

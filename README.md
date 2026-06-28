@@ -270,7 +270,9 @@ Add `--allow-partial` during exploratory planning when a slow planner should not
 discard successfully completed plans from the others.
 When `--out` is set, planning also writes `<out>/summary.json` with top-level
 `status`/`exitCode`/`allowPartial`/`succeeded`/`available`/`failed` plus each
-planner's artifact status, duration, and error metadata.
+planner's artifact status, duration, and error metadata. The summary is written
+at dispatch start as `status=running` with per-planner `artifactStatus=pending`,
+then atomically replaced by the final `ok|partial|failed` result.
 
 `runtime check` also compares the repo's `orchestration/fuguectl/` bundle with
 the installed workflow bundle. Add `--strict` when automation should fail on

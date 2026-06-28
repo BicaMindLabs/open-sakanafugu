@@ -2404,6 +2404,86 @@ describe('fugue CLI', () => {
       expect(taskLog).toContain(`out=${join(out, 'cc-a.plan.md')}`);
     });
 
+    it('writes a running summary before planning dispatches settle', async () => {
+      await mkdir(out, { recursive: true });
+      await writeFile(join(out, 'summary.json'), '{"status":"stale"}\n', 'utf8');
+      await writeFile(
+        bin,
+        [
+          '#!/usr/bin/env bash',
+          `echo "$2" >> "${calls}"`,
+          'cat >/dev/null',
+          'sleep 0.5',
+          "printf '# slow plan\\n'",
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      await chmod(bin, 0o755);
+
+      const plannedPromise = run([
+        'plan',
+        'keep a live planning manifest',
+        '--models',
+        'cc-slow',
+        '--out',
+        out,
+        '--bin',
+        bin,
+      ]);
+
+      await waitFor(async () => {
+        const text = await readFile(join(out, 'summary.json'), 'utf8');
+        return text.includes('"status": "running"');
+      });
+      const runningSummary = JSON.parse(await readFile(join(out, 'summary.json'), 'utf8')) as {
+        readonly status: string;
+        readonly exitCode: number;
+        readonly succeeded: number;
+        readonly available: number;
+        readonly failed: number;
+        readonly results: readonly {
+          readonly label: string;
+          readonly status: string;
+          readonly artifactStatus: string;
+          readonly artifactPath: string;
+        }[];
+      };
+
+      expect(runningSummary).toMatchObject({
+        status: 'running',
+        exitCode: 1,
+        succeeded: 0,
+        available: 0,
+        failed: 0,
+      });
+      expect(runningSummary.results[0]).toMatchObject({
+        label: 'cc-slow',
+        status: 'running',
+        artifactStatus: 'pending',
+        artifactPath: join(out, 'cc-slow.plan.md'),
+      });
+
+      const planned = await plannedPromise;
+      const finalSummary = JSON.parse(await readFile(join(out, 'summary.json'), 'utf8')) as {
+        readonly status: string;
+        readonly exitCode: number;
+        readonly results: readonly {
+          readonly label: string;
+          readonly status: string;
+          readonly artifactStatus: string;
+        }[];
+      };
+
+      expect(planned.code).toBe(0);
+      expect(finalSummary).toMatchObject({ status: 'ok', exitCode: 0 });
+      expect(finalSummary.results[0]).toMatchObject({
+        label: 'cc-slow',
+        status: 'ok',
+        artifactStatus: 'captured',
+      });
+    });
+
     it('dispatches planning through the selected lite harness', async () => {
       process.env.FUGUE_CODEX = codexBin;
       try {

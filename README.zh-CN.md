@@ -231,6 +231,7 @@ Antigravity 场景下，`--harness agy` 会走 `agy --prompt`；target 为
 探索式规划时可以加 `--allow-partial`：某个 planner 慢或失败时，其他已经成功完成并写出的计划仍然可以进入综合。
 设置 `--out` 时，planning 还会写 `<out>/summary.json`，里面包含顶层
 `status`/`exitCode`/`allowPartial`/`succeeded`/`available`/`failed`，以及每个 planner 的 artifact 状态、耗时和错误元数据。
+这个 summary 会在 dispatch 启动时先写成 `status=running`、每个 planner 为 `artifactStatus=pending`，结束后再原子替换为最终的 `ok|partial|failed` 结果，避免自动化误读上一轮旧摘要。
 
 `runtime check` 也会比较仓库里的 `orchestration/fuguectl/` bundle 和本机已安装的 workflow bundle；自动化需要把安装 skill 漂移视为失败时，加 `--strict`：
 `fuguectl runtime check --strict --skill ~/.claude/skills/fugunano/SKILL.md --repo-skill orchestration/fuguectl/SKILL.md`。

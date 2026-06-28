@@ -34,7 +34,7 @@ The operator reads the task, splits it into parallelizable subtasks, and picks l
 - English / algorithms / refactoring -> Codex or a strong-reasoning profile (deepseek/minimax)
 - Math and logic -> stepfun
 - One subtask = one independent, copy-ready prompt (**no broadcasting a single generic prompt to everyone**).
-- `fuguectl plan ... --out <dir>` writes `<dir>/summary.json` for automation, with top-level `status`/`exitCode`/`allowPartial`/`succeeded`/`available`/`failed` and per-planner artifact status, duration, and error metadata.
+- `fuguectl plan ... --out <dir>` writes `<dir>/summary.json` for automation, with top-level `status`/`exitCode`/`allowPartial`/`succeeded`/`available`/`failed` and per-planner artifact status, duration, and error metadata. It first writes `status=running` with per-planner `artifactStatus=pending`, then atomically replaces that with the final `ok|partial|failed` summary.
 
 ### Phase 2 — Parallel Implementation + Cache + join barrier (Implementers)
 
