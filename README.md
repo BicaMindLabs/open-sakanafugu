@@ -9,8 +9,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Runtime-Node%20%E2%89%A518.18-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js >= 18.18" />
   <img src="https://img.shields.io/badge/Engine-TypeScript-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript engine" />
-  <img src="https://img.shields.io/badge/fuguectl-23%20suites-7c3aed?style=for-the-badge" alt="23 fuguectl test suites" />
-  <img src="https://img.shields.io/badge/assertions-324-brightgreen?style=for-the-badge" alt="324 fuguectl assertions" />
+  <img src="https://img.shields.io/badge/fuguectl-24%20suites-7c3aed?style=for-the-badge" alt="24 fuguectl test suites" />
+  <img src="https://img.shields.io/badge/assertions-328-brightgreen?style=for-the-badge" alt="328 fuguectl assertions" />
   <a href="https://github.com/BicaMindLabs/FuguNano/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/BicaMindLabs/FuguNano/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status" /></a>
   <img src="https://img.shields.io/badge/license-Apache--2.0-yellowgreen?style=for-the-badge" alt="Apache-2.0 license" />
 </p>
@@ -182,11 +182,11 @@ so final status updates do not clobber concurrent audit lines.
 ## Command Surface
 
 `orchestration/fuguectl/fuguectl` is the production operator entry point. It has
-22 subcommands and 23 test suites.
+23 subcommands and 24 test suites.
 
 | Area                   | Commands                                                                                                                                                                                                             |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Setup and recon        | `fuguectl doctor`, `fuguectl init --dry-run\|--write`, `fuguectl preflight --harness fugue-cc\|codex\|opencode\|agy\|all`, `fuguectl fleet status\|up\|down`                                                         |
+| Setup and recon        | `fuguectl doctor`, `fuguectl init --dry-run\|--write`, `fuguectl version`, `fuguectl preflight --harness fugue-cc\|codex\|opencode\|agy\|all`, `fuguectl fleet status\|up\|down`                                     |
 | Planning               | `fuguectl task new\|log\|done`, `fuguectl template <name>`, `fuguectl plan "<goal>" [--harness h] [--models a,b] [--out <dir>] [--timeout-ms n] [--harness-arg x] [--task f]`, `fuguectl goal template\|show\|check` |
 | Routing and context    | `fuguectl allocate <type>`, `fuguectl workspace list\|show\|model\|context`, `fuguectl agents template\|validate\|list\|resolve`, `fuguectl skills index\|list\|match\|show\|inject\|validate\|forge`                |
 | Dispatch and gather    | `fuguectl dispatch <target>`, `fuguectl cache init\|put\|fail\|barrier\|collect\|resume`                                                                                                                             |

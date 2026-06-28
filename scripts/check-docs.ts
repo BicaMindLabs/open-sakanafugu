@@ -15,6 +15,7 @@ const agentTeamDoc = path("docs", "AGENT_TEAM.md");
 const changelog = path("CHANGELOG.md");
 const workflowDoc = path("docs", "WORKFLOW.md");
 const agentRuntimeDoc = path("docs", "AGENT_RUNTIME.md");
+const engineCommandDir = path("engine", "src", "cli", "commands");
 const fugueDir = path("orchestration", "fuguectl");
 const planWrapper = path("orchestration", "fuguectl", "fuguectl-plan");
 const workflowSkill = path("orchestration", "fuguectl", "SKILL.md");
@@ -51,6 +52,7 @@ requireFile(agentTeamDoc, `check-docs: cannot find ${agentTeamDoc}`);
 requireFile(changelog, `check-docs: cannot find ${changelog}`);
 requireFile(workflowDoc, `check-docs: cannot find ${workflowDoc}`);
 requireFile(agentRuntimeDoc, `check-docs: cannot find ${agentRuntimeDoc}`);
+requireFile(engineCommandDir, `check-docs: cannot find ${engineCommandDir}`);
 requireFile(planWrapper, `check-docs: cannot find ${planWrapper}`);
 requireFile(workflowSkill, `check-docs: cannot find ${workflowSkill}`);
 requireFile(harnessPort, `check-docs: cannot find ${harnessPort}`);
@@ -69,10 +71,12 @@ const bashSubcommands = [...driver.matchAll(/^[ \t]+([a-z][a-z0-9|_-]*)\)/gmu)]
       command.length > 0 && command !== "help" && command !== "selftest",
   );
 
-const nodeSubcommands = [
-  ...driver.matchAll(/\["([a-z][a-z0-9_-]*)",\s*"[^"]+"\]/gu),
-]
-  .map((match) => match[1] ?? "")
+const routedCommandEntries = [
+  ...driver.matchAll(/\["([a-z][a-z0-9_-]*)",\s*"([a-z][a-z0-9_-]*)"\]/gu),
+].map((match) => [match[1] ?? "", match[2] ?? ""]);
+
+const nodeSubcommands = routedCommandEntries
+  .map(([command]) => command)
   .filter((command) => command.length > 0 && command !== "round-summary");
 
 const publicInlineSubcommands = driver.includes('subcommand === "selftest"')
@@ -104,6 +108,49 @@ const commandTests = new Set(
     )
     .filter((command) => command.length > 0),
 );
+const engineCommandRoots = [
+  ...new Set(
+    readdirSync(engineCommandDir)
+      .filter((file) => file.endsWith(".ts"))
+      .flatMap((file) =>
+        [
+          ...text(join(engineCommandDir, file)).matchAll(
+            /static\s+override\s+paths\s*=\s*\[\s*\[\s*'([^']+)'/gu,
+          ),
+        ].map((match) => match[1] ?? ""),
+      )
+      .filter((command) => command.length > 0),
+  ),
+].sort();
+const routedEngineCommands = [
+  ...new Set(
+    routedCommandEntries
+      .map(([, engineCommand]) => engineCommand)
+      .filter((command) => command.length > 0),
+  ),
+].sort();
+const unroutedEngineCommands = engineCommandRoots.filter(
+  (command) => !routedEngineCommands.includes(command),
+);
+const unknownRoutedEngineCommands = routedEngineCommands.filter(
+  (command) => !engineCommandRoots.includes(command),
+);
+
+if (unroutedEngineCommands.length === 0)
+  ok(
+    `fuguectl commandMap exposes ${String(engineCommandRoots.length)} engine command roots`,
+  );
+else
+  no(
+    `engine command root(s) missing from fuguectl commandMap: ${unroutedEngineCommands.join(", ")}`,
+  );
+
+if (unknownRoutedEngineCommands.length === 0)
+  ok("fuguectl commandMap has no unknown engine command targets");
+else
+  no(
+    `fuguectl commandMap target(s) missing engine command root: ${unknownRoutedEngineCommands.join(", ")}`,
+  );
 const wrapperRequiredSubcommands = routedSubcommands.filter(
   (command) => !wrapperExemptCommands.has(command),
 );

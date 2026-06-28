@@ -11,6 +11,7 @@ const help = `fuguectl — fugue workflow control-plane entrypoint.
 
   fuguectl doctor              env recon + workflow recommendation
   fuguectl init [--dry-run|--write]  first-run readiness + local scaffold hints
+  fuguectl version             print engine version
   fuguectl fleet status|up [--pty]|down  bring up/view/stop fugue-cc fleet
   fuguectl preflight [--harness fugue-cc|codex|opencode|agy|all] [--model m|--target m] [cfg]  pre-run go/no-go gate
   fuguectl task new|log|done   TASK file scaffold/log/finalize
@@ -71,6 +72,7 @@ const [subcommand = "help", ...rest] = args;
 const commandMap = new Map([
   ["doctor", "doctor"],
   ["init", "init"],
+  ["version", "version"],
   ["preflight", "preflight"],
   ["fleet", "fleet"],
   ["task", "task"],
@@ -109,7 +111,7 @@ if (subcommand === "help" || subcommand === "-h" || subcommand === "--help") {
   runEngine([commandMap.get(subcommand), ...rest]);
 } else {
   console.error(
-    `fuguectl: unknown subcommand '${subcommand}' (doctor|init|fleet|preflight|task|template|dispatch|cache|integrate|allocate|skills|workspace|agents|experience|plan|goal|loop|run|summary|self-harness|runtime|selftest|help)`,
+    `fuguectl: unknown subcommand '${subcommand}' (doctor|init|version|fleet|preflight|task|template|dispatch|cache|integrate|allocate|skills|workspace|agents|experience|plan|goal|loop|run|summary|self-harness|runtime|selftest|help)`,
   );
   console.error("try: fuguectl help or fuguectl help quickstart");
   process.exit(2);
