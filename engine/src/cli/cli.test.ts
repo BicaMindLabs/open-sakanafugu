@@ -2046,6 +2046,7 @@ describe('fugue CLI', () => {
       expect(called).toContain('cc-b');
       expect(planned.out).toContain('cc-a.plan.md');
       expect(planned.out).toContain('captured stdout to');
+      expect(planned.out).toContain('successful plan artifacts available for synthesis');
       expect(planned.out).toContain('(took ');
       expect(prompt).toContain('build a login feature');
       expect(prompt).toContain(`write to ${join(out, 'cc-a.plan.md')}`);
@@ -2225,6 +2226,9 @@ describe('fugue CLI', () => {
 
       expect(missing.code).toBe(1);
       expect(missing.out).toContain('dispatch failed');
+      expect(missing.out).toContain('no plan artifacts were written');
+      expect(missing.out).not.toContain('reads these plans');
+      expect(missing.out).not.toContain('cc-missing.plan.md');
       expect(missing.out).toContain('(took ');
       expect(taskLog).toContain('plan → cc-missing [fugue-cc] (status=started');
       expect(taskLog).toContain('plan → cc-missing [fugue-cc] (status=failed');
@@ -2255,6 +2259,8 @@ describe('fugue CLI', () => {
 
       expect(planned.code).toBe(1);
       expect(planned.out).toContain('produced no plan artifact');
+      expect(planned.out).toContain('no plan artifacts were written');
+      expect(planned.out).not.toContain('reads these plans');
       expect(planned.out).toContain('(took ');
       expect(taskLog).toContain('plan → cc-silent [fugue-cc] (status=started');
       expect(taskLog).toContain('plan → cc-silent [fugue-cc] (status=missing');

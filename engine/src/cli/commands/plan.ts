@@ -184,11 +184,18 @@ export class PlanCommand extends Command {
       }
     }
 
-    lines.push(
-      '',
-      'collect: after each model finishes writing, the planner reads these plans and synthesizes the final plan:',
+    const successfulArtifacts = results.filter(
+      (entry) => isOk(entry.result) && entry.artifact !== null,
     );
-    for (const entry of requests) lines.push(`  ${entry.outfile}`);
+    if (successfulArtifacts.length > 0) {
+      lines.push('', 'collect: successful plan artifacts available for synthesis:');
+      for (const entry of successfulArtifacts) lines.push(`  ${entry.outfile}`);
+    } else {
+      lines.push(
+        '',
+        'collect: no plan artifacts were written; inspect failures above and TASK log.',
+      );
+    }
     this.context.stdout.write(`${lines.join('\n')}\n`);
     return results.every((entry) => isOk(entry.result) && entry.artifact !== null) ? 0 : 1;
   }
