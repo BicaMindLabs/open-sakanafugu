@@ -1780,6 +1780,91 @@ describe('fugue CLI', () => {
       expect(secretRef.err).toContain('sourceRef contains a suspected key');
     });
 
+    it('prints machine-readable recall JSON with match evidence', async () => {
+      await mkdir(join(store, 'code'), { recursive: true });
+      await writeFile(
+        join(store, 'code', 'browser-note.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Browser note',
+          'created: 123',
+          'sourceKind: manual',
+          'sourceRef: browser note trust=untrusted',
+          'trustKind: untrusted',
+          'supersedes: old-route',
+          '---',
+          'Failure cause:',
+          'retrieval',
+          '',
+          'Use dispatch provenance anchors.',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const recall = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--query',
+        'dispatch provenance',
+        '--trust',
+        'untrusted',
+        '--json',
+        '--explain',
+      ]);
+      const empty = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--query',
+        'unmatched query',
+        '--json',
+      ]);
+      type RecallJson = Array<{
+        readonly workspace: string;
+        readonly title: string;
+        readonly slug: string;
+        readonly created: number;
+        readonly sourceKind: string;
+        readonly sourceRef?: string;
+        readonly trustKind: string;
+        readonly supersedes?: readonly string[];
+        readonly failureCause?: string;
+        readonly score: number;
+        readonly matchedTerms: readonly string[];
+        readonly body: string;
+      }>;
+      const entries = JSON.parse(recall.out) as RecallJson;
+      const emptyEntries = JSON.parse(empty.out) as RecallJson;
+
+      expect(recall.code).toBe(0);
+      expect(recall.out).not.toContain('[experience:explain]');
+      expect(recall.out).not.toContain('[experience] Browser note');
+      expect(entries).toEqual([
+        {
+          workspace: 'code',
+          title: 'Browser note',
+          slug: 'browser-note',
+          created: 123,
+          sourceKind: 'manual',
+          sourceRef: 'browser note trust=untrusted',
+          trustKind: 'untrusted',
+          supersedes: ['old-route'],
+          failureCause: 'retrieval',
+          score: 2,
+          matchedTerms: ['dispatch', 'provenance'],
+          body: ['Failure cause:', 'retrieval', '', 'Use dispatch provenance anchors.'].join('\n'),
+        },
+      ]);
+      expect(empty.code).toBe(0);
+      expect(emptyEntries).toEqual([]);
+    });
+
     it('marks superseded experience and hides it from recall by default', async () => {
       await run(['experience', 'add', '--store', store, 'code', 'old route'], {
         stdin: Readable.from(['Use the old dispatch route with obsolete evidence.']),

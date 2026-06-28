@@ -173,6 +173,7 @@ stdout 或 durable artifact。`task new` 使用独占创建避免并发 operator
 FuguNano 现在把 memory 当成一个小型的 write-manage-read loop，而不是把日志原样塞回上下文。完成的 TASK 可以蒸馏成 reusable method；终态失败或 blocked 的 TASK 默认仍会被拒绝，只有 operator 明确提供 `--allow-failure --lesson` 时才会作为“重标注失败经验”进入 memory。重标注失败还可以携带受控的 `--failure-cause` 标签（`planning`、`context`、`retrieval`、`tooling`、`implementation`、`verification`、`integration`、`runtime`、`policy`、`other`），recall 时可以先按失败原因过滤，再做 query ranking。
 每条记录也会带轻量 provenance：`experience add` 写成 `source=manual`，`experience learn --task <TASK.md>` 写成 `source=task:<TASK.md>`。导入/手写记录还可以在写入时加 `experience add --source-ref <url|path|note>`，让浏览器笔记、论文摘要、模型输出导入在之后 recall 时仍然看得到原始来源。需要把手写经验和 TASK 蒸馏经验分开路由时，用 `--source manual|task`；需要只按某一个写入时来源召回时，用 `--source-ref <url|path|note>` 做精确来源路由。这些是 operator 侧的路由/审计控制，不是完整 authority 或 poisoning defense。记录还会带 `trustKind=trusted|untrusted`：从浏览器、模型输出或其它未经复核通道导入的内容可以用 `experience add --trust untrusted` 标记；operator 手写经验和 TASK 审计学习默认是 `trusted`。当一条新经验明确替换旧经验时，用 `--supersedes <old-slug>` 写入；recall 和自动 prompt 注入默认会隐藏被替换的旧记录，避免过时/冲突经验和新修正一起回放。需要审计旧记录时，用 `--include-superseded` 显式打开。需要审计“为什么选中这条经验”时，加 `--explain`；输出会给出分数、命中的 query 词、存储的 failure cause、当前启用的 cause filter、source filter、source-ref filter、trust filter、superseded filter、这条经验的来源和 stored trust。
 需要更保守时，可以在带 query 的手动 recall 上加 `--min-score <n>`；低于这个分数的弱匹配会从本次 recall 结果里被丢掉。如果模型、依赖、API 或工作流刚刚升级，可以在本次手动 recall 上加 `--max-age-days <n>`；旧记录仍然保留在磁盘上，但检索会忽略超出 freshness window 的经验，`--explain` 也会打印当前启用的 age gate。
+需要把“召回了什么、为什么召回”单独拿出来评估时，加 `--json`。它会在同一套过滤/排序之后输出稳定 JSON 数组，字段包括 `workspace`、`title`、`slug`、`created`、`sourceKind`、可选 `sourceRef`、`trustKind`、可选 `supersedes`、可选 `failureCause`、`score`、`matchedTerms` 和 `body`。这个输出用于 precision-aware memory retrieval 审计，可以独立于下游 LLM 最终回答来检查召回质量；`--json --explain` 仍只输出 JSON，避免把人工审计行混进机器可读流里。
 自动注入 Memory 时，可以给 `workspace context` 或 `dispatch --workspace`
 加 `--experience-source manual|task`；它会在 query ranking 和 prompt
 assembly 之前套用同一条来源路由。需要让自动注入只回放某一个精确来源时，加 `--experience-source-ref <url|path|note>`。需要更小 prompt 预算时，在同一条自动注入路径上加 `--experience-limit <n>`，限制注入的经验条数。自动注入默认只回放 trusted 经验；只有在明确要检查或沙盒使用 untrusted memory 时，才加 `--experience-trust all` 放宽。需要让自动注入只看近期经验时，加 `--experience-max-age-days <n>`。
@@ -208,6 +209,11 @@ fuguectl experience recall code \
   --include-superseded \
   --explain
 
+fuguectl experience recall code \
+  --query "dispatch output" \
+  --min-score 2 \
+  --json
+
 fuguectl workspace context code \
   --experience-source task \
   --experience-source-ref TASK.md \
@@ -217,7 +223,7 @@ fuguectl workspace context code \
   --task "fix dispatch output"
 ```
 
-这个方向借鉴的是 Agent Workflow Memory、AgentHER、MemRL、agent-native memory、stale/evolving memory、conflict-aware memory、确定性 freshness/conflict resolution、budget-tier routing、token economics、store routing、workflow provenance、execution provenance、evidence tracing 与 memory poisoning 研究里的共同结论：不要回放所有 trace，不要让模型自己猜哪条冲突记忆才是当前版本，也不要在 memory 进入 prompt 后隐藏它的来源链路。FuguNano 当前这一步刻意保持朴素：按 workspace、来源类别、精确写入时 source ref、trust 标记、显式 supersession、失败模式、检索证据、效用门槛、freshness window 和显式 recall cap 来选择；然后把被注入的经验渲染成带 source/trust metadata 的 evidence block。学习式 budget-tier routing、语义冲突裁决、更丰富的 provenance graph 与形式化 authority elevation 是后续方向。新补的参考包括 [MemConflict](https://arxiv.org/abs/2605.20926)、[Don't Ask the LLM to Track Freshness](https://arxiv.org/abs/2606.01435)、[Agent-Native Memory Systems](https://arxiv.org/abs/2606.24775)、[Origin-Bound Memory Authority](https://arxiv.org/abs/2606.24322)、[From Untrusted Input to Trusted Memory](https://arxiv.org/abs/2606.04329)、[From Agent Traces to Trust](https://arxiv.org/abs/2606.04990)、[LLM Agents for Interactive Workflow Provenance](https://arxiv.org/abs/2509.13978)、[Distilling Feedback into Memory-as-a-Tool](https://arxiv.org/abs/2601.05960) 和 [Structured Belief State](https://arxiv.org/abs/2605.11325)。
+这个方向借鉴的是 Agent Workflow Memory、AgentHER、MemRL、agent-native memory、stale/evolving memory、conflict-aware memory、确定性 freshness/conflict resolution、budget-tier routing、token economics、store routing、workflow provenance、execution provenance、evidence tracing 与 memory poisoning 研究里的共同结论：不要回放所有 trace，不要让模型自己猜哪条冲突记忆才是当前版本，也不要在 memory 进入 prompt 后隐藏它的来源链路。FuguNano 当前这一步刻意保持朴素：按 workspace、来源类别、精确写入时 source ref、trust 标记、显式 supersession、失败模式、检索证据、效用门槛、freshness window 和显式 recall cap 来选择；把 recall 集合暴露成 JSON，方便独立做 retrieval-precision 审计；然后把被注入的经验渲染成带 source/trust metadata 的 evidence block。学习式 budget-tier routing、语义冲突裁决、更丰富的 provenance graph 与形式化 authority elevation 是后续方向。新补的参考包括 [MemConflict](https://arxiv.org/abs/2605.20926)、[Don't Ask the LLM to Track Freshness](https://arxiv.org/abs/2606.01435)、[Agent-Native Memory Systems](https://arxiv.org/abs/2606.24775)、[Origin-Bound Memory Authority](https://arxiv.org/abs/2606.24322)、[From Untrusted Input to Trusted Memory](https://arxiv.org/abs/2606.04329)、[From Agent Traces to Trust](https://arxiv.org/abs/2606.04990)、[LLM Agents for Interactive Workflow Provenance](https://arxiv.org/abs/2509.13978)、[Distilling Feedback into Memory-as-a-Tool](https://arxiv.org/abs/2601.05960) 和 [Structured Belief State](https://arxiv.org/abs/2605.11325)。
 
 ## TypeScript Engine
 
@@ -250,7 +256,7 @@ fugue template <name> --dir <templates> [--set KEY=VALUE ...]
 fugue workspace list|show|model|context [context: --experience-source manual|task --experience-source-ref ref --experience-limit n --experience-trust trusted|all --experience-max-age-days n]
 fugue experience add|list|show --store <dir> [add: --trust trusted|untrusted --source-ref ref --supersedes slug]
 fugue experience learn --store <dir> [--failure-cause cause] [--supersedes slug]
-fugue experience recall --store <dir> [--failure-cause cause] [--source manual|task] [--source-ref ref] [--trust trusted|untrusted|all] [--min-score n] [--max-age-days n] [--include-superseded] [--explain]
+fugue experience recall --store <dir> [--failure-cause cause] [--source manual|task] [--source-ref ref] [--trust trusted|untrusted|all] [--min-score n] [--max-age-days n] [--include-superseded] [--explain] [--json]
 fugue summary <round> --cache <dir> [--task <file>]
 fugue runtime check [--strict] --state <dir> [--skill <installed SKILL.md>] [--alias-skill <legacy SKILL.md>] [--repo-skill <repo SKILL.md>]
 fugue runtime adapt --state <dir> [--skill <installed SKILL.md>] [--alias-skill <legacy SKILL.md>] [--repo-skill <repo SKILL.md>]
@@ -369,7 +375,7 @@ npm run test:engine
 - [SeemSeam/claude_codex_bridge](https://github.com/SeemSeam/claude_codex_bridge) 作为 provider-runtime bridge 的参考。
 - 上海人工智能实验室的 [Self-Harness 论文](https://arxiv.org/abs/2606.09498) 启发了 `fuguectl self-harness` 的 harness-improvement loop。
 - [Agent Workflow Memory](https://arxiv.org/abs/2409.07429)、[AgentHER](https://arxiv.org/abs/2603.21357)、[MemRL](https://arxiv.org/abs/2601.03192)、[How Memory Management Impacts LLM Agents](https://arxiv.org/abs/2505.16067)、[Agent-Native Memory Systems](https://arxiv.org/abs/2606.24775)、[STALE](https://arxiv.org/abs/2605.06527)、[Governing Evolving Memory in LLM Agents](https://arxiv.org/abs/2603.11768)、[Agent Memory: Characterization and System Implications](https://arxiv.org/abs/2606.06448)、[MemMachine](https://arxiv.org/abs/2604.04853)、[RCR-Router](https://arxiv.org/abs/2508.04903)、[BudgetMem](https://arxiv.org/abs/2602.06025)、[Token Economics for LLM Agents](https://arxiv.org/abs/2605.09104)、[Graph Memory for LLM Agents](https://arxiv.org/abs/2606.06036)、[Externalization in LLM Agents](https://arxiv.org/abs/2604.08224)、[Cost-Sensitive Store Routing](https://arxiv.org/abs/2603.15658)、[Compute Allocation for Reasoning-Intensive Retrieval Agents](https://openreview.net/forum?id=nqr4eTODKl) 和 [RecoAtlas](https://arxiv.org/abs/2605.18805) 启发了 stale-aware、按失败原因过滤、来源可见、预算可控、可解释、带效用门控的 experience replay。
-- [From Agent Traces to Trust](https://arxiv.org/abs/2606.04990)、[PROV-AGENT](https://arxiv.org/abs/2508.02866)、[LLM Agents for Interactive Workflow Provenance](https://arxiv.org/abs/2509.13978)、[Distilling Feedback into Memory-as-a-Tool](https://arxiv.org/abs/2601.05960) 与 [Structured Belief State](https://arxiv.org/abs/2605.11325) 支撑了 provenance-bearing injected memory 背后的 evidence tracing、workflow provenance 与 retrieval precision 设计。
+- [From Agent Traces to Trust](https://arxiv.org/abs/2606.04990)、[PROV-AGENT](https://arxiv.org/abs/2508.02866)、[LLM Agents for Interactive Workflow Provenance](https://arxiv.org/abs/2509.13978)、[Distilling Feedback into Memory-as-a-Tool](https://arxiv.org/abs/2601.05960) 与 [Structured Belief State](https://arxiv.org/abs/2605.11325) 支撑了 provenance-bearing injected memory 和 `experience recall --json` 背后的 evidence tracing、workflow provenance 与 retrieval precision 设计。
 - [Securing LLM-Agent Long-Term Memory Against Poisoning](https://arxiv.org/abs/2606.24322) 和 [From Untrusted Input to Trusted Memory](https://arxiv.org/abs/2606.04329) / [OpenReview](https://openreview.net/forum?id=5cgg9yenCZ) 支撑了写入时 trust metadata 和自动注入 trusted-only gate，用来开始处理 memory write-channel 风险。
 - [kunchenguid/no-mistakes](https://github.com/kunchenguid/no-mistakes) 与 [lavish-axi](https://github.com/kunchenguid/lavish-axi) 启发了 loop-state 和 docs-drift 思路。
 - [merkyor/Lynn](https://gitee.com/merkyor/Lynn) 启发了编排器侧 ownership enforcement。

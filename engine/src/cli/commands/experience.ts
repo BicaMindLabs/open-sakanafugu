@@ -60,6 +60,43 @@ const renderRecallExplanation = (
   return `[experience:explain] score=${explanation.score} minScore=${minScore} maxAgeDays=${maxAgeDays} matched=${matched} failureCause=${failureCause} filter=${filter} sourceFilter=${sourceFilter} sourceRefFilter=${sourceRefFilter} trustFilter=${trustFilter} supersededFilter=${supersededFilter} source=${source} trust=${explanation.trustKind}\n`;
 };
 
+interface RecallJsonEntry {
+  readonly workspace: string;
+  readonly title: string;
+  readonly slug: string;
+  readonly created: number;
+  readonly sourceKind: ExperienceSourceKind;
+  readonly sourceRef?: string;
+  readonly trustKind: Method['trustKind'];
+  readonly supersedes?: readonly string[];
+  readonly failureCause?: FailureCause;
+  readonly score: number;
+  readonly matchedTerms: readonly string[];
+  readonly body: string;
+}
+
+const recallJsonEntry = (method: Method, options: RecallOptions): RecallJsonEntry => {
+  const explanation = explainRecallMatch(method, options);
+  return {
+    workspace: method.workspace,
+    title: method.title,
+    slug: method.slug,
+    created: method.created,
+    sourceKind: method.sourceKind,
+    ...(method.sourceRef === undefined || method.sourceRef.length === 0
+      ? {}
+      : { sourceRef: method.sourceRef }),
+    trustKind: method.trustKind,
+    ...(method.supersedes === undefined || method.supersedes.length === 0
+      ? {}
+      : { supersedes: method.supersedes }),
+    ...(explanation.failureCause === undefined ? {} : { failureCause: explanation.failureCause }),
+    score: explanation.score,
+    matchedTerms: explanation.matchedTerms,
+    body: method.body,
+  };
+};
+
 const parseLimit = (raw: string): number => {
   const limit = Number.parseInt(raw, 10);
   return Number.isFinite(limit) ? limit : 3;
@@ -401,6 +438,7 @@ export class ExperienceRecallCommand extends ExperienceCommand {
   maxAgeDays = Option.String('--max-age-days');
   includeSuperseded = Option.Boolean('--include-superseded', false);
   explain = Option.Boolean('--explain', false);
+  json = Option.Boolean('--json', false);
 
   override async execute(): Promise<number> {
     const cause = normalizeFailureCause(this.failureCause);
@@ -483,6 +521,16 @@ export class ExperienceRecallCommand extends ExperienceCommand {
       options = { ...options, includeSuperseded: true };
     }
     const methods = await this.experienceStore().recall(this.workspace, options);
+    if (this.json) {
+      this.context.stdout.write(
+        `${JSON.stringify(
+          methods.map((method) => recallJsonEntry(method, options)),
+          null,
+          2,
+        )}\n`,
+      );
+      return 0;
+    }
     for (const method of methods) {
       if (this.explain) {
         this.context.stdout.write(renderRecallExplanation(method, options));
