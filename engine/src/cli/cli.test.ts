@@ -1423,6 +1423,10 @@ describe('fugue CLI', () => {
           '## Requirements',
           'Keep model stdout clean while reporting dispatch observability.',
           '',
+          '## Output files',
+          '- engine/src/cli/commands/dispatch.ts',
+          '- engine/src/cli/cli.test.ts',
+          '',
           '## Log',
           '- [2026-06-28 20:03] Fix: wait for stdout before writing [obs].',
           '- [2026-06-28 20:05] Verification: npm run check green.',
@@ -1449,6 +1453,8 @@ describe('fugue CLI', () => {
       expect(recalled.out).toContain('[experience] dispatch obs boundary');
       expect(recalled.out).toContain(`Source task: ${task}`);
       expect(recalled.out).toContain('Keep model stdout clean');
+      expect(recalled.out).toContain('engine/src/cli/commands/dispatch.ts');
+      expect(recalled.out).toContain('engine/src/cli/cli.test.ts');
       expect(recalled.out).toContain('VERDICT: ACCEPTED');
     });
 

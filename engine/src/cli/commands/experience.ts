@@ -59,6 +59,7 @@ const renderTaskExperience = (path: string, content: string): string => {
   const status = field(content, 'Status');
   const completed = field(content, 'Completed');
   const requirements = section(content, 'Requirements');
+  const outputFiles = section(content, 'Output files');
   const log = meaningfulLogLines(section(content, 'Log'));
   const completion =
     completed.length > 0 && completed !== '-'
@@ -75,6 +76,9 @@ const renderTaskExperience = (path: string, content: string): string => {
     '',
     'Requirements:',
     requirements.length > 0 ? requirements : '(none recorded)',
+    '',
+    'Output files:',
+    outputFiles.length > 0 ? outputFiles : '(none recorded)',
     '',
     'Reusable audit notes:',
     notes,
