@@ -182,6 +182,30 @@ describe('FsExperienceStore', () => {
     expect(recalled.map((m) => m.title)).toEqual(['dispatch observations']);
   });
 
+  it('recall can filter stale methods before query ranking', async () => {
+    const clock = fakeClock(1_000);
+    const store = make(clock);
+    await store.add({
+      workspace: 'code',
+      title: 'old stronger dispatch',
+      body: 'dispatch output anchors with extra dispatch evidence',
+    });
+    clock.set(91_000_000);
+    await store.add({
+      workspace: 'code',
+      title: 'fresh dispatch',
+      body: 'dispatch output anchors',
+    });
+
+    const recalled = await store.recall('code', {
+      query: 'dispatch output anchors evidence',
+      maxAgeSeconds: 86_400,
+      limit: 3,
+    });
+
+    expect(recalled.map((m) => m.title)).toEqual(['fresh dispatch']);
+  });
+
   it('recall can filter by source kind before query ranking', async () => {
     const clock = fakeClock(1_000);
     const store = make(clock);

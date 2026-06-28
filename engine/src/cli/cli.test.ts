@@ -1165,6 +1165,62 @@ describe('fugue CLI', () => {
       expect(called).toContain('fix redis cache expiration');
     });
 
+    it('can max-age filter dispatch workspace experience before injection', async () => {
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      await mkdir(join(experience, 'code'), { recursive: true });
+      await writeFile(
+        join(experience, 'code', 'stale-redis.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Stale redis',
+          `created: ${String(nowSeconds - 4 * 86_400)}`,
+          '---',
+          'redis cache expiration stale recipe with extra redis evidence.',
+        ].join('\n'),
+        'utf8',
+      );
+      await writeFile(
+        join(experience, 'code', 'fresh-redis.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Fresh redis',
+          `created: ${String(nowSeconds - 3_600)}`,
+          '---',
+          'redis cache expiration fresh recipe.',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const dispatched = await run(
+        args(
+          'cc-x',
+          '--workspace',
+          'code',
+          '--experience-max-age-days',
+          '1',
+          '--prompt',
+          'fix redis cache expiration',
+        ),
+      );
+      const called = await readFile(fugueCcCalled, 'utf8');
+      const badAge = await run(
+        args('cc-x', '--workspace', 'code', '--experience-max-age-days', '0', '--prompt', 'x'),
+      );
+      const ageWithoutWorkspace = await run(
+        args('cc-x', '--experience-max-age-days', '1', '--prompt', 'x'),
+      );
+
+      expect(dispatched.code).toBe(0);
+      expect(called).toContain('[experience] Fresh redis');
+      expect(called).not.toContain('[experience] Stale redis');
+      expect(badAge.code).toBe(2);
+      expect(badAge.err).toContain('unknown --experience-max-age-days 0');
+      expect(ageWithoutWorkspace.code).toBe(2);
+      expect(ageWithoutWorkspace.err).toContain('--experience-max-age-days requires --workspace');
+    });
+
     it('can source-filter and budget dispatch workspace experience before injection', async () => {
       await mkdir(join(experience, 'code'), { recursive: true });
       await writeFile(
@@ -1812,6 +1868,64 @@ describe('fugue CLI', () => {
       expect(unknownRecall.err).toContain('unknown --trust external');
     });
 
+    it('filters recalled experience by max age and explains the gate', async () => {
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      await mkdir(join(store, 'code'), { recursive: true });
+      await writeFile(
+        join(store, 'code', 'stale-dispatch.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Stale dispatch',
+          `created: ${String(nowSeconds - 3 * 86_400)}`,
+          '---',
+          'dispatch output anchors with extra stale evidence',
+        ].join('\n'),
+        'utf8',
+      );
+      await writeFile(
+        join(store, 'code', 'fresh-dispatch.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Fresh dispatch',
+          `created: ${String(nowSeconds - 3_600)}`,
+          '---',
+          'dispatch output anchors',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const recalled = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--query',
+        'dispatch output anchors stale evidence',
+        '--max-age-days',
+        '1',
+        '--explain',
+      ]);
+      const invalid = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--max-age-days',
+        '0',
+      ]);
+
+      expect(recalled.code).toBe(0);
+      expect(recalled.out).toContain('maxAgeDays=1');
+      expect(recalled.out).toContain('[experience] Fresh dispatch');
+      expect(recalled.out).not.toContain('[experience] Stale dispatch');
+      expect(invalid.code).toBe(1);
+      expect(invalid.err).toContain('unknown --max-age-days');
+    });
+
     it('rejects learning from a missing task audit', async () => {
       const learned = await run([
         'experience',
@@ -2042,7 +2156,7 @@ describe('fugue CLI', () => {
 
       expect(recalled.code).toBe(0);
       expect(recalled.out).toContain(
-        '[experience:explain] score=2 minScore=- matched=dispatch,output failureCause=retrieval filter=retrieval',
+        '[experience:explain] score=2 minScore=- maxAgeDays=- matched=dispatch,output failureCause=retrieval filter=retrieval',
       );
       expect(recalled.out).toContain(`source=task:${retrievalTask}`);
       expect(recalled.out).toContain('[experience] retrieval relabel');
@@ -2109,7 +2223,7 @@ describe('fugue CLI', () => {
       expect(recalled.code).toBe(0);
       expect(recalled.out).toContain('[experience] strong dispatch output anchors');
       expect(recalled.out).toContain(
-        '[experience:explain] score=3 minScore=2 matched=dispatch,output,anchors',
+        '[experience:explain] score=3 minScore=2 maxAgeDays=- matched=dispatch,output,anchors',
       );
       expect(recalled.out).toContain('source=manual');
       expect(recalled.out).not.toContain('[experience] weak dispatch');
@@ -4958,6 +5072,65 @@ describe('fugue CLI', () => {
       expect(context.out).toContain('[experience] Redis cache');
       expect(context.out).not.toContain('[experience] Recent docs');
       expect(context.out).not.toContain('[experience] Fast path');
+    });
+
+    it('can max-age filter workspace context experience before query ranking', async () => {
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      await writeFile(
+        join(experience, 'code', 'stale-redis.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Stale redis',
+          `created: ${String(nowSeconds - 4 * 86_400)}`,
+          '---',
+          'redis cache expiration stale recipe with extra redis evidence.',
+        ].join('\n'),
+        'utf8',
+      );
+      await writeFile(
+        join(experience, 'code', 'fresh-redis.md'),
+        [
+          '---',
+          'workspace: code',
+          'title: Fresh redis',
+          `created: ${String(nowSeconds - 3_600)}`,
+          '---',
+          'redis cache expiration fresh recipe.',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const context = await run([
+        'workspace',
+        'context',
+        ...wsArgs(),
+        ...modelArgs(),
+        '--experience',
+        experience,
+        '--experience-max-age-days',
+        '1',
+        'code',
+        '--task',
+        'fix redis cache expiration',
+      ]);
+      const invalid = await run([
+        'workspace',
+        'context',
+        ...wsArgs(),
+        ...modelArgs(),
+        '--experience',
+        experience,
+        '--experience-max-age-days',
+        '0',
+        'code',
+      ]);
+
+      expect(context.code).toBe(0);
+      expect(context.out).toContain('[experience] Fresh redis');
+      expect(context.out).not.toContain('[experience] Stale redis');
+      expect(invalid.code).toBe(2);
+      expect(invalid.err).toContain('unknown --experience-max-age-days 0');
     });
 
     it('can source-filter and budget workspace context experience before query ranking', async () => {

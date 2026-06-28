@@ -49,11 +49,13 @@ const renderRecallExplanation = (
   const minScore = explanation.minScore ?? '-';
   const sourceFilter = explanation.sourceFilter ?? '-';
   const trustFilter = explanation.trustFilter ?? '-';
+  const maxAgeDays =
+    explanation.maxAgeSeconds === undefined ? '-' : String(explanation.maxAgeSeconds / 86_400);
   const source =
     explanation.sourceRef === undefined
       ? explanation.sourceKind
       : `${explanation.sourceKind}:${explanation.sourceRef}`;
-  return `[experience:explain] score=${explanation.score} minScore=${minScore} matched=${matched} failureCause=${failureCause} filter=${filter} sourceFilter=${sourceFilter} trustFilter=${trustFilter} source=${source} trust=${explanation.trustKind}\n`;
+  return `[experience:explain] score=${explanation.score} minScore=${minScore} maxAgeDays=${maxAgeDays} matched=${matched} failureCause=${failureCause} filter=${filter} sourceFilter=${sourceFilter} trustFilter=${trustFilter} source=${source} trust=${explanation.trustKind}\n`;
 };
 
 const parseLimit = (raw: string): number => {
@@ -67,6 +69,16 @@ const parseMinScore = (raw: string | undefined): number | null | undefined => {
   if (!/^\d+$/u.test(value)) return null;
   const parsed = Number.parseInt(value, 10);
   return parsed > 0 ? parsed : null;
+};
+
+const parseMaxAgeDays = (raw: string | undefined): number | null | undefined => {
+  if (raw === undefined) return undefined;
+  const value = raw.trim();
+  if (!/^\d+$/u.test(value)) return null;
+  const days = Number.parseInt(value, 10);
+  if (days <= 0) return null;
+  const seconds = days * 86_400;
+  return Number.isSafeInteger(seconds) ? seconds : null;
 };
 
 const field = (content: string, key: string): string => {
@@ -343,6 +355,7 @@ export class ExperienceRecallCommand extends ExperienceCommand {
   sourceKind = Option.String('--source');
   trust = Option.String('--trust');
   minScore = Option.String('--min-score');
+  maxAgeDays = Option.String('--max-age-days');
   explain = Option.Boolean('--explain', false);
 
   override async execute(): Promise<number> {
@@ -384,6 +397,11 @@ export class ExperienceRecallCommand extends ExperienceCommand {
       this.context.stderr.write('--min-score requires a non-empty --query\n');
       return 1;
     }
+    const maxAgeSeconds = parseMaxAgeDays(this.maxAgeDays);
+    if (maxAgeSeconds === null) {
+      this.context.stderr.write('unknown --max-age-days; expected a positive integer\n');
+      return 1;
+    }
     let options: RecallOptions = { limit: parseLimit(this.limit) };
     if (this.query !== undefined) {
       options = { ...options, query: this.query };
@@ -405,6 +423,9 @@ export class ExperienceRecallCommand extends ExperienceCommand {
     }
     if (minScore !== undefined) {
       options = { ...options, minScore };
+    }
+    if (maxAgeSeconds !== undefined) {
+      options = { ...options, maxAgeSeconds };
     }
     const methods = await this.experienceStore().recall(this.workspace, options);
     for (const method of methods) {

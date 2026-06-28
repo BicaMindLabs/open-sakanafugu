@@ -124,4 +124,22 @@ describe('explainRecallMatch', () => {
       trustFilter: 'untrusted',
     });
   });
+
+  it('includes the active max-age gate when provided', () => {
+    const explanation = explainRecallMatch(
+      {
+        title: 'fresh route',
+        body: 'Prefer recent routing lessons.',
+      },
+      { query: 'recent routing', maxAgeSeconds: 86_400 },
+    );
+
+    expect(explanation).toEqual({
+      score: 2,
+      matchedTerms: ['recent', 'routing'],
+      sourceKind: 'manual',
+      trustKind: 'trusted',
+      maxAgeSeconds: 86_400,
+    });
+  });
 });

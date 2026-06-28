@@ -127,6 +127,10 @@ export class FsExperienceStore implements ExperienceStore {
   async recall(workspace: string, options: RecallOptions = {}): Promise<readonly Method[]> {
     const limit = options.limit ?? 3;
     let methods = await this.methodsIn(workspace);
+    if (options.maxAgeSeconds !== undefined) {
+      const minCreated = Math.floor(this.clock.now() / 1000) - options.maxAgeSeconds;
+      methods = methods.filter((method) => method.created >= minCreated);
+    }
     if (options.sourceKind !== undefined) {
       methods = methods.filter((method) => method.sourceKind === options.sourceKind);
     }

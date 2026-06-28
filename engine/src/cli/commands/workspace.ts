@@ -111,12 +111,19 @@ const recallOptions = (
   sourceKind: ExperienceSourceKind | undefined,
   limit: number | undefined,
   trust: ExperienceTrustFilter,
+  maxAgeSeconds: number | undefined,
 ): RecallOptions => {
-  const options: RecallOptions =
+  let options: RecallOptions =
     query === undefined || query.trim().length === 0
       ? { limit: limit ?? 3, trust }
       : { limit: limit ?? 3, query, trust };
-  return sourceKind === undefined ? options : { ...options, sourceKind };
+  if (sourceKind !== undefined) {
+    options = { ...options, sourceKind };
+  }
+  if (maxAgeSeconds !== undefined) {
+    options = { ...options, maxAgeSeconds };
+  }
+  return options;
 };
 
 const normalizeExperienceSource = (raw: string | undefined): string | undefined =>
@@ -150,6 +157,21 @@ const parseExperienceLimit = (raw: string | undefined): number | null | undefine
 const experienceLimitError = (raw: string | undefined): string => {
   const rendered = raw === undefined || raw.trim().length === 0 ? '<empty>' : raw.trim();
   return `unknown --experience-limit ${rendered}; expected a positive integer\n`;
+};
+
+const parseExperienceMaxAgeDays = (raw: string | undefined): number | null | undefined => {
+  if (raw === undefined) return undefined;
+  const value = raw.trim();
+  if (!/^\d+$/u.test(value)) return null;
+  const days = Number.parseInt(value, 10);
+  if (days <= 0) return null;
+  const seconds = days * 86_400;
+  return Number.isSafeInteger(seconds) ? seconds : null;
+};
+
+const experienceMaxAgeDaysError = (raw: string | undefined): string => {
+  const rendered = raw === undefined || raw.trim().length === 0 ? '<empty>' : raw.trim();
+  return `unknown --experience-max-age-days ${rendered}; expected a positive integer\n`;
 };
 
 const parseAutomaticExperienceTrust = (
@@ -236,6 +258,7 @@ export class WorkspaceContextCommand extends WorkspaceCommandOptions {
   experienceSource = Option.String('--experience-source');
   experienceLimit = Option.String('--experience-limit');
   experienceTrust = Option.String('--experience-trust');
+  experienceMaxAgeDays = Option.String('--experience-max-age-days');
 
   override async execute(): Promise<number> {
     const experienceSource = parseExperienceSource(this.experienceSource);
@@ -251,6 +274,11 @@ export class WorkspaceContextCommand extends WorkspaceCommandOptions {
     const experienceTrust = parseAutomaticExperienceTrust(this.experienceTrust);
     if (experienceTrust === null) {
       this.context.stderr.write(automaticExperienceTrustError(this.experienceTrust));
+      return 2;
+    }
+    const experienceMaxAgeSeconds = parseExperienceMaxAgeDays(this.experienceMaxAgeDays);
+    if (experienceMaxAgeSeconds === null) {
+      this.context.stderr.write(experienceMaxAgeDaysError(this.experienceMaxAgeDays));
       return 2;
     }
     const fileSystem = fs();
@@ -269,6 +297,7 @@ export class WorkspaceContextCommand extends WorkspaceCommandOptions {
         experienceSource,
         experienceLimit,
         experienceTrust ?? 'trusted',
+        experienceMaxAgeSeconds,
       ),
     );
     this.context.stdout.write(
