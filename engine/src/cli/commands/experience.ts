@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { join as joinPath } from 'node:path';
 
 import { Command, Option } from 'clipanion';
@@ -60,7 +61,7 @@ const renderRecallExplanation = (
   return `[experience:explain] score=${explanation.score} minScore=${minScore} maxAgeDays=${maxAgeDays} matched=${matched} failureCause=${failureCause} filter=${filter} sourceFilter=${sourceFilter} sourceRefFilter=${sourceRefFilter} trustFilter=${trustFilter} supersededFilter=${supersededFilter} source=${source} trust=${explanation.trustKind}\n`;
 };
 
-interface RecallJsonEntry {
+interface RecallJsonBaseEntry {
   readonly workspace: string;
   readonly title: string;
   readonly slug: string;
@@ -72,12 +73,28 @@ interface RecallJsonEntry {
   readonly failureCause?: FailureCause;
   readonly score: number;
   readonly matchedTerms: readonly string[];
+}
+
+interface RecallJsonBodyEntry extends RecallJsonBaseEntry {
   readonly body: string;
 }
 
-const recallJsonEntry = (method: Method, options: RecallOptions): RecallJsonEntry => {
+interface RecallJsonMetadataOnlyEntry extends RecallJsonBaseEntry {
+  readonly bodySha256: string;
+  readonly bodyChars: number;
+}
+
+type RecallJsonEntry = RecallJsonBodyEntry | RecallJsonMetadataOnlyEntry;
+
+const sha256 = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex');
+
+const recallJsonEntry = (
+  method: Method,
+  options: RecallOptions,
+  metadataOnly: boolean,
+): RecallJsonEntry => {
   const explanation = explainRecallMatch(method, options);
-  return {
+  const base = {
     workspace: method.workspace,
     title: method.title,
     slug: method.slug,
@@ -93,6 +110,16 @@ const recallJsonEntry = (method: Method, options: RecallOptions): RecallJsonEntr
     ...(explanation.failureCause === undefined ? {} : { failureCause: explanation.failureCause }),
     score: explanation.score,
     matchedTerms: explanation.matchedTerms,
+  };
+  if (metadataOnly) {
+    return {
+      ...base,
+      bodySha256: sha256(method.body),
+      bodyChars: Array.from(method.body).length,
+    };
+  }
+  return {
+    ...base,
     body: method.body,
   };
 };
@@ -439,6 +466,7 @@ export class ExperienceRecallCommand extends ExperienceCommand {
   includeSuperseded = Option.Boolean('--include-superseded', false);
   explain = Option.Boolean('--explain', false);
   json = Option.Boolean('--json', false);
+  metadataOnly = Option.Boolean('--metadata-only', false);
 
   override async execute(): Promise<number> {
     const cause = normalizeFailureCause(this.failureCause);
@@ -524,7 +552,7 @@ export class ExperienceRecallCommand extends ExperienceCommand {
     if (this.json) {
       this.context.stdout.write(
         `${JSON.stringify(
-          methods.map((method) => recallJsonEntry(method, options)),
+          methods.map((method) => recallJsonEntry(method, options, this.metadataOnly)),
           null,
           2,
         )}\n`,

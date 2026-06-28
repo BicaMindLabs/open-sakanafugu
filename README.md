@@ -236,6 +236,10 @@ downstream LLM answer. JSON recall emits `workspace`, `title`, `slug`,
 `supersedes`, optional `failureCause`, `score`, `matchedTerms`, and `body`.
 JSON output includes match evidence directly, so `--json --explain` stays JSON
 only instead of mixing human-readable audit lines into the stream.
+Add `--metadata-only` with `--json` when the recall audit needs to cross a
+privacy boundary: it keeps the same metadata and match evidence but replaces
+`body` with `bodySha256` and `bodyChars`, so reviewers can verify which memory
+was selected without receiving the raw memory text.
 For automatic memory injection, pass `--experience-source manual|task` to
 `workspace context` or `dispatch --workspace`; it applies the same source route
 before query ranking and prompt assembly. Add
@@ -291,6 +295,12 @@ fuguectl experience recall code \
   --min-score 2 \
   --json
 
+fuguectl experience recall code \
+  --query "dispatch output" \
+  --min-score 2 \
+  --json \
+  --metadata-only
+
 fuguectl workspace context code \
   --experience-source task \
   --experience-source-ref TASK.md \
@@ -310,10 +320,11 @@ FuguNano's current step is deliberately modest: select by workspace, source
 class, exact write-time source reference, trust mark, explicit supersession,
 failure mode, retrieval evidence, utility threshold, freshness window, and an
 explicit recall cap; expose the recalled set as JSON for retrieval-precision
-audits; then render injected memories with source/trust metadata.
-Learned budget-tier routing, semantic conflict adjudication, richer provenance
-graphs, and formal authority elevation are future work. The newest references in
-this direction are [MemConflict](https://arxiv.org/abs/2605.20926),
+audits; support body-hashed metadata-only audits for privacy-sensitive review;
+then render injected memories with source/trust metadata. Learned budget-tier
+routing, semantic conflict adjudication, richer provenance graphs, and formal
+authority elevation are future work. The newest references in this direction are
+[MemConflict](https://arxiv.org/abs/2605.20926),
 [Don't Ask the LLM to Track Freshness](https://arxiv.org/abs/2606.01435),
 [Agent-Native Memory Systems](https://arxiv.org/abs/2606.24775),
 [Origin-Bound Memory Authority](https://arxiv.org/abs/2606.24322), and
@@ -358,7 +369,7 @@ fugue template <name> --dir <templates> [--set KEY=VALUE ...]
 fugue workspace list|show|model|context [context: --experience-source manual|task --experience-source-ref ref --experience-limit n --experience-trust trusted|all --experience-max-age-days n]
 fugue experience add|list|show --store <dir> [add: --trust trusted|untrusted --source-ref ref --supersedes slug]
 fugue experience learn --store <dir> [--failure-cause cause] [--supersedes slug]
-fugue experience recall --store <dir> [--failure-cause cause] [--source manual|task] [--source-ref ref] [--trust trusted|untrusted|all] [--min-score n] [--max-age-days n] [--include-superseded] [--explain] [--json]
+fugue experience recall --store <dir> [--failure-cause cause] [--source manual|task] [--source-ref ref] [--trust trusted|untrusted|all] [--min-score n] [--max-age-days n] [--include-superseded] [--explain] [--json] [--metadata-only]
 fugue summary <round> --cache <dir> [--task <file>]
 fugue runtime check [--strict] --state <dir> [--skill <installed SKILL.md>] [--alias-skill <legacy SKILL.md>] [--repo-skill <repo SKILL.md>]
 fugue runtime adapt --state <dir> [--skill <installed SKILL.md>] [--alias-skill <legacy SKILL.md>] [--repo-skill <repo SKILL.md>]
@@ -501,6 +512,7 @@ GitHub Security Advisory.
 - Shanghai Artificial Intelligence Laboratory's [Self-Harness paper](https://arxiv.org/abs/2606.09498) for the harness-improvement loop that inspired `fuguectl self-harness`.
 - [Agent Workflow Memory](https://arxiv.org/abs/2409.07429), [AgentHER](https://arxiv.org/abs/2603.21357), [MemRL](https://arxiv.org/abs/2601.03192), [How Memory Management Impacts LLM Agents](https://arxiv.org/abs/2505.16067), [Agent-Native Memory Systems](https://arxiv.org/abs/2606.24775), [STALE](https://arxiv.org/abs/2605.06527), [Governing Evolving Memory in LLM Agents](https://arxiv.org/abs/2603.11768), [Agent Memory: Characterization and System Implications](https://arxiv.org/abs/2606.06448), [MemMachine](https://arxiv.org/abs/2604.04853), [RCR-Router](https://arxiv.org/abs/2508.04903), [BudgetMem](https://arxiv.org/abs/2602.06025), [Token Economics for LLM Agents](https://arxiv.org/abs/2605.09104), [Graph Memory for LLM Agents](https://arxiv.org/abs/2606.06036), [Externalization in LLM Agents](https://arxiv.org/abs/2604.08224), [Cost-Sensitive Store Routing](https://arxiv.org/abs/2603.15658), [Compute Allocation for Reasoning-Intensive Retrieval Agents](https://openreview.net/forum?id=nqr4eTODKl), and [RecoAtlas](https://arxiv.org/abs/2605.18805) for the stale-aware, cause-aware, provenance-visible, budgeted, explainable, utility-gated experience replay direction.
 - [From Agent Traces to Trust](https://arxiv.org/abs/2606.04990), [PROV-AGENT](https://arxiv.org/abs/2508.02866), [LLM Agents for Interactive Workflow Provenance](https://arxiv.org/abs/2509.13978), [Distilling Feedback into Memory-as-a-Tool](https://arxiv.org/abs/2601.05960), and [Structured Belief State](https://arxiv.org/abs/2605.11325) for the evidence-tracing, workflow-provenance, and retrieval-precision framing behind provenance-bearing injected memory and `experience recall --json`.
+- [MRMMIA](https://arxiv.org/abs/2605.27825) for the memory-membership privacy risk that motivates metadata-only recall audits with body hashes instead of raw memory text.
 - [Securing LLM-Agent Long-Term Memory Against Poisoning](https://arxiv.org/abs/2606.24322) and [From Untrusted Input to Trusted Memory](https://arxiv.org/abs/2606.04329) / [OpenReview](https://openreview.net/forum?id=5cgg9yenCZ) for the write-time trust metadata and trusted-only automatic injection gate that starts addressing memory write-channel risks.
 - [kunchenguid/no-mistakes](https://github.com/kunchenguid/no-mistakes) and [lavish-axi](https://github.com/kunchenguid/lavish-axi) for loop-state and docs-drift ideas.
 - [merkyor/Lynn](https://gitee.com/merkyor/Lynn) for orchestrator-side ownership enforcement inspiration.

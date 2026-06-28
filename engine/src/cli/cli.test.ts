@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -1825,6 +1826,19 @@ describe('fugue CLI', () => {
         'unmatched query',
         '--json',
       ]);
+      const metadataOnly = await run([
+        'experience',
+        'recall',
+        '--store',
+        store,
+        'code',
+        '--query',
+        'dispatch provenance',
+        '--trust',
+        'untrusted',
+        '--json',
+        '--metadata-only',
+      ]);
       type RecallJson = Array<{
         readonly workspace: string;
         readonly title: string;
@@ -1839,8 +1853,28 @@ describe('fugue CLI', () => {
         readonly matchedTerms: readonly string[];
         readonly body: string;
       }>;
+      type MetadataOnlyRecallJson = Array<{
+        readonly workspace: string;
+        readonly title: string;
+        readonly slug: string;
+        readonly created: number;
+        readonly sourceKind: string;
+        readonly sourceRef?: string;
+        readonly trustKind: string;
+        readonly supersedes?: readonly string[];
+        readonly failureCause?: string;
+        readonly score: number;
+        readonly matchedTerms: readonly string[];
+        readonly body?: string;
+        readonly bodySha256: string;
+        readonly bodyChars: number;
+      }>;
       const entries = JSON.parse(recall.out) as RecallJson;
       const emptyEntries = JSON.parse(empty.out) as RecallJson;
+      const metadataEntries = JSON.parse(metadataOnly.out) as MetadataOnlyRecallJson;
+      const body = ['Failure cause:', 'retrieval', '', 'Use dispatch provenance anchors.'].join(
+        '\n',
+      );
 
       expect(recall.code).toBe(0);
       expect(recall.out).not.toContain('[experience:explain]');
@@ -1858,11 +1892,31 @@ describe('fugue CLI', () => {
           failureCause: 'retrieval',
           score: 2,
           matchedTerms: ['dispatch', 'provenance'],
-          body: ['Failure cause:', 'retrieval', '', 'Use dispatch provenance anchors.'].join('\n'),
+          body,
         },
       ]);
       expect(empty.code).toBe(0);
       expect(emptyEntries).toEqual([]);
+      expect(metadataOnly.code).toBe(0);
+      expect(metadataEntries).toEqual([
+        {
+          workspace: 'code',
+          title: 'Browser note',
+          slug: 'browser-note',
+          created: 123,
+          sourceKind: 'manual',
+          sourceRef: 'browser note trust=untrusted',
+          trustKind: 'untrusted',
+          supersedes: ['old-route'],
+          failureCause: 'retrieval',
+          score: 2,
+          matchedTerms: ['dispatch', 'provenance'],
+          bodySha256: createHash('sha256').update(body, 'utf8').digest('hex'),
+          bodyChars: Array.from(body).length,
+        },
+      ]);
+      expect(metadataEntries[0]?.body).toBeUndefined();
+      expect(metadataOnly.out).not.toContain('Use dispatch provenance anchors.');
     });
 
     it('marks superseded experience and hides it from recall by default', async () => {
