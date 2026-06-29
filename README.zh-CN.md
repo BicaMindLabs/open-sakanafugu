@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Runtime-Node%20%3E%3D18.18-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js >= 18.18" />
   <img src="https://img.shields.io/badge/Engine-TypeScript-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript engine" />
   <img src="https://img.shields.io/badge/fuguectl-28%20%E5%A5%97%E6%B5%8B%E8%AF%95-7c3aed?style=for-the-badge" alt="28 套 fuguectl 测试" />
-  <img src="https://img.shields.io/badge/assertions-383-brightgreen?style=for-the-badge" alt="383 个 fuguectl 断言" />
+  <img src="https://img.shields.io/badge/assertions-388-brightgreen?style=for-the-badge" alt="388 个 fuguectl 断言" />
   <a href="https://github.com/BicaMindLabs/FuguNano/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/BicaMindLabs/FuguNano/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status" /></a>
   <img src="https://img.shields.io/badge/license-Apache--2.0-yellowgreen?style=for-the-badge" alt="Apache-2.0 license" />
 </p>
@@ -158,7 +158,7 @@ FuguNano 是这条路线上的轻量开放入口：先用策略、端口、审�
 
 ## 命令面
 
-`orchestration/fuguectl/fuguectl` 是生产入口：27 个子命令、28 套测试、383 个 wrapper 断言。
+`orchestration/fuguectl/fuguectl` 是生产入口：27 个子命令、28 套测试、388 个 wrapper 断言。
 
 | 区域          | 命令                                                                                                                                                                                                                                                                                                                         |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
