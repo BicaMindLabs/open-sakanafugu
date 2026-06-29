@@ -4,7 +4,11 @@ import { join as joinPath } from 'node:path';
 
 import { Command, Option } from 'clipanion';
 
-import { QWEN_CODE_INVOCATION_DESCRIPTOR } from '../../adapters/harness/agent-cli-harness.js';
+import {
+  QWEN_CODE_INVOCATION_DESCRIPTOR,
+  agentCliEntries,
+  type AgentCliRegistryEntry,
+} from '../../domain/agent-cli-registry.js';
 import { checkProviderConfig } from '../../domain/preflight-checks.js';
 import type { GateCheck } from '../../domain/gate.js';
 import {
@@ -64,6 +68,9 @@ const trimNonEmpty = (value: string | undefined): string | undefined => {
   const trimmed = value?.trim();
   return trimmed === undefined || trimmed.length === 0 ? undefined : trimmed;
 };
+
+const agentCliEnvKey = (agentId: string): string =>
+  `FUGUE_AGENT_CLI_${agentId.toUpperCase().replace(/[^A-Z0-9]/gu, '_')}`;
 
 const shellQuote = (value: string): string => `'${value.replace(/'/gu, "'\\''")}'`;
 
@@ -320,8 +327,11 @@ export class PreflightCommand extends Command {
     }
 
     if (includesAgentCli(harness)) {
-      if (await cliExists(runner, this.agentCliBin)) ok(lines, this.agentCliBin);
-      else fail(lines, status, `missing ${this.agentCliBin}`);
+      for (const entry of agentCliEntries()) {
+        const bin = this.agentCliBinFor(entry);
+        if (await cliExists(runner, bin)) ok(lines, `${entry.id}: ${bin}`);
+        else fail(lines, status, `missing ${entry.id}: ${bin}`);
+      }
     }
 
     if (includesFugueCc(harness)) {
@@ -405,25 +415,27 @@ export class PreflightCommand extends Command {
     status: MutableStatus,
     runner: CommandRunner,
   ): Promise<void> {
-    try {
-      const result = await runner.run(this.agentCliBin, QWEN_CODE_INVOCATION_DESCRIPTOR.healthCmd);
-      if (result.code === 0) {
-        const version = result.stdout.trim();
-        ok(lines, version.length > 0 ? `${this.agentCliBin} ${version}` : this.agentCliBin);
-        return;
+    for (const entry of agentCliEntries()) {
+      const bin = this.agentCliBinFor(entry);
+      try {
+        const result = await runner.run(bin, entry.descriptor.healthCmd);
+        if (result.code === 0) {
+          const version = result.stdout.trim();
+          ok(lines, version.length > 0 ? `${entry.id}: ${version}` : `${entry.id}: ${bin}`);
+          continue;
+        }
+        fail(lines, status, `${entry.id}: ${bin} ${entry.descriptor.healthCmd.join(' ')} failed`);
+      } catch {
+        fail(lines, status, `${entry.id}: ${bin} ${entry.descriptor.healthCmd.join(' ')} failed`);
       }
-      fail(
-        lines,
-        status,
-        `${this.agentCliBin} ${QWEN_CODE_INVOCATION_DESCRIPTOR.healthCmd.join(' ')} failed`,
-      );
-    } catch {
-      fail(
-        lines,
-        status,
-        `${this.agentCliBin} ${QWEN_CODE_INVOCATION_DESCRIPTOR.healthCmd.join(' ')} failed`,
-      );
     }
+  }
+
+  private agentCliBinFor(entry: AgentCliRegistryEntry): string {
+    const specific = trimNonEmpty(process.env[agentCliEnvKey(entry.id)]);
+    if (specific !== undefined) return specific;
+    if (entry.id === 'qwen-code') return this.agentCliBin;
+    return entry.descriptor.bin ?? entry.id;
   }
 
   private async runProbes(

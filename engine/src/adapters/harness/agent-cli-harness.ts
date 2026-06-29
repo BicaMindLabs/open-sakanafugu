@@ -4,12 +4,15 @@ import type {
   DispatchResult,
   HealthStatus,
 } from '../../domain/dispatch.js';
+import { lookupAgentCliDescriptor } from '../../domain/agent-cli-registry.js';
 import { buildArgv } from '../../domain/invocation-descriptor.js';
 import type { InvocationDescriptor } from '../../domain/invocation-descriptor.js';
 import type { Harness, HarnessName } from '../../domain/ports/harness.js';
 import type { Result } from '../../domain/result.js';
 import type { CommandOptions, CommandResult, CommandRunner } from '../../infra/command-runner.js';
 import { runDispatch, type HarnessExecOptions } from './exec-helpers.js';
+
+export { QWEN_CODE_INVOCATION_DESCRIPTOR } from '../../domain/agent-cli-registry.js';
 
 export const CODEX_INVOCATION_DESCRIPTOR = {
   bin: 'codex',
@@ -20,17 +23,14 @@ export const CODEX_INVOCATION_DESCRIPTOR = {
   failureMode: 'exit-code',
 } as const satisfies InvocationDescriptor;
 
-export const QWEN_CODE_INVOCATION_DESCRIPTOR = {
-  bin: 'qwen',
-  promptMode: 'flag',
-  flagName: '-p',
-  modelArg: 'omit-when-default',
-  healthCmd: ['--version'],
-  failureMode: 'exit-code',
-} as const satisfies InvocationDescriptor;
-
 const ZERO_EXIT_STDERR_ERROR =
   /(?:^|\n).*(?:Error:|ProviderModelNotFoundError|API key is missing)/u;
+
+export interface AgentCliRegistrySource {
+  readonly agentId: string;
+}
+
+export type AgentCliSource = InvocationDescriptor | AgentCliRegistrySource;
 
 const message = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -47,25 +47,37 @@ const commandOptions = (options: HarnessExecOptions): CommandOptions => ({
   ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
 });
 
+const resolveDescriptor = (source: AgentCliSource): InvocationDescriptor => {
+  if ('agentId' in source) {
+    const descriptor = lookupAgentCliDescriptor(source.agentId);
+    if (descriptor !== undefined) return descriptor;
+    throw new Error(`AgentCliHarness has no descriptor for agent-id '${source.agentId}'`);
+  }
+  return source;
+};
+
 /** Generic harness for descriptor-shaped agent CLIs such as Qwen Code. */
 export class AgentCliHarness implements Harness {
   readonly name: HarnessName;
   private readonly bin: string;
   private readonly commandOptions: CommandOptions;
   private readonly extraArgs: readonly string[];
+  private readonly descriptor: InvocationDescriptor;
 
   constructor(
     private readonly runner: CommandRunner,
-    private readonly descriptor: InvocationDescriptor,
+    source: AgentCliSource,
     options: HarnessExecOptions = {},
     name: HarnessName = 'agent-cli',
   ) {
+    const descriptor = resolveDescriptor(source);
     const bin = options.bin ?? descriptor.bin;
     if (bin === undefined || bin.trim().length === 0) {
       throw new Error('AgentCliHarness requires a descriptor bin or options.bin');
     }
     this.name = name;
     this.bin = bin;
+    this.descriptor = descriptor;
     this.extraArgs = options.args ?? [];
     this.commandOptions = commandOptions(options);
   }

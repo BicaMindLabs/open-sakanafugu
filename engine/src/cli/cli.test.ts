@@ -5707,28 +5707,53 @@ describe('fugue CLI', () => {
     it('can preflight the opt-in agent-cli harness without entering all/lite defaults', async () => {
       const codex = join(dir, 'codex');
       const qwen = join(dir, 'qwen');
+      const kimi = join(dir, 'kimi');
+      const mimo = join(dir, 'mimo');
       await writeFile(codex, '#!/usr/bin/env bash\nexit 0\n', 'utf8');
       await writeFile(
         qwen,
         '#!/usr/bin/env bash\n[ "$1" = "--version" ] && printf "qwen-code 1.0.0\\n"\n',
         'utf8',
       );
+      await writeFile(
+        kimi,
+        '#!/usr/bin/env bash\n[ "$1" = "--version" ] && printf "kimi-code 1.0.0\\n"\n',
+        'utf8',
+      );
+      await writeFile(
+        mimo,
+        '#!/usr/bin/env bash\n[ "$1" = "--version" ] && printf "mimo-code 1.0.0\\n"\n',
+        'utf8',
+      );
       await chmod(codex, 0o755);
       await chmod(qwen, 0o755);
+      await chmod(kimi, 0o755);
+      await chmod(mimo, 0o755);
 
-      const result = await run([
-        'preflight',
-        '--harness',
-        'agent-cli',
-        '--codex-bin',
-        codex,
-        '--agent-cli-bin',
-        qwen,
-      ]);
+      process.env.FUGUE_AGENT_CLI_KIMI_CODE = kimi;
+      process.env.FUGUE_AGENT_CLI_MIMO_CODE = mimo;
+      let result: Awaited<ReturnType<typeof run>> | undefined;
+      try {
+        result = await run([
+          'preflight',
+          '--harness',
+          'agent-cli',
+          '--codex-bin',
+          codex,
+          '--agent-cli-bin',
+          qwen,
+        ]);
+      } finally {
+        delete process.env.FUGUE_AGENT_CLI_KIMI_CODE;
+        delete process.env.FUGUE_AGENT_CLI_MIMO_CODE;
+      }
+      if (result === undefined) throw new Error('preflight did not run');
 
       expect(result.code).toBe(0);
       expect(result.out).toContain('harness=agent-cli');
       expect(result.out).toContain('qwen-code 1.0.0');
+      expect(result.out).toContain('kimi-code 1.0.0');
+      expect(result.out).toContain('mimo-code 1.0.0');
       expect(result.out).not.toContain('missing fugue-cc');
       expect(result.out).not.toContain('provider config not located');
     });

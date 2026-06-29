@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest';
 import type { InvocationDescriptor } from '../../domain/invocation-descriptor.js';
 import { isErr, isOk } from '../../domain/result.js';
 import type { CommandOptions, CommandResult, CommandRunner } from '../../infra/command-runner.js';
-import { AgentCliHarness, QWEN_CODE_INVOCATION_DESCRIPTOR } from './agent-cli-harness.js';
+import {
+  AgentCliHarness,
+  QWEN_CODE_INVOCATION_DESCRIPTOR,
+  type AgentCliRegistrySource,
+} from './agent-cli-harness.js';
 
 interface Call {
   readonly command: string;
@@ -53,6 +57,35 @@ describe('AgentCliHarness', () => {
     });
 
     expect(runner.calls[0]?.args).toEqual(['--model', 'qwen3-coder-plus', '-p', 'implement this']);
+  });
+
+  it('selects Kimi Code through an agent-cli registry id', async () => {
+    const runner = new FakeRunner(res({ stdout: 'ok' }));
+    const source: AgentCliRegistrySource = { agentId: 'kimi-code' };
+    await new AgentCliHarness(runner, source).dispatch({
+      agent: 'default',
+      prompt: 'implement this',
+    });
+
+    expect(runner.calls[0]?.command).toBe('kimi');
+    expect(runner.calls[0]?.args).toEqual(['-p', 'implement this']);
+  });
+
+  it('selects MiMo Code through an agent-cli registry id', async () => {
+    const runner = new FakeRunner(res({ stdout: 'ok' }));
+    const source: AgentCliRegistrySource = { agentId: 'mimo-code' };
+    await new AgentCliHarness(runner, source).dispatch({
+      agent: 'default',
+      prompt: 'implement this',
+    });
+
+    expect(runner.calls[0]?.command).toBe('mimo');
+    expect(runner.calls[0]?.args).toEqual(['-p', 'implement this']);
+  });
+
+  it('rejects unknown agent-cli registry ids as programmer errors', () => {
+    const runner = new FakeRunner(res({ stdout: 'ok' }));
+    expect(() => new AgentCliHarness(runner, { agentId: 'missing-code' })).toThrow(/missing-code/u);
   });
 
   it('pipes stdin when promptMode is stdin', async () => {
