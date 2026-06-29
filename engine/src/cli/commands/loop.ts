@@ -3,8 +3,8 @@ import { join as joinPath } from 'node:path';
 
 import { Command, Option } from 'clipanion';
 
-import type { LoopRound, LoopState, VerdictKind } from '../../domain/loop.js';
-import { decideLoop } from '../../domain/loop-decide.js';
+import type { LoopRound, VerdictKind } from '../../domain/loop.js';
+import { adviceFor, decideLoop } from '../../domain/loop-decide.js';
 import { NodeFileSystem } from '../../infra/node-file-system.js';
 import { defaultCacheRoot } from '../default-paths.js';
 
@@ -132,23 +132,6 @@ const parseRoundLine = (line: string): LoopRound | null => {
   if (sha !== undefined && sha.length > 0) value.sha = sha;
   if (note !== undefined && note.length > 0) value.note = note;
   return value;
-};
-
-const adviceFor = (state: LoopState, last: LoopRound, bestSha: string): string => {
-  switch (state) {
-    case 'DONE':
-      return 'second independent confirmation passed → finish: mark TASK DONE+Completed, push/deliver';
-    case 'CONFIRM':
-      return 'first ACCEPTED → run 1 more independent confirmation review pass (verification is probabilistic); only DONE if still ACCEPTED';
-    case 'ESCALATE_MAX':
-      return `reached cap still NEEDS FIX → stop and escalate: post best diff(sha ${bestSha.length > 0 ? bestSha : '—'}) + remaining findings + your judgment`;
-    case 'ESCALATE_NONCONV':
-      return 'two consecutive rounds same-class/not decreasing → first meta-reflect(reviewer too strict? requirement unclear? change implementation? fix→break thrashing?) for a diagnosis, then escalate';
-    case 'ASK_USER':
-      return `this round ${String(last.intentFindings)}/${String(last.findings)} findings touch intent(architecture/semantics/trade-off)→ first escalate these to human for approve/change/skip; the other ${String(last.findings - last.intentFindings)} mechanical ones Claude Edit-patches directly, then run next round`;
-    case 'CONTINUE':
-      return `this round findings all mechanical → operator Edit-patch(no rollback to implementer for rewrite), commit, run next round ${String(last.round + 1)}`;
-  }
 };
 
 class LegacyLoopStore {
