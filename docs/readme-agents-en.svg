@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 360" role="img" aria-labelledby="title desc">
+  <title id="title">FuguNano agent runtime contract</title>
+  <desc id="desc">One Harness port drives four descriptor-backed core adapters plus opt-in experimental agent-cli descriptors and an ACP protocol adapter.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#18d9c5"/>
+    </marker>
+    <style>
+      .title{font:800 34px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#f8fafc;letter-spacing:0}
+      .sub{font:500 16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#b6c9d1;letter-spacing:0}
+      .lane{font:800 14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#9fb3bb;letter-spacing:.4px}
+      .node{font:800 17px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#f8fafc;letter-spacing:0}
+      .body{font:500 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#b6c9d1;letter-spacing:0}
+      .mono{font:700 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#18d9c5;letter-spacing:0}
+      .amber{font:700 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#e0a23c;letter-spacing:0}
+    </style>
+  </defs>
+  <rect width="1120" height="360" rx="26" fill="#070d12"/>
+  <text x="48" y="58" class="title">Agent runtime contract</text>
+  <text x="48" y="84" class="sub">The core knows one Harness port — adapters and descriptors, not a vendor catalog.</text>
+
+  <!-- Harness port -->
+  <g transform="translate(44 132)">
+    <rect width="180" height="156" rx="16" fill="#101b22" stroke="#275e68"/>
+    <text x="18" y="34" class="node">Harness port</text>
+    <text x="18" y="64" class="mono">dispatch(req)</text>
+    <text x="18" y="86" class="mono">→ Result&lt;Out,Err&gt;</text>
+    <text x="18" y="112" class="mono">health()</text>
+    <text x="18" y="138" class="body">inherits guard +</text>
+    <text x="18" y="156" class="body">certificate gates</text>
+  </g>
+
+  <line x1="224" y1="168" x2="266" y2="158" stroke="#18d9c5" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="224" y1="250" x2="266" y2="276" stroke="#18d9c5" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- Core lane -->
+  <rect x="270" y="116" width="806" height="92" rx="16" fill="none" stroke="#275e68"/>
+  <text x="288" y="138" class="lane">CORE · DEFAULT SURFACE · DESCRIPTOR-BACKED</text>
+  <g class="body">
+    <g transform="translate(288 150)"><rect width="184" height="46" rx="12" fill="#101b22" stroke="#275e68"/><text x="16" y="29" class="node" font-size="15">fugue-cc</text></g>
+    <g transform="translate(488 150)"><rect width="184" height="46" rx="12" fill="#101b22" stroke="#275e68"/><text x="16" y="29" class="node" font-size="15">codex</text></g>
+    <g transform="translate(688 150)"><rect width="184" height="46" rx="12" fill="#101b22" stroke="#275e68"/><text x="16" y="29" class="node" font-size="15">opencode</text></g>
+    <g transform="translate(888 150)"><rect width="172" height="46" rx="12" fill="#101b22" stroke="#275e68"/><text x="16" y="29" class="node" font-size="15">agy</text></g>
+  </g>
+
+  <!-- Experimental lane -->
+  <rect x="270" y="224" width="806" height="112" rx="16" fill="none" stroke="#6b5536"/>
+  <text x="288" y="246" class="lane" fill="#e0a23c">EXPERIMENTAL · OPT-IN · EXCLUDED FROM preflight --all</text>
+  <g transform="translate(288 256)">
+    <rect width="470" height="66" rx="12" fill="#21151a" stroke="#6b5536"/>
+    <text x="16" y="28" class="node" font-size="15">agent-cli</text>
+    <text x="16" y="50" class="amber">InvocationDescriptor</text>
+    <text x="250" y="28" class="body">qwen · kimi · mimo</text>
+    <text x="250" y="50" class="body">trae · qoder</text>
+  </g>
+  <g transform="translate(778 256)">
+    <rect width="282" height="66" rx="12" fill="#21151a" stroke="#6b5536"/>
+    <text x="16" y="28" class="node" font-size="15">acp-agent</text>
+    <text x="16" y="50" class="amber">protocol: init→prompt→result</text>
+  </g>
+
+  <text x="288" y="332" class="body" font-size="11">New agent = one descriptor + registry entry + preflight probe + smoke. No new HarnessName.</text>
+</svg>

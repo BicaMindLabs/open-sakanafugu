@@ -157,7 +157,26 @@ fuguectl loop decide
 `status`/`exitCode`/`allowPartial`/`succeeded`/`available`/`failed`, so planning
 can be inspected without reading model chat.
 
-Harnesses: `fugue-cc|codex|opencode|agy`.
+## Agent Runtime Contract
+
+<p align="center">
+  <img src="docs/readme-agents-en.svg" alt="FuguNano agent runtime contract" width="920">
+</p>
+
+The core only knows one `Harness` port (`dispatch(req) → Result`, `health()`), so
+adding an agent never touches orchestration. Four core harnesses
+(`fugue-cc|codex|opencode|agy`) stay in the default surface; experimental
+runtimes are opt-in and excluded from `preflight --all`.
+
+| Tier         | Runtime                                                       | How it plugs in                                                                          |
+| ------------ | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Core         | `fugue-cc` · `codex` · `opencode` · `agy`                    | descriptor-backed adapters in the default surface                                        |
+| Experimental | `agent-cli` (qwen-code · kimi-code · mimo-code · trae · qoder) | one `InvocationDescriptor` per agent in the registry — no new `HarnessName`               |
+| Experimental | `acp-agent`                                                  | a protocol adapter (`initialize → prompt → result`), deliberately not a descriptor       |
+
+A new agent is a registry entry plus a preflight probe and a smoke test, not a
+core change. Every harness satisfies the same port, so it inherits the guard and
+certificate gates for free.
 
 ## Fugu, OpenFugu, FuguNano
 

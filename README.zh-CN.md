@@ -152,7 +152,24 @@ fuguectl loop decide
 `fuguectl plan ...` 会写入 `<out>/summary.json`，字段为
 `status`/`exitCode`/`allowPartial`/`succeeded`/`available`/`failed`，不用翻模型聊天记录也能检查规划结果。
 
-Harness 列表：`fugue-cc|codex|opencode|agy`。
+## 智能体运行时契约
+
+<p align="center">
+  <img src="docs/readme-agents-zh.svg" alt="FuguNano 智能体运行时契约" width="920">
+</p>
+
+核心只认一个 `Harness` 端口（`dispatch(req) → Result`、`health()`），所以新增 agent
+永远不碰编排逻辑。四个核心 harness（`fugue-cc|codex|opencode|agy`）留在默认面;实验性
+运行时选择性接入,且不进 `preflight --all`。
+
+| 层级   | 运行时                                                        | 怎么接入                                                              |
+| ------ | ------------------------------------------------------------ | -------------------------------------------------------------------- |
+| 核心   | `fugue-cc` · `codex` · `opencode` · `agy`                    | 默认面里的 descriptor 化 adapter                                     |
+| 实验性 | `agent-cli`（qwen-code · kimi-code · mimo-code · trae · qoder） | registry 里每个 agent 一条 `InvocationDescriptor`,不新增 `HarnessName` |
+| 实验性 | `acp-agent`                                                  | 协议 adapter（`initialize → prompt → result`），刻意不用 descriptor   |
+
+新增 agent = 一条 registry 条目 + preflight 探针 + smoke,不是改核心。每个 harness
+满足同一个端口,自动继承 guard 与 certificate 门。
 
 ## Fugu、OpenFugu、FuguNano
 
