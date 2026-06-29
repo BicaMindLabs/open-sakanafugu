@@ -14,7 +14,7 @@ const method = (slug: string): Method => ({
   slug,
   created: 0,
   sourceKind: 'manual',
-  trustKind: 'unverified',
+  trustKind: 'untrusted',
   body: '',
 });
 
