@@ -57,7 +57,7 @@ describe('betaPrior', () => {
   });
 });
 
-describe('rankAgents greedy scoring (bash parity)', () => {
+describe('rankAgents greedy scoring', () => {
   it('cold-start ranks exactly in bench order', () => {
     const bench: BenchTable = new Map([[profileType, ['a', 'b', 'c']]]);
     expect(agentNames(rankGreedy(bench, []))).toEqual(['a', 'b', 'c']);
@@ -95,14 +95,14 @@ describe('rankAgents greedy scoring (bash parity)', () => {
     expect(agentNames(ranked)).toEqual(['b', 'a', 'c', 'z']);
   });
 
-  it('treats scores equal to 6 decimals as a tie (bash printf "%.6f" parity)', () => {
+  it('treats scores equal to 6 decimals as a tie (deterministic tolerance)', () => {
     const bench: BenchTable = new Map([[profileType, ['a', 'b']]]);
     // a (cold) = 11/18 and b (s=38,f=22) = 121/198 both round to 0.611111 → tie → bench rank
     const state: StrategyState = [{ taskType: profileType, agent: 'b', s: 38, f: 22 }];
     expect(agentNames(rankGreedy(bench, state))).toEqual(['a', 'b']);
   });
 
-  it('breaks ties by codepoint, not locale collation (bash sort -k3 byte order)', () => {
+  it('breaks ties by codepoint, not locale collation', () => {
     const bench: BenchTable = new Map([[profileType, []]]); // all unlisted → equal score
     const state: StrategyState = [
       { taskType: profileType, agent: 'a', s: 0, f: 0 },
