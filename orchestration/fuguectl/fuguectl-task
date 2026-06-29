@@ -4,13 +4,14 @@ import { runSubcommandBridge } from "./fuguectl-node-bridge.mjs";
 runSubcommandBridge({
   argv: process.argv.slice(2),
   command: "task",
-  allowed: ["new", "log", "done"],
+  allowed: ["new", "log", "done", "handoff"],
   help: `fuguectl-task — TypeScript TASK commands bridge
 
 new  "<title>" [P0|P1|P2]
 log  <task-file> "<message>"
 done <task-file>
+handoff <task-file> [--json] [--tail n] [--require-done]
 `,
   unknown: (subcommand) =>
-    `fuguectl-task: unknown subcommand '${subcommand}' (new|log|done)`,
+    `fuguectl-task: unknown subcommand '${subcommand}' (new|log|done|handoff)`,
 });

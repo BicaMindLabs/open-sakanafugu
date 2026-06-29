@@ -81,6 +81,11 @@ writeFileSync(
     "  const next = fs.readFileSync(file, 'utf8').replace(/^Status: .*$/m, 'Status: DONE').replace(/^Completed: .*$/m, 'Completed: ' + stamp);",
     "  fs.writeFileSync(file, next);",
     "  process.stdout.write('done -> ' + file + '\\n');",
+    "} else if (cmd === 'handoff') {",
+    "  const file = args[0];",
+    "  if (!file || !fs.existsSync(file)) die('no task file');",
+    "  const text = fs.readFileSync(file, 'utf8');",
+    "  process.stdout.write('[task:handoff] ' + text.split('\\n')[0].replace(/^# /, '') + '\\n');",
     "} else {",
     "  die('unknown task command ' + (cmd || ''));",
     "}",
@@ -143,11 +148,17 @@ suite.ok(
   "log nonexistent file → non-0",
   () => run(task, ["log", "/no/such/file", "x"]).status !== 0,
 );
+suite.ok("handoff renders task packet", () =>
+  run(task, ["handoff", first]).stdout.includes("[task:handoff]"),
+);
 suite.ok("wrapper delegates positional priority to engine CLI", () =>
   readFileSync(calls, "utf8").includes("task new test task title P0\n"),
 );
 suite.ok("wrapper delegates split log words to engine CLI", () =>
   /^task log .* first second$/mu.test(readFileSync(calls, "utf8")),
+);
+suite.ok("wrapper delegates handoff to engine CLI", () =>
+  /^task handoff /mu.test(readFileSync(calls, "utf8")),
 );
 
 suite.done();

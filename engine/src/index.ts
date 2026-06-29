@@ -122,6 +122,16 @@ export { parseGoalSpec, renderGoalTemplate } from './domain/goal-parse.js';
 export { renderSummary } from './domain/summary.js';
 export type { TaskPriority, TaskRef } from './domain/task-file.js';
 export { renderTaskFile } from './domain/task-file.js';
+export type {
+  TaskHandoffChecklistItem,
+  TaskHandoffEvidence,
+  TaskHandoffIssue,
+  TaskHandoffIssueKind,
+  TaskHandoffOptions,
+  TaskHandoffPacket,
+  TaskHandoffReadiness,
+} from './domain/task-handoff.js';
+export { renderTaskHandoffPacket, taskHandoffPacket } from './domain/task-handoff.js';
 export { renderPlanPrompt, DEFAULT_PLAN_AGENTS } from './domain/plan.js';
 export type { VersionDrift } from './domain/runtime-sync.js';
 export { detectDrift } from './domain/runtime-sync.js';

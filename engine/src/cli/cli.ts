@@ -35,7 +35,12 @@ import { SelfHarnessRunCommand, SelfHarnessTemplateCommand } from './commands/se
 import { SkillsCommand } from './commands/skills.js';
 import { SmokeCommand } from './commands/smoke.js';
 import { SummaryCommand } from './commands/summary.js';
-import { TaskDoneCommand, TaskLogCommand, TaskNewCommand } from './commands/task.js';
+import {
+  TaskDoneCommand,
+  TaskHandoffCommand,
+  TaskLogCommand,
+  TaskNewCommand,
+} from './commands/task.js';
 import { TemplateRenderCommand } from './commands/template.js';
 import { VersionCommand } from './commands/version.js';
 import {
@@ -75,6 +80,7 @@ export const buildCli = (): Cli => {
   cli.register(TaskNewCommand);
   cli.register(TaskLogCommand);
   cli.register(TaskDoneCommand);
+  cli.register(TaskHandoffCommand);
   cli.register(GoalTemplateCommand);
   cli.register(GoalShowCommand);
   cli.register(GoalCheckCommand);

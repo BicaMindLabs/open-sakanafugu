@@ -500,6 +500,79 @@ describe('fugue CLI', () => {
       expect(content).toContain('Status: DONE');
       for (const message of messages) expect(content).toContain(message);
     });
+
+    it('renders task handoff packets as markdown and JSON', async () => {
+      const file = join(dir, 'TASK-handoff.md');
+      await writeFile(
+        file,
+        [
+          '# TASK-handoff: Handoff packet',
+          'Status: DONE',
+          'Priority: P1',
+          'Created: 2026-06-29 10:00',
+          'Completed: 2026-06-29 10:15',
+          '',
+          '## Requirements',
+          '- Preserve evidence.',
+          '',
+          '## Subtasks',
+          '- [x] Implement packet',
+          '',
+          '## Output files',
+          '- engine/src/domain/task-handoff.ts',
+          '',
+          '## Log',
+          '- [2026-06-29 10:10] Test green.',
+          '- [2026-06-29 10:11] Review approved.',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const markdown = await run(['task', 'handoff', file, '--tail', '1']);
+      const json = await run(['task', 'handoff', file, '--json']);
+      const packet = JSON.parse(json.out) as {
+        readonly taskId: string;
+        readonly readiness: string;
+        readonly acceptanceConditions: readonly string[];
+        readonly checklist: readonly { readonly text: string; readonly checked: boolean | null }[];
+        readonly evidence: readonly { readonly text: string }[];
+      };
+
+      expect(markdown.code).toBe(0);
+      expect(markdown.out).toContain('[task:handoff] TASK-handoff: Handoff packet');
+      expect(markdown.out).toContain('- requirement: Preserve evidence.');
+      expect(markdown.out).toContain('- subtask: [x] Implement packet');
+      expect(markdown.out).toContain('- evidence: 2026-06-29 10:11 Review approved.');
+      expect(markdown.out).not.toContain('Test green.');
+      expect(json.code).toBe(0);
+      expect(packet).toMatchObject({
+        taskId: 'TASK-handoff',
+        readiness: 'ready',
+        acceptanceConditions: ['Preserve evidence.'],
+        checklist: [{ text: 'Implement packet', checked: true }],
+      });
+      expect(packet.evidence).toHaveLength(2);
+    });
+
+    it('rejects non-integer task handoff tail values', async () => {
+      const created = await run(['task', 'new', 'bad tail handoff']);
+      const file = created.out.trim();
+
+      const result = await run(['task', 'handoff', file, '--tail', '1abc']);
+
+      expect(result.code).toBe(1);
+      expect(result.err).toContain('expected a non-negative integer');
+    });
+
+    it('can require DONE status before a task handoff passes', async () => {
+      const created = await run(['task', 'new', 'unfinished handoff']);
+      const file = created.out.trim();
+
+      const result = await run(['task', 'handoff', file, '--require-done']);
+
+      expect(result.code).toBe(1);
+      expect(result.err).toContain('requires DONE status');
+    });
   });
 
   describe('template rendering', () => {
