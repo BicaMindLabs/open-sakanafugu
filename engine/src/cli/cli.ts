@@ -26,6 +26,7 @@ import { FleetCommand } from './commands/fleet.js';
 import { GuardPromptCommand } from './commands/guard.js';
 import { GoalCheckCommand, GoalShowCommand, GoalTemplateCommand } from './commands/goal.js';
 import { InitCommand } from './commands/init.js';
+import { IncidentPacketCommand } from './commands/incident.js';
 import { IntegrateCommand } from './commands/integrate.js';
 import { LoopCommand } from './commands/loop.js';
 import { PlanCommand } from './commands/plan.js';
@@ -89,6 +90,7 @@ export const buildCli = (): Cli => {
   cli.register(GoalTemplateCommand);
   cli.register(GoalShowCommand);
   cli.register(GoalCheckCommand);
+  cli.register(IncidentPacketCommand);
   cli.register(IntegrateCommand);
   cli.register(LoopCommand);
   cli.register(PlanCommand);

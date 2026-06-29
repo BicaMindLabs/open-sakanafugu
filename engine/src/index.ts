@@ -106,6 +106,25 @@ export {
   reviewPacket,
 } from './domain/review-packet.js';
 export type {
+  IncidentEvidence,
+  IncidentHarnessLayer,
+  IncidentKind,
+  IncidentMastCategory,
+  IncidentPacket,
+  IncidentPacketIssue,
+  IncidentPacketOptions,
+  IncidentRecord,
+  IncidentSeverity,
+} from './domain/incident-packet.js';
+export {
+  INCIDENT_HARNESS_LAYERS,
+  INCIDENT_KINDS,
+  INCIDENT_MAST_CATEGORIES,
+  INCIDENT_PACKET_SCHEMA_VERSION,
+  incidentPacket,
+  renderIncidentPacket,
+} from './domain/incident-packet.js';
+export type {
   RuntimeGuardDisposition,
   RuntimeGuardEvidence,
   RuntimeGuardFinding,
