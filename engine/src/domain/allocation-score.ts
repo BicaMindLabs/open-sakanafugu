@@ -21,7 +21,13 @@ interface RankedMutable {
 export const betaPrior = (index: number, listSize: number): number =>
   (listSize - index) / (listSize + 1);
 
-/** Quantize to 6 decimals — the precision bash sorts on (printf "%.6f"). */
+/**
+ * Quantize a posterior-mean score to 6 decimals before comparing. This is a
+ * deliberate tie tolerance, not a display detail: two scores within ~1e-6 are
+ * treated as equal so the ranking falls through to the stable bench-rank /
+ * agent-name tie-break instead of being split by float epsilon (which would
+ * make ordering depend on unobservable low-order bits).
+ */
 const q6 = (x: number): number => Math.round(x * 1e6);
 
 export const applyOutcome = (state: StrategyState, outcome: AllocationOutcome): StrategyState => {
@@ -105,10 +111,10 @@ export const rankAgents = (
     });
   }
 
-  // bash ranks on the printf "%.6f" score, so scores equal to 6 decimals tie and
-  // fall through to bench rank; quantize here to reproduce that exactly (raw
-  // doubles would split a bash tie by float epsilon). Agent names compare by
-  // codepoint to match bash `sort -k3` (byte order), not locale collation.
+  // Three-level deterministic order: quantized score (6-decimal tie tolerance,
+  // see q6) → bench rank → agent name by codepoint. Comparing on q6 keeps near-
+  // equal scores from being split by float epsilon; the codepoint compare keeps
+  // the final tie-break independent of the host's locale collation.
   return ranked.sort((left, right) => {
     const scoreOrder = q6(right.score) - q6(left.score);
     if (scoreOrder !== 0) return scoreOrder;
