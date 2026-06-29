@@ -41,7 +41,9 @@ import type {
 } from '../../domain/experience.js';
 import { HARNESS_NAMES, type Harness, type HarnessName } from '../../domain/ports/harness.js';
 import { assembleContext, renderBundle, renderTemplate } from '../../domain/prompt-render.js';
+import { incidentPacket, incidentRecoveryPacket } from '../../domain/incident-packet.js';
 import { isOk } from '../../domain/result.js';
+import { renderRuntimeGuardPacket, runtimeGuardPacket } from '../../domain/runtime-guard.js';
 import type { SkillSource } from '../../domain/skill.js';
 import { systemClock } from '../../infra/clock.js';
 import type { FileSystem } from '../../infra/file-system.js';
@@ -55,18 +57,13 @@ import {
   defaultTemplatesDir,
   defaultWorkspacesDir,
 } from '../default-paths.js';
+import { normalizeOption, splitCsv } from '../param-parse.js';
 import { appendTaskAuditLine } from '../task-audit.js';
 const defaultSkillsRoot = (): string =>
   process.env.FUGUE_SKILLS_ROOT ?? joinPath(joinPath(homedir(), '.claude'), 'skills');
 const defaultPluginsRoot = (): string =>
   process.env.FUGUE_PLUGINS_ROOT ??
   joinPath(joinPath(joinPath(homedir(), '.claude'), 'plugins'), 'marketplaces');
-
-const splitCsv = (raw: string): readonly string[] =>
-  raw
-    .split(',')
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0);
 
 const recallOptions = (
   query: string | undefined,
@@ -92,8 +89,7 @@ const recallOptions = (
   return options;
 };
 
-const normalizeExperienceSource = (raw: string | undefined): string | undefined =>
-  raw?.trim().toLowerCase();
+const normalizeExperienceSource = normalizeOption;
 
 const parseExperienceSource = (
   raw: string | undefined,
@@ -223,6 +219,11 @@ const formatDurationMs = (ms: number): string => {
 
 const sha256 = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex');
 
+const GUARD_MODES = ['strict', 'warn', 'off'] as const;
+type GuardMode = (typeof GUARD_MODES)[number];
+const isGuardMode = (value: string): value is GuardMode =>
+  (GUARD_MODES as readonly string[]).includes(value);
+
 const failureFields = (kind: string | undefined): string =>
   kind === undefined ? '' : ` error=${kind}`;
 
@@ -348,6 +349,8 @@ export class DispatchCommand extends Command {
   verbose = Option.Boolean('--verbose', false);
   harnessArgs = Option.Array('--harness-arg', []);
   codexClean = Option.Boolean('--codex-clean', process.env.FUGUE_CODEX_CLEAN === '1');
+  guard = Option.String('--guard', process.env.FUGUE_DISPATCH_GUARD ?? 'warn');
+  incident = Option.String('--incident');
 
   private readonly fs = new NodeFileSystem();
 
@@ -358,6 +361,10 @@ export class DispatchCommand extends Command {
     }
     if (this.codexClean && this.harness !== 'codex') {
       this.context.stderr.write('--codex-clean requires --harness codex\n');
+      return 2;
+    }
+    if (!isGuardMode(this.guard)) {
+      this.context.stderr.write(`unknown --guard '${this.guard}' (strict|warn|off)\n`);
       return 2;
     }
     if (!isActionApprovalClass(this.approvalClass)) {
@@ -453,6 +460,7 @@ export class DispatchCommand extends Command {
       experienceMaxAgeSeconds,
     );
     if (prompt === null) return 2;
+    if (!(await this.runGuard(prompt))) return 2;
     const timeoutMs = parseTimeoutMs(this.timeoutMs);
     if (timeoutMs === null) {
       this.context.stderr.write(
@@ -480,6 +488,7 @@ export class DispatchCommand extends Command {
     let outputChars = 0;
     let separateVerboseObservation = false;
     let failureKind: string | undefined = isOk(result) ? undefined : result.error.kind;
+    const failureDetail = isOk(result) ? undefined : result.error.detail;
     if (isOk(result)) {
       output = result.value.output;
       outputChars = output.length;
@@ -546,8 +555,59 @@ export class DispatchCommand extends Command {
       ...(this.out !== undefined ? { outputPath: this.out } : {}),
       ...(this.certificate !== undefined ? { certificatePath: this.certificate } : {}),
     });
+    await this.recordIncident(finalRc, {
+      ...(failureKind !== undefined ? { failureKind } : {}),
+      ...(failureDetail !== undefined ? { failureDetail } : {}),
+      output,
+    });
     await this.appendAllocationLedger();
     return finalRc;
+  }
+
+  /**
+   * On a failed dispatch, turn the failure into a structured incident the rest
+   * of the loop can consume instead of an operator hand-running `incident
+   * packet`. Synthesizes a failure log (rc + kind + harness detail/output),
+   * derives the incident + recovery packets, appends a one-line summary with the
+   * first recovery step to the TASK audit, and writes the full packet to
+   * --incident when given. No-op on success.
+   */
+  private async recordIncident(
+    finalRc: number,
+    context: { failureKind?: string; failureDetail?: string; output: string },
+  ): Promise<void> {
+    if (finalRc === 0) return;
+    if (this.task === undefined && this.incident === undefined) return;
+    const failureLog = [
+      `dispatch harness=${this.harness} agent=${this.target} rc=${String(finalRc)}`,
+      context.failureKind !== undefined ? `failure-kind: ${context.failureKind}` : undefined,
+      context.failureDetail,
+      context.output.length > 0 ? context.output : undefined,
+    ]
+      .filter((line): line is string => line !== undefined && line.length > 0)
+      .join('\n');
+    const sourceRef = this.task ?? this.target;
+    const packet = incidentPacket(failureLog, { sourceRef, sourceSha256: sha256(failureLog) });
+    const recovery = incidentRecoveryPacket(packet);
+    if (this.incident !== undefined) {
+      try {
+        await this.fs.write(
+          this.incident,
+          `${JSON.stringify({ incident: packet, recovery }, null, 2)}\n`,
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.context.stderr.write(`failed to write --incident ${this.incident}: ${message}\n`);
+      }
+    }
+    const top = packet.incidents[0];
+    const step = recovery.steps[0];
+    const summary =
+      top !== undefined
+        ? `incident kind=${top.kind} severity=${top.severity} cause=${top.failureCause}`
+        : `incident kind=unclassified rc=${String(finalRc)}`;
+    const nextStep = step !== undefined ? ` next=${step.phase}:${step.action}` : '';
+    await this.appendTaskLine(`${summary}${nextStep}`);
   }
 
   private async appendTaskStart(metrics: {
@@ -771,6 +831,40 @@ export class DispatchCommand extends Command {
   private async appendTaskLine(message: string): Promise<void> {
     if (this.task === undefined) return;
     await appendTaskAuditLine(this.fs, this.task, message);
+  }
+
+  /**
+   * Pre-dispatch runtime guard. The same runtimeGuardPacket the `guard` command
+   * prints offline, now an online gate on the assembled prompt:
+   *   off    — skip entirely.
+   *   warn   — (default) compute, surface review/block on stderr, always proceed.
+   *   strict — refuse dispatch on a `block` disposition (rc 2); review still proceeds.
+   * Returns false when dispatch must be refused.
+   */
+  private async runGuard(prompt: string): Promise<boolean> {
+    if (this.guard === 'off') return true;
+    const packet = runtimeGuardPacket(prompt, {
+      sourceRef: this.task ?? this.target,
+      sourceSha256: sha256(prompt),
+    });
+    if (packet.disposition === 'allow') return true;
+    if (this.guard === 'strict' && packet.disposition === 'block') {
+      this.context.stderr.write(renderRuntimeGuardPacket(packet));
+      this.context.stderr.write(
+        '[guard] dispatch blocked (disposition=block); rerun with --guard warn to override\n',
+      );
+      await this.appendTaskLine(
+        `guard blocked dispatch disposition=block findings=${String(packet.findingCount)}`,
+      );
+      return false;
+    }
+    this.context.stderr.write(
+      `[guard] disposition=${packet.disposition} findings=${String(packet.findingCount)} (proceeding; --guard strict blocks on block)\n`,
+    );
+    await this.appendTaskLine(
+      `guard disposition=${packet.disposition} findings=${String(packet.findingCount)}`,
+    );
+    return true;
   }
 
   private async appendAllocationLedger(): Promise<void> {

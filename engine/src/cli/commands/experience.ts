@@ -25,7 +25,10 @@ import type {
   Method,
   RecallOptions,
 } from '../../domain/experience.js';
+import { evalCaseResult, evalSummary } from '../../domain/experience-eval.js';
+import type { ExperienceEvalCase, ExperienceEvalCaseResult } from '../../domain/experience-eval.js';
 import { isOk } from '../../domain/result.js';
+import { normalizeOption } from '../param-parse.js';
 import { systemClock } from '../../infra/clock.js';
 import { NodeFileSystem } from '../../infra/node-file-system.js';
 import { defaultExperienceDir } from '../default-paths.js';
@@ -248,16 +251,14 @@ const isTerminalFailedTask = (content: string): boolean => {
   return TERMINAL_FAILURE_STATUSES.has(status) && !['', '-'].includes(field(content, 'Completed'));
 };
 
-const normalizeFailureCause = (raw: string | undefined): string | undefined =>
-  raw?.trim().toLowerCase();
+const normalizeFailureCause = normalizeOption;
 
 const failureCauseError = (cause: string | undefined): string => {
   const rendered = cause === undefined || cause.length === 0 ? '<empty>' : cause;
   return `unknown --failure-cause ${rendered}; expected one of ${FAILURE_CAUSES.join(', ')}\n`;
 };
 
-const normalizeSourceKind = (raw: string | undefined): string | undefined =>
-  raw?.trim().toLowerCase();
+const normalizeSourceKind = normalizeOption;
 
 const sourceKindError = (sourceKind: string | undefined): string => {
   const rendered = sourceKind === undefined || sourceKind.length === 0 ? '<empty>' : sourceKind;
@@ -296,8 +297,7 @@ const parseConfirmationRefs = (raw: readonly string[]): readonly string[] | null
 const confirmationRefsError = (): string =>
   '--confirm-source-ref must be a non-empty source reference\n';
 
-const normalizeTrustKind = (raw: string | undefined): string | undefined =>
-  raw?.trim().toLowerCase();
+const normalizeTrustKind = normalizeOption;
 
 const trustKindError = (trustKind: string | undefined): string => {
   const rendered = trustKind === undefined || trustKind.length === 0 ? '<empty>' : trustKind;
@@ -308,47 +308,6 @@ const trustFilterError = (trustFilter: string | undefined): string => {
   const rendered = trustFilter === undefined || trustFilter.length === 0 ? '<empty>' : trustFilter;
   return `unknown --trust ${rendered}; expected one of ${EXPERIENCE_TRUST_FILTERS.join(', ')}\n`;
 };
-
-interface ExperienceEvalCase {
-  readonly id: string;
-  readonly query: string;
-  readonly expectedSlugs: readonly string[];
-  readonly limit?: number;
-  readonly minScore?: number;
-  readonly failureCause?: FailureCause;
-  readonly sourceKind?: ExperienceSourceKind;
-  readonly sourceRef?: string;
-  readonly trust?: ExperienceTrustFilter;
-  readonly maxAgeSeconds?: number;
-  readonly includeSuperseded?: boolean;
-}
-
-interface ExperienceEvalCaseResult {
-  readonly id: string;
-  readonly query: string;
-  readonly expectedSlugs: readonly string[];
-  readonly retrievedSlugs: readonly string[];
-  readonly relevantRetrieved: readonly string[];
-  readonly precision: number;
-  readonly recall: number;
-  readonly f1: number;
-  readonly hit: boolean;
-  readonly mrr: number;
-  readonly passed: boolean;
-}
-
-interface ExperienceEvalSummary {
-  readonly workspace: string;
-  readonly caseCount: number;
-  readonly passed: number;
-  readonly failed: number;
-  readonly meanPrecision: number;
-  readonly meanRecall: number;
-  readonly meanF1: number;
-  readonly hitRate: number;
-  readonly meanMrr: number;
-  readonly cases: readonly ExperienceEvalCaseResult[];
-}
 
 const parseStringList = (value: unknown): readonly string[] | null => {
   if (!Array.isArray(value) || value.length === 0) return null;
@@ -466,58 +425,6 @@ const evalCaseOptions = (evalCase: ExperienceEvalCase): RecallOptions => ({
     ? {}
     : { includeSuperseded: evalCase.includeSuperseded }),
 });
-
-const roundMetric = (value: number): number => Number(value.toFixed(6));
-
-const evalCaseResult = (
-  evalCase: ExperienceEvalCase,
-  methods: readonly Method[],
-): ExperienceEvalCaseResult => {
-  const expected = new Set(evalCase.expectedSlugs);
-  const retrievedSlugs = methods.map((method) => method.slug);
-  const relevantRetrieved = retrievedSlugs.filter((slug) => expected.has(slug));
-  const precision =
-    retrievedSlugs.length === 0 ? 0 : relevantRetrieved.length / retrievedSlugs.length;
-  const recall = relevantRetrieved.length / expected.size;
-  const f1 = precision + recall === 0 ? 0 : (2 * precision * recall) / (precision + recall);
-  const firstRelevantIndex = retrievedSlugs.findIndex((slug) => expected.has(slug));
-  const mrr = firstRelevantIndex === -1 ? 0 : 1 / (firstRelevantIndex + 1);
-  return {
-    id: evalCase.id,
-    query: evalCase.query,
-    expectedSlugs: evalCase.expectedSlugs,
-    retrievedSlugs,
-    relevantRetrieved,
-    precision: roundMetric(precision),
-    recall: roundMetric(recall),
-    f1: roundMetric(f1),
-    hit: relevantRetrieved.length > 0,
-    mrr: roundMetric(mrr),
-    passed: precision === 1 && recall === 1,
-  };
-};
-
-const mean = (values: readonly number[]): number =>
-  values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
-
-const evalSummary = (
-  workspace: string,
-  cases: readonly ExperienceEvalCaseResult[],
-): ExperienceEvalSummary => {
-  const passed = cases.filter((entry) => entry.passed).length;
-  return {
-    workspace,
-    caseCount: cases.length,
-    passed,
-    failed: cases.length - passed,
-    meanPrecision: roundMetric(mean(cases.map((entry) => entry.precision))),
-    meanRecall: roundMetric(mean(cases.map((entry) => entry.recall))),
-    meanF1: roundMetric(mean(cases.map((entry) => entry.f1))),
-    hitRate: roundMetric(mean(cases.map((entry) => (entry.hit ? 1 : 0)))),
-    meanMrr: roundMetric(mean(cases.map((entry) => entry.mrr))),
-    cases,
-  };
-};
 
 abstract class ExperienceCommand extends Command {
   store = Option.String('--store', defaultExperienceDir());

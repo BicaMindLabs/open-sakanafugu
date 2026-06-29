@@ -22,20 +22,26 @@ const exitCodeFor = (state: LoopState): LoopExitCode => {
   }
 };
 
-const adviceFor = (state: LoopState, last: LoopRound): string => {
+/**
+ * The single source of loop advice. `LoopDecision.advice` carries the bestSha-free
+ * form; the `loop` CLI passes the keep-best sha so the ESCALATE_MAX guidance can
+ * name the diff to post. (Previously the CLI kept a richer private copy and
+ * discarded `decision.advice`; this is that richer copy, promoted to the domain.)
+ */
+export const adviceFor = (state: LoopState, last: LoopRound, bestSha?: string): string => {
   switch (state) {
     case 'DONE':
-      return 'second confirmation passed, finish and deliver';
+      return 'second independent confirmation passed → finish: mark TASK DONE+Completed, push/deliver';
     case 'CONFIRM':
-      return 'first ACCEPTED, run one more independent confirmation pass';
+      return 'first ACCEPTED → run 1 more independent confirmation review pass (verification is probabilistic); only DONE if still ACCEPTED';
     case 'CONTINUE':
-      return 'all findings mechanical, operator patches then next round';
+      return `this round findings all mechanical → operator Edit-patch(no rollback to implementer for rewrite), commit, run next round ${String(last.round + 1)}`;
     case 'ASK_USER':
-      return `${last.intentFindings} findings touch intent, escalate those to a human, auto-fix the rest`;
+      return `this round ${String(last.intentFindings)}/${String(last.findings)} findings touch intent(architecture/semantics/trade-off)→ first escalate these to human for approve/change/skip; the other ${String(last.findings - last.intentFindings)} mechanical ones Claude Edit-patches directly, then run next round`;
     case 'ESCALATE_MAX':
-      return 'hit the cap still NEEDS_FIX, escalate best diff and remaining findings';
+      return `reached cap still NEEDS FIX → stop and escalate: post best diff(sha ${bestSha !== undefined && bestSha.length > 0 ? bestSha : '—'}) + remaining findings + your judgment`;
     case 'ESCALATE_NONCONV':
-      return 'two rounds not converging, meta-reflect then escalate';
+      return 'two consecutive rounds same-class/not decreasing → first meta-reflect(reviewer too strict? requirement unclear? change implementation? fix→break thrashing?) for a diagnosis, then escalate';
     default:
       return assertNever(state);
   }
