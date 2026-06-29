@@ -10,5 +10,6 @@ runSimpleBridge({
 --skills a,b   inject selected skills into that agent context
 --guard mode   pre-dispatch runtime guard: strict|warn|off (default warn; strict blocks on a block disposition)
 --incident <f> on failure, write the auto-derived incident+recovery packet here (summary always lands in --task)
+--task-digest  prefix the prompt with a bounded task-context digest of --task [--task-digest-budget n]
 `,
 });

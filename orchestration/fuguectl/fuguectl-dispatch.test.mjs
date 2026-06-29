@@ -443,4 +443,64 @@ suite.ok(
   () => existsSync(guardCalled),
 );
 
+// task-context-digest injection: --task-digest prefixes the prompt with a bounded
+// renderTaskContextDigest of the --task file so the next round's agent gets a
+// compact task view. Use a stub harness that records the prompt it receives.
+const digestCalled = join(tmp, "digest.called");
+writeExecutable(join(tmp, "digest-cc"), [
+  "#!/usr/bin/env node",
+  "const fs = require('node:fs');",
+  `fs.writeFileSync(${JSON.stringify(digestCalled)}, fs.readFileSync(0, 'utf8'));`,
+]);
+process.env.FUGUE_CC_BIN = join(tmp, "digest-cc");
+const digestTask = join(tmp, "digest-task.md");
+writeFileSync(
+  digestTask,
+  [
+    "# TASK-x: demo",
+    "Status: IN_PROGRESS",
+    "",
+    "## Requirements",
+    "- DIGEST-MARKER build the thing",
+    "",
+    "## Subtasks",
+    "- [ ] open subtask",
+    "",
+  ].join("\n"),
+);
+
+if (existsSync(digestCalled)) rmSync(digestCalled);
+run(dispatch, ["cc-x", "--prompt", "base body", "--task", digestTask, "--task-digest"]);
+suite.ok("--task-digest injects the task digest into the prompt", () =>
+  existsSync(digestCalled) &&
+  readFileSync(digestCalled, "utf8").includes("DIGEST-MARKER"),
+);
+
+if (existsSync(digestCalled)) rmSync(digestCalled);
+run(dispatch, ["cc-x", "--prompt", "base body", "--task", digestTask]);
+suite.ok("without --task-digest the prompt carries no injected digest", () =>
+  existsSync(digestCalled) &&
+  !readFileSync(digestCalled, "utf8").includes("DIGEST-MARKER"),
+);
+
+suite.ok(
+  "--task-digest without --task → non-0",
+  () =>
+    run(dispatch, ["cc-x", "--prompt", "base body", "--task-digest"]).status !== 0,
+);
+suite.ok(
+  "--task-digest-budget rejects a non-integer → non-0",
+  () =>
+    run(dispatch, [
+      "cc-x",
+      "--prompt",
+      "base body",
+      "--task",
+      digestTask,
+      "--task-digest",
+      "--task-digest-budget",
+      "abc",
+    ]).status !== 0,
+);
+
 suite.done();
