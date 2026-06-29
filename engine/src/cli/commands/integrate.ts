@@ -8,6 +8,7 @@ import { GitVcsPort } from '../../adapters/integrate/git-vcs.js';
 import type { AgentIntegration, Identity, IntegrationReport, Worktree } from '../../domain/vcs.js';
 import type { Ownership } from '../../domain/ownership.js';
 import { checkOwnership } from '../../domain/ownership-check.js';
+import { renderTaskHandoffPacket, taskHandoffPacket } from '../../domain/task-handoff.js';
 import { NodeCommandRunner } from '../../infra/node-command-runner.js';
 import { NodeFileSystem } from '../../infra/node-file-system.js';
 import { appendTaskAudit } from '../task-audit.js';
@@ -133,6 +134,7 @@ export class IntegrateCommand extends Command {
   ownershipPath = Option.String('--ownership');
   task = Option.String('--task');
   dry = Option.Boolean('--dry', false);
+  strictHandoff = Option.Boolean('--strict-handoff', false);
 
   override async execute(): Promise<number> {
     if (this.work === undefined || this.work.length === 0) return this.error('need --work <repo>');
@@ -147,6 +149,7 @@ export class IntegrateCommand extends Command {
       return this.error(`--work is not a git repo: ${this.work}`);
 
     const fs = new NodeFileSystem();
+    if (!(await this.checkHandoff(fs))) return 2;
     const ownership = await this.ownership(fs);
     if (ownership === null) return 2;
 
@@ -199,6 +202,40 @@ export class IntegrateCommand extends Command {
     return isAbsolute(this.wsParent)
       ? joinPath(this.wsParent, agent)
       : joinPath(joinPath(this.work ?? '', this.wsParent), agent);
+  }
+
+  /**
+   * Pre-integration task-handoff gate. The taskHandoffPacket was only reachable
+   * via `task handoff`; with --strict-handoff it becomes a gate: if the TASK's
+   * acceptance conditions / checklist leave readiness=blocked, refuse to
+   * cherry-pick the work onto main. needs-review warns but proceeds. Off by
+   * default so existing integrate flows are unchanged.
+   */
+  private async checkHandoff(fs: NodeFileSystem): Promise<boolean> {
+    if (!this.strictHandoff) return true;
+    if (this.task === undefined || this.task.length === 0) {
+      this.context.stderr.write('--strict-handoff requires --task <file>\n');
+      return false;
+    }
+    const content = await fs.read(this.task);
+    if (content === null) {
+      this.context.stderr.write(`--task file not found: ${this.task}\n`);
+      return false;
+    }
+    const packet = taskHandoffPacket(content, { sourceRef: this.task });
+    if (packet.readiness === 'blocked') {
+      this.context.stderr.write(renderTaskHandoffPacket(packet));
+      this.context.stderr.write(
+        '[handoff] integration blocked (readiness=blocked); resolve the handoff issues first\n',
+      );
+      return false;
+    }
+    if (packet.readiness === 'needs-review') {
+      this.context.stderr.write(
+        `[handoff] readiness=needs-review issues=${String(packet.issues.length)} (proceeding)\n`,
+      );
+    }
+    return true;
   }
 
   private async ownership(fs: NodeFileSystem): Promise<Ownership | undefined | null> {

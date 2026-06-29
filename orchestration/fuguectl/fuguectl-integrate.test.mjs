@@ -282,4 +282,77 @@ suite.ok(
       .status !== 0,
 );
 
+// task-handoff is now a pre-integration gate: with --strict-handoff a TASK whose
+// acceptance conditions / output objects are missing (readiness=blocked) refuses
+// the cherry-pick onto main instead of integrating then explaining later.
+const blockedTask = join(tmp, "handoff-blocked.md");
+writeFileSync(blockedTask, "# TASK-block: wip\nStatus: NEEDS_FIX\n");
+const readyTask = join(tmp, "handoff-ready.md");
+writeFileSync(
+  readyTask,
+  [
+    "# TASK-ready: ship it",
+    "Status: DONE",
+    "",
+    "## Requirements",
+    "- do the thing",
+    "",
+    "## Output files",
+    "- a.py",
+    "",
+    "## Execution log",
+    "- [main] implemented and verified",
+    "",
+  ].join("\n"),
+);
+
+const blocked = run(integrate, [
+  "--work",
+  work,
+  "--agents",
+  "cc-idle",
+  "--strict-handoff",
+  "--task",
+  blockedTask,
+  "--dry",
+]);
+suite.ok("--strict-handoff blocks a not-ready TASK → non-0", () => blocked.status !== 0);
+suite.ok(
+  "--strict-handoff refuses before producing an integrate report",
+  () => !blocked.stdout.includes("── integrate"),
+);
+suite.ok(
+  "--strict-handoff without --task → non-0",
+  () =>
+    run(integrate, ["--work", work, "--agents", "cc-idle", "--strict-handoff", "--dry"])
+      .status !== 0,
+);
+
+const ready = run(integrate, [
+  "--work",
+  work,
+  "--agents",
+  "cc-idle",
+  "--strict-handoff",
+  "--task",
+  readyTask,
+  "--dry",
+]);
+suite.ok("--strict-handoff lets a ready TASK proceed to the report", () =>
+  ready.stdout.includes("── integrate"),
+);
+suite.ok(
+  "blocked TASK without --strict-handoff still integrates (opt-in gate)",
+  () =>
+    run(integrate, [
+      "--work",
+      work,
+      "--agents",
+      "cc-idle",
+      "--task",
+      blockedTask,
+      "--dry",
+    ]).stdout.includes("── integrate"),
+);
+
 suite.done();

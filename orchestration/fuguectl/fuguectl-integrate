@@ -13,6 +13,7 @@ runSimpleBridge({
 --onconflict abort|skip
 --ownership <file>
 --task <file>
+--strict-handoff   refuse integration if the --task handoff readiness is blocked
 --dry
 `,
 });

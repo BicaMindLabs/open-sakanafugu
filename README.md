@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Runtime-Node%20%3E%3D18.18-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js >= 18.18" />
   <img src="https://img.shields.io/badge/Engine-TypeScript-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript engine" />
   <img src="https://img.shields.io/badge/fuguectl-28%20suites-7c3aed?style=for-the-badge" alt="28 fuguectl test suites" />
-  <img src="https://img.shields.io/badge/assertions-383-brightgreen?style=for-the-badge" alt="383 fuguectl assertions" />
+  <img src="https://img.shields.io/badge/assertions-388-brightgreen?style=for-the-badge" alt="388 fuguectl assertions" />
   <a href="https://github.com/BicaMindLabs/FuguNano/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/BicaMindLabs/FuguNano/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status" /></a>
   <img src="https://img.shields.io/badge/license-Apache--2.0-yellowgreen?style=for-the-badge" alt="Apache-2.0 license" />
 </p>
@@ -164,7 +164,7 @@ whether a learned conductor is worth the cost.
 ## Command Surface
 
 `orchestration/fuguectl/fuguectl` is the production entry point: 27 subcommands,
-28 test suites, and 383 wrapper assertions.
+28 test suites, and 388 wrapper assertions.
 
 | Area               | Commands                                                                                                                                                                                                                                                                                                                     |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
