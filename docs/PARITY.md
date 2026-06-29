@@ -15,7 +15,7 @@ The TS CLI (`fugue`, clipanion) exposes `fugue version`, `fugue doctor`,
 `fugue cache init|put|fail|status|barrier|collect|list|resume`, `fugue plan`,
 `fugue task new|log|done`, `fugue template`,
 `fugue workspace list|show|model|context`,
-`fugue experience add|eval|learn|list|promote|recall|show`, `fugue summary`,
+`fugue experience add|audit|eval|learn|list|promote|recall|show`, `fugue summary`,
 `fugue runtime check|adapt`, `fugue run set|round|status|next|clear`,
 `fugue loop init|record|decide|next|status`, `fugue goal template|show|check`,
 `fugue agent-registry template|validate|list|resolve`, and
@@ -31,7 +31,7 @@ preserved → `npx fugue`).
 | 5   | `goal` (template/show/check)                                 | `GoalSpec` + acceptance gate                                             | ✓ Node wrapper | ◐ core + cli (iter13)                 | ☑       |
 | 6   | `integrate` (+ --ownership)                                  | `Integrator` + `VcsPort` + ownership                                     | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
 | 7   | `workspace` (list/show/model/context)                        | `Workspace` / `ContextAssembler`                                         | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
-| 8   | `experience` (add/recall/...)                                | `ExperienceStore`                                                        | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
+| 8   | `experience` (add/audit/recall/...)                          | `ExperienceStore`                                                        | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
 | 9   | `skills` (index/list/match/show/inject/validate/forge)       | `SkillCatalog`                                                           | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
 | 10  | `dispatch` (--harness ...)                                   | `Harness` + `Phase`                                                      | ✓ Node wrapper | ◐ core + cli (iter16)                 | ☑       |
 | 11  | `fleet` (status/up/down)                                     | `Harness.health` + launcher                                              | ✓ Node wrapper | ◐ health + cli (iter16)               | ☑       |

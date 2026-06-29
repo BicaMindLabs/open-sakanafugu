@@ -2278,6 +2278,145 @@ describe('fugue CLI', () => {
       expect(alreadyTrusted.err).toContain('is already trusted');
     });
 
+    it('audits experience governance state as machine-readable JSON', async () => {
+      const now = Math.floor(Date.now() / 1000);
+      await mkdir(join(store, 'code'), { recursive: true });
+      await mkdir(join(store, 'review'), { recursive: true });
+      const record = (
+        file: string,
+        lines: readonly string[],
+        body = 'Use dispatch provenance anchors.',
+      ): Promise<void> => writeFile(file, [...lines, '---', body].join('\n'), 'utf8');
+      await record(join(store, 'code', 'untrusted-no-ref.md'), [
+        '---',
+        'workspace: code',
+        'title: Untrusted no ref',
+        `created: ${now}`,
+        'sourceKind: manual',
+        'trustKind: untrusted',
+      ]);
+      await record(join(store, 'code', 'trusted-import.md'), [
+        '---',
+        'workspace: code',
+        'title: Trusted import',
+        `created: ${now}`,
+        'sourceKind: manual',
+        'sourceRef: https://example.test/original',
+        'trustKind: trusted',
+      ]);
+      await record(join(store, 'code', 'untrusted-replacement.md'), [
+        '---',
+        'workspace: code',
+        'title: Untrusted replacement',
+        `created: ${now}`,
+        'sourceKind: manual',
+        'sourceRef: https://example.test/untrusted',
+        'trustKind: untrusted',
+        'supersedes: trusted-import',
+      ]);
+      await record(join(store, 'code', 'missing-target.md'), [
+        '---',
+        'workspace: code',
+        'title: Missing target',
+        `created: ${now}`,
+        'sourceKind: manual',
+        'trustKind: trusted',
+        'supersedes: ghost-memory',
+      ]);
+      await record(join(store, 'code', 'bad-confirmation.md'), [
+        '---',
+        'workspace: code',
+        'title: Bad confirmation',
+        `created: ${now}`,
+        'sourceKind: manual',
+        'sourceRef: https://example.test/same',
+        'trustKind: trusted',
+        'confirmedBy: ["https://example.test/same"]',
+      ]);
+      await record(join(store, 'code', 'stale-trusted.md'), [
+        '---',
+        'workspace: code',
+        'title: Stale trusted',
+        `created: ${now - 10 * 86_400}`,
+        'sourceKind: manual',
+        'trustKind: trusted',
+      ]);
+      await record(join(store, 'review', 'confirmed-import.md'), [
+        '---',
+        'workspace: review',
+        'title: Confirmed import',
+        `created: ${now}`,
+        'sourceKind: manual',
+        'sourceRef: https://example.test/source',
+        'trustKind: trusted',
+        'confirmedBy: ["https://example.test/review"]',
+      ]);
+
+      const audit = await run(['experience', 'audit', '--store', store, 'code', '--json']);
+      const staleAudit = await run([
+        'experience',
+        'audit',
+        '--store',
+        store,
+        'code',
+        '--json',
+        '--max-age-days',
+        '1',
+      ]);
+      const cleanAudit = await run(['experience', 'audit', '--store', store, 'review', '--json']);
+      const invalid = await run([
+        'experience',
+        'audit',
+        '--store',
+        store,
+        'code',
+        '--max-age-days',
+        '0',
+      ]);
+      type AuditSummary = {
+        readonly checked: number;
+        readonly issueCount: number;
+        readonly errorCount: number;
+        readonly warningCount: number;
+        readonly issues: ReadonlyArray<{
+          readonly workspace: string;
+          readonly slug: string;
+          readonly severity: string;
+          readonly kind: string;
+        }>;
+      };
+      const summary = JSON.parse(audit.out) as AuditSummary;
+      const staleSummary = JSON.parse(staleAudit.out) as AuditSummary;
+      const cleanSummary = JSON.parse(cleanAudit.out) as AuditSummary;
+
+      expect(audit.code).toBe(1);
+      expect(summary.checked).toBe(6);
+      expect(summary.errorCount).toBe(2);
+      expect(summary.warningCount).toBe(3);
+      expect(summary.issues.map((issue) => issue.kind).sort()).toEqual(
+        [
+          'untrusted-without-source-ref',
+          'trusted-source-ref-without-confirmation',
+          'untrusted-supersedes',
+          'missing-supersedes-target',
+          'confirmation-source-conflict',
+        ].sort(),
+      );
+      expect(summary.issues.every((issue) => issue.workspace === 'code')).toBe(true);
+      expect(staleAudit.code).toBe(1);
+      expect(staleSummary.issues.map((issue) => issue.kind)).toContain('stale-trusted');
+      expect(cleanAudit.code).toBe(0);
+      expect(cleanSummary).toEqual({
+        checked: 1,
+        issueCount: 0,
+        errorCount: 0,
+        warningCount: 0,
+        issues: [],
+      });
+      expect(invalid.code).toBe(1);
+      expect(invalid.err).toContain('unknown --max-age-days');
+    });
+
     it('marks superseded experience and hides it from recall by default', async () => {
       await run(['experience', 'add', '--store', store, 'code', 'old route'], {
         stdin: Readable.from(['Use the old dispatch route with obsolete evidence.']),

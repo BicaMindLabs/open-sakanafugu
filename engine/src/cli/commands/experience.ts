@@ -9,6 +9,7 @@ import {
   EXPERIENCE_TRUST_FILTERS,
   EXPERIENCE_TRUST_KINDS,
   FAILURE_CAUSES,
+  auditExperienceMethods,
   explainRecallMatch,
   isExperienceSourceKind,
   isFailureCause,
@@ -521,6 +522,42 @@ abstract class ExperienceCommand extends Command {
 
   protected experienceStore(): FsExperienceStore {
     return new FsExperienceStore(fs(), systemClock, this.store);
+  }
+}
+
+export class ExperienceAuditCommand extends ExperienceCommand {
+  static override paths = [['experience', 'audit']];
+
+  workspace = Option.String({ required: false });
+  maxAgeDays = Option.String('--max-age-days');
+  json = Option.Boolean('--json', false);
+
+  override async execute(): Promise<number> {
+    const maxAgeSeconds = parseMaxAgeDays(this.maxAgeDays);
+    if (maxAgeSeconds === null) {
+      this.context.stderr.write('unknown --max-age-days; expected a positive integer\n');
+      return 1;
+    }
+    const methods = await this.experienceStore().list(this.workspace);
+    const summary = auditExperienceMethods(methods, {
+      now: Math.floor(systemClock.now() / 1000),
+      ...(maxAgeSeconds === undefined ? {} : { maxAgeSeconds }),
+    });
+    if (this.json) {
+      this.context.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
+    } else if (summary.issueCount === 0) {
+      this.context.stdout.write(`experience audit ok: checked=${summary.checked}\n`);
+    } else {
+      for (const issue of summary.issues) {
+        this.context.stdout.write(
+          `[experience:audit] severity=${issue.severity} kind=${issue.kind} memory=${issue.workspace}/${issue.slug} ${issue.detail}\n`,
+        );
+      }
+      this.context.stdout.write(
+        `experience audit checked=${summary.checked} issues=${summary.issueCount} errors=${summary.errorCount} warnings=${summary.warningCount}\n`,
+      );
+    }
+    return summary.errorCount > 0 ? 1 : 0;
   }
 }
 

@@ -226,3 +226,156 @@ export interface RecallOptions {
   readonly maxAgeSeconds?: number;
   readonly includeSuperseded?: boolean;
 }
+
+export const EXPERIENCE_AUDIT_ISSUE_KINDS = [
+  'untrusted-without-source-ref',
+  'trusted-source-ref-without-confirmation',
+  'untrusted-supersedes',
+  'missing-supersedes-target',
+  'confirmation-source-conflict',
+  'stale-trusted',
+] as const;
+
+export type ExperienceAuditIssueKind = (typeof EXPERIENCE_AUDIT_ISSUE_KINDS)[number];
+
+export type ExperienceAuditSeverity = 'error' | 'warning';
+
+export interface ExperienceAuditIssue {
+  readonly workspace: string;
+  readonly slug: string;
+  readonly title: string;
+  readonly severity: ExperienceAuditSeverity;
+  readonly kind: ExperienceAuditIssueKind;
+  readonly detail: string;
+}
+
+export interface ExperienceAuditOptions {
+  readonly now?: number;
+  readonly maxAgeSeconds?: number;
+}
+
+export interface ExperienceAuditSummary {
+  readonly checked: number;
+  readonly issueCount: number;
+  readonly errorCount: number;
+  readonly warningCount: number;
+  readonly issues: readonly ExperienceAuditIssue[];
+}
+
+const uniqueSlugsByWorkspace = (methods: readonly Method[]): ReadonlySet<string> =>
+  new Set(methods.map((method) => `${method.workspace}/${method.slug}`));
+
+const auditIssue = (
+  method: Method,
+  kind: ExperienceAuditIssueKind,
+  severity: ExperienceAuditSeverity,
+  detail: string,
+): ExperienceAuditIssue => ({
+  workspace: method.workspace,
+  slug: method.slug,
+  title: method.title,
+  severity,
+  kind,
+  detail,
+});
+
+const hasDuplicateStrings = (values: readonly string[]): boolean =>
+  new Set(values).size !== values.length;
+
+export const auditExperienceMethods = (
+  methods: readonly Method[],
+  options: ExperienceAuditOptions = {},
+): ExperienceAuditSummary => {
+  const issues: ExperienceAuditIssue[] = [];
+  const slugs = uniqueSlugsByWorkspace(methods);
+  const now = options.now ?? Math.floor(Date.now() / 1000);
+  const staleBefore = options.maxAgeSeconds === undefined ? undefined : now - options.maxAgeSeconds;
+  for (const method of methods) {
+    const sourceRef = method.sourceRef;
+    const hasSourceRef = sourceRef !== undefined && sourceRef.length > 0;
+    const confirmedBy = method.confirmedBy ?? [];
+    if (method.trustKind === 'untrusted' && !hasSourceRef) {
+      issues.push(
+        auditIssue(
+          method,
+          'untrusted-without-source-ref',
+          'error',
+          'untrusted memory needs a write-time sourceRef before it can be audited or promoted',
+        ),
+      );
+    }
+    if (
+      method.trustKind === 'trusted' &&
+      method.sourceKind === 'manual' &&
+      hasSourceRef &&
+      confirmedBy.length === 0
+    ) {
+      issues.push(
+        auditIssue(
+          method,
+          'trusted-source-ref-without-confirmation',
+          'warning',
+          'trusted imported/manual memory with sourceRef has no confirmedBy audit metadata',
+        ),
+      );
+    }
+    if (method.trustKind === 'untrusted' && (method.supersedes ?? []).length > 0) {
+      issues.push(
+        auditIssue(
+          method,
+          'untrusted-supersedes',
+          'warning',
+          'untrusted memory should not be used as the active replacement for older memory',
+        ),
+      );
+    }
+    for (const target of method.supersedes ?? []) {
+      if (!slugs.has(`${method.workspace}/${target}`)) {
+        issues.push(
+          auditIssue(
+            method,
+            'missing-supersedes-target',
+            'warning',
+            `supersedes target ${target} does not exist in workspace ${method.workspace}`,
+          ),
+        );
+      }
+    }
+    if (
+      confirmedBy.length > 0 &&
+      (hasDuplicateStrings(confirmedBy) ||
+        (hasSourceRef && confirmedBy.some((confirmation) => confirmation === sourceRef)))
+    ) {
+      issues.push(
+        auditIssue(
+          method,
+          'confirmation-source-conflict',
+          'error',
+          'confirmedBy sources must be distinct and cannot repeat the original sourceRef',
+        ),
+      );
+    }
+    if (
+      method.trustKind === 'trusted' &&
+      staleBefore !== undefined &&
+      method.created < staleBefore
+    ) {
+      issues.push(
+        auditIssue(
+          method,
+          'stale-trusted',
+          'warning',
+          'trusted memory is older than the active max-age policy',
+        ),
+      );
+    }
+  }
+  const errorCount = issues.filter((issue) => issue.severity === 'error').length;
+  return {
+    checked: methods.length,
+    issueCount: issues.length,
+    errorCount,
+    warningCount: issues.length - errorCount,
+    issues,
+  };
+};

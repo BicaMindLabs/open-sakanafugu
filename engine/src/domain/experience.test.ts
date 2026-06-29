@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { explainRecallMatch, renderExperienceMethod } from './experience.js';
+import {
+  auditExperienceMethods,
+  explainRecallMatch,
+  renderExperienceMethod,
+} from './experience.js';
+import type { Method } from './experience.js';
 
 describe('explainRecallMatch', () => {
   it('reports query score, matched terms, and stored failure cause', () => {
@@ -243,5 +248,156 @@ describe('renderExperienceMethod', () => {
     expect(rendered).toContain(
       '[experience:meta] {"slug":"browser-note","sourceKind":"manual","sourceRef":"browser note trust=untrusted","trustKind":"untrusted","created":9}',
     );
+  });
+});
+
+describe('auditExperienceMethods', () => {
+  const method = (overrides: Partial<Method> = {}): Method => ({
+    workspace: 'code',
+    title: 'memory',
+    slug: 'memory',
+    created: 190,
+    sourceKind: 'manual',
+    trustKind: 'trusted',
+    body: 'Use a stable method.',
+    ...overrides,
+  });
+
+  it('reports governance issues over the memory lifecycle', () => {
+    const summary = auditExperienceMethods(
+      [
+        method({
+          title: 'untrusted import',
+          slug: 'untrusted-import',
+          trustKind: 'untrusted',
+        }),
+        method({
+          title: 'trusted imported',
+          slug: 'trusted-imported',
+          sourceRef: 'https://example.test/source',
+        }),
+        method({
+          title: 'untrusted replacement',
+          slug: 'untrusted-replacement',
+          sourceRef: 'https://example.test/untrusted',
+          trustKind: 'untrusted',
+          supersedes: ['trusted-imported'],
+        }),
+        method({
+          title: 'missing target',
+          slug: 'missing-target',
+          supersedes: ['not-present'],
+        }),
+        method({
+          title: 'bad confirmation',
+          slug: 'bad-confirmation',
+          sourceRef: 'https://example.test/original',
+          confirmedBy: ['https://example.test/original'],
+        }),
+        method({
+          title: 'duplicate confirmation',
+          slug: 'duplicate-confirmation',
+          sourceRef: 'https://example.test/other',
+          confirmedBy: ['https://example.test/review', 'https://example.test/review'],
+        }),
+        method({
+          title: 'stale trusted',
+          slug: 'stale-trusted',
+          created: 10,
+        }),
+      ],
+      { now: 200, maxAgeSeconds: 50 },
+    );
+
+    expect(summary).toEqual({
+      checked: 7,
+      issueCount: 7,
+      errorCount: 3,
+      warningCount: 4,
+      issues: [
+        {
+          workspace: 'code',
+          slug: 'untrusted-import',
+          title: 'untrusted import',
+          severity: 'error',
+          kind: 'untrusted-without-source-ref',
+          detail:
+            'untrusted memory needs a write-time sourceRef before it can be audited or promoted',
+        },
+        {
+          workspace: 'code',
+          slug: 'trusted-imported',
+          title: 'trusted imported',
+          severity: 'warning',
+          kind: 'trusted-source-ref-without-confirmation',
+          detail: 'trusted imported/manual memory with sourceRef has no confirmedBy audit metadata',
+        },
+        {
+          workspace: 'code',
+          slug: 'untrusted-replacement',
+          title: 'untrusted replacement',
+          severity: 'warning',
+          kind: 'untrusted-supersedes',
+          detail: 'untrusted memory should not be used as the active replacement for older memory',
+        },
+        {
+          workspace: 'code',
+          slug: 'missing-target',
+          title: 'missing target',
+          severity: 'warning',
+          kind: 'missing-supersedes-target',
+          detail: 'supersedes target not-present does not exist in workspace code',
+        },
+        {
+          workspace: 'code',
+          slug: 'bad-confirmation',
+          title: 'bad confirmation',
+          severity: 'error',
+          kind: 'confirmation-source-conflict',
+          detail: 'confirmedBy sources must be distinct and cannot repeat the original sourceRef',
+        },
+        {
+          workspace: 'code',
+          slug: 'duplicate-confirmation',
+          title: 'duplicate confirmation',
+          severity: 'error',
+          kind: 'confirmation-source-conflict',
+          detail: 'confirmedBy sources must be distinct and cannot repeat the original sourceRef',
+        },
+        {
+          workspace: 'code',
+          slug: 'stale-trusted',
+          title: 'stale trusted',
+          severity: 'warning',
+          kind: 'stale-trusted',
+          detail: 'trusted memory is older than the active max-age policy',
+        },
+      ],
+    });
+  });
+
+  it('accepts task-derived trusted memories and confirmed imported memories', () => {
+    const summary = auditExperienceMethods(
+      [
+        method({
+          sourceKind: 'task',
+          sourceRef: '/tmp/TASK.md',
+        }),
+        method({
+          slug: 'confirmed-import',
+          sourceRef: 'https://example.test/original',
+          confirmedBy: ['https://example.test/review'],
+        }),
+      ],
+      { now: 200 },
+    );
+
+    expect(summary).toEqual({
+      checked: 2,
+      issueCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      issues: [],
+    });
   });
 });
