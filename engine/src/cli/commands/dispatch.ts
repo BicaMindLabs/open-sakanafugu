@@ -41,6 +41,7 @@ import type {
 } from '../../domain/experience.js';
 import { HARNESS_NAMES, type Harness, type HarnessName } from '../../domain/ports/harness.js';
 import { assembleContext, renderBundle, renderTemplate } from '../../domain/prompt-render.js';
+import { incidentPacket, incidentRecoveryPacket } from '../../domain/incident-packet.js';
 import { isOk } from '../../domain/result.js';
 import { renderRuntimeGuardPacket, runtimeGuardPacket } from '../../domain/runtime-guard.js';
 import type { SkillSource } from '../../domain/skill.js';
@@ -349,6 +350,7 @@ export class DispatchCommand extends Command {
   harnessArgs = Option.Array('--harness-arg', []);
   codexClean = Option.Boolean('--codex-clean', process.env.FUGUE_CODEX_CLEAN === '1');
   guard = Option.String('--guard', process.env.FUGUE_DISPATCH_GUARD ?? 'warn');
+  incident = Option.String('--incident');
 
   private readonly fs = new NodeFileSystem();
 
@@ -486,6 +488,7 @@ export class DispatchCommand extends Command {
     let outputChars = 0;
     let separateVerboseObservation = false;
     let failureKind: string | undefined = isOk(result) ? undefined : result.error.kind;
+    const failureDetail = isOk(result) ? undefined : result.error.detail;
     if (isOk(result)) {
       output = result.value.output;
       outputChars = output.length;
@@ -796,7 +799,9 @@ export class DispatchCommand extends Command {
     if (packet.disposition === 'allow') return true;
     if (this.guard === 'strict' && packet.disposition === 'block') {
       this.context.stderr.write(renderRuntimeGuardPacket(packet));
-      this.context.stderr.write('[guard] dispatch blocked (disposition=block); rerun with --guard warn to override\n');
+      this.context.stderr.write(
+        '[guard] dispatch blocked (disposition=block); rerun with --guard warn to override\n',
+      );
       await this.appendTaskLine(
         `guard blocked dispatch disposition=block findings=${String(packet.findingCount)}`,
       );
