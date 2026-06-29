@@ -838,7 +838,9 @@ export class DispatchCommand extends Command {
    * prints offline, now an online gate on the assembled prompt:
    *   off    — skip entirely.
    *   warn   — (default) compute, surface review/block on stderr, always proceed.
-   *   strict — refuse dispatch on a `block` disposition (rc 2); review still proceeds.
+   *   strict — refuse dispatch on a `block` disposition, or on a privileged action
+   *            with no --certificate sidecar (this is where --certificate stops
+   *            being a passive log and becomes enforcement); review still proceeds.
    * Returns false when dispatch must be refused.
    */
   private async runGuard(prompt: string): Promise<boolean> {
@@ -847,19 +849,26 @@ export class DispatchCommand extends Command {
       sourceRef: this.task ?? this.target,
       sourceSha256: sha256(prompt),
     });
-    if (packet.disposition === 'allow') return true;
-    if (this.guard === 'strict' && packet.disposition === 'block') {
+    // A privileged action (git push / npm publish / deploy …) needs a certificate
+    // sidecar. The prompt-only guard can't see --certificate, so satisfy that
+    // finding here when the operator actually supplied one.
+    const privilegedUncertified =
+      this.certificate === undefined &&
+      packet.findings.some((f) => f.kind === 'privileged-action-without-certificate');
+    if (packet.disposition === 'allow' && !privilegedUncertified) return true;
+    if (this.guard === 'strict' && (packet.disposition === 'block' || privilegedUncertified)) {
+      const reason = packet.disposition === 'block' ? 'disposition=block' : 'privileged-action-without-certificate';
       this.context.stderr.write(renderRuntimeGuardPacket(packet));
       this.context.stderr.write(
-        '[guard] dispatch blocked (disposition=block); rerun with --guard warn to override\n',
+        `[guard] dispatch blocked (${reason}); add --certificate or rerun with --guard warn to override\n`,
       );
       await this.appendTaskLine(
-        `guard blocked dispatch disposition=block findings=${String(packet.findingCount)}`,
+        `guard blocked dispatch reason=${reason} findings=${String(packet.findingCount)}`,
       );
       return false;
     }
     this.context.stderr.write(
-      `[guard] disposition=${packet.disposition} findings=${String(packet.findingCount)} (proceeding; --guard strict blocks on block)\n`,
+      `[guard] disposition=${packet.disposition} findings=${String(packet.findingCount)}${privilegedUncertified ? ' privileged-action-without-certificate' : ''} (proceeding; --guard strict blocks)\n`,
     );
     await this.appendTaskLine(
       `guard disposition=${packet.disposition} findings=${String(packet.findingCount)}`,

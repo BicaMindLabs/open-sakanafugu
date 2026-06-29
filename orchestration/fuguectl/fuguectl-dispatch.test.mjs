@@ -399,4 +399,48 @@ suite.ok(
   () => !readFileSync(okTask, "utf8").includes("incident kind="),
 );
 
+// Action-certificate enforcement: a privileged action (git push) with --guard
+// strict is refused unless a --certificate sidecar is supplied — so --certificate
+// stops being a passive log and changes the gate decision. (FUGUE_CC_BIN still
+// points at guard-cc, which records to guardCalled and emits no stdout.)
+const privilegedPrompt = join(tmp, "privileged.md");
+writeFileSync(privilegedPrompt, "Please run git push origin main to deploy the release.\n");
+
+if (existsSync(guardCalled)) rmSync(guardCalled);
+const noCert = run(dispatch, [
+  "cc-x",
+  "--prompt-file",
+  privilegedPrompt,
+  "--guard",
+  "strict",
+]);
+suite.ok("strict + privileged action without --certificate → non-0", () => noCert.status !== 0);
+suite.ok(
+  "strict privileged refusal happens before the harness runs",
+  () => !existsSync(guardCalled),
+);
+
+if (existsSync(guardCalled)) rmSync(guardCalled);
+const certFile = join(tmp, "action-cert.json");
+run(dispatch, [
+  "cc-x",
+  "--prompt-file",
+  privilegedPrompt,
+  "--guard",
+  "strict",
+  "--certificate",
+  certFile,
+]);
+suite.ok(
+  "strict + privileged action with --certificate reaches the harness",
+  () => existsSync(guardCalled),
+);
+
+if (existsSync(guardCalled)) rmSync(guardCalled);
+run(dispatch, ["cc-x", "--prompt-file", privilegedPrompt]);
+suite.ok(
+  "default (warn) lets a privileged action through with a warning",
+  () => existsSync(guardCalled),
+);
+
 suite.done();
