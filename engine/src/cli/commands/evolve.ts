@@ -105,7 +105,7 @@ const readJson = async (path: string): Promise<Result<unknown, string>> => {
   }
 };
 
-const writeJson = async (path: string, value: JsonValue): Promise<void> => {
+const writeJson = async (path: string, value: unknown): Promise<void> => {
   await fs().write(path, `${JSON.stringify(value, null, 2)}\n`);
 };
 
@@ -144,6 +144,19 @@ const parseStringArray = (value: unknown, label: string): Result<readonly string
     items.push(item.trim());
   }
   return ok(items);
+};
+
+const integerField = (
+  record: Record<string, unknown>,
+  key: string,
+  label: string,
+  options: { readonly nonNegative?: boolean } = {},
+): Result<number, string> => {
+  const value = record[key];
+  if (!Number.isInteger(value)) return err(`${label}.${key} must be an integer`);
+  const parsed = value as number;
+  if ((options.nonNegative ?? false) && parsed < 0) return err(`${label}.${key} must be >= 0`);
+  return ok(parsed);
 };
 
 const parseEvidenceRefs = (value: unknown): Result<readonly EvidenceRef[], string> => {
@@ -358,7 +371,6 @@ const deterministicRubricEvaluator: RubricEvaluator = (rubric, testCase): Review
 };
 
 const toFitness = (
-  current: SplitScores,
   candidate: SplitScores,
   verdict: ValidationVerdict,
   cost: JsonValue,
@@ -403,7 +415,7 @@ const validateCandidate = (
       current: current.value,
       candidate: next.value,
       verdict,
-      fitness: toFitness(current.value, next.value, verdict, {
+      fitness: toFitness(next.value, verdict, {
         evaluator: 'runtimeGuardPacket+privileged-action-regex',
         samples: parsedCases.value.heldIn.length + parsedCases.value.heldOut.length,
       }),
@@ -435,7 +447,7 @@ const validateCandidate = (
     current,
     candidate: next,
     verdict,
-    fitness: toFitness(current, next, verdict, {
+    fitness: toFitness(next, verdict, {
       evaluator: 'deterministic-rule-evaluator',
       samples,
     }),
@@ -445,26 +457,31 @@ const validateCandidate = (
 
 const parseSplitScores = (value: unknown, label: string): Result<SplitScores, string> => {
   if (!isRecord(value)) return err(`${label} must be an object`);
-  const inPass = value.inPass;
-  const inTotal = value.inTotal;
-  const outPass = value.outPass;
-  const outTotal = value.outTotal;
-  if (!Number.isInteger(inPass) || inPass < 0) return err(`${label}.inPass must be >= 0`);
-  if (!Number.isInteger(inTotal) || inTotal < 0) return err(`${label}.inTotal must be >= 0`);
-  if (!Number.isInteger(outPass) || outPass < 0) return err(`${label}.outPass must be >= 0`);
-  if (!Number.isInteger(outTotal) || outTotal < 0) return err(`${label}.outTotal must be >= 0`);
-  return ok({ inPass, inTotal, outPass, outTotal });
+  const inPass = integerField(value, 'inPass', label, { nonNegative: true });
+  if (!inPass.ok) return inPass;
+  const inTotal = integerField(value, 'inTotal', label, { nonNegative: true });
+  if (!inTotal.ok) return inTotal;
+  const outPass = integerField(value, 'outPass', label, { nonNegative: true });
+  if (!outPass.ok) return outPass;
+  const outTotal = integerField(value, 'outTotal', label, { nonNegative: true });
+  if (!outTotal.ok) return outTotal;
+  return ok({
+    inPass: inPass.value,
+    inTotal: inTotal.value,
+    outPass: outPass.value,
+    outTotal: outTotal.value,
+  });
 };
 
 const parseVerdict = (value: unknown): Result<ValidationVerdict, string> => {
   if (!isRecord(value)) return err('verdict must be an object');
-  const deltaIn = value.deltaIn;
-  const deltaOut = value.deltaOut;
+  const deltaIn = integerField(value, 'deltaIn', 'verdict');
+  if (!deltaIn.ok) return deltaIn;
+  const deltaOut = integerField(value, 'deltaOut', 'verdict');
+  if (!deltaOut.ok) return deltaOut;
   const accepted = value.accepted;
-  if (!Number.isInteger(deltaIn)) return err('verdict.deltaIn must be an integer');
-  if (!Number.isInteger(deltaOut)) return err('verdict.deltaOut must be an integer');
   if (typeof accepted !== 'boolean') return err('verdict.accepted must be boolean');
-  return ok({ deltaIn, deltaOut, accepted });
+  return ok({ deltaIn: deltaIn.value, deltaOut: deltaOut.value, accepted });
 };
 
 const parseFitnessSplit = (
@@ -472,13 +489,13 @@ const parseFitnessSplit = (
   label: string,
 ): Result<EvolutionFitness['heldIn'], string> => {
   if (!isRecord(value)) return err(`${label} must be an object`);
-  const pass = value.pass;
-  const total = value.total;
-  const delta = value.delta;
-  if (!Number.isInteger(pass) || pass < 0) return err(`${label}.pass must be >= 0`);
-  if (!Number.isInteger(total) || total < 0) return err(`${label}.total must be >= 0`);
-  if (!Number.isInteger(delta)) return err(`${label}.delta must be an integer`);
-  return ok({ pass, total, delta });
+  const pass = integerField(value, 'pass', label, { nonNegative: true });
+  if (!pass.ok) return pass;
+  const total = integerField(value, 'total', label, { nonNegative: true });
+  if (!total.ok) return total;
+  const delta = integerField(value, 'delta', label);
+  if (!delta.ok) return delta;
+  return ok({ pass: pass.value, total: total.value, delta: delta.value });
 };
 
 const parseFitness = (value: unknown): Result<EvolutionFitness, string> => {
@@ -487,12 +504,15 @@ const parseFitness = (value: unknown): Result<EvolutionFitness, string> => {
   if (!heldIn.ok) return heldIn;
   const heldOut = parseFitnessSplit(value.heldOut, 'fitness.heldOut');
   if (!heldOut.ok) return heldOut;
-  const regressions = value.regressions;
-  if (!Number.isInteger(regressions) || regressions < 0) {
-    return err('fitness.regressions must be >= 0');
-  }
+  const regressions = integerField(value, 'regressions', 'fitness', { nonNegative: true });
+  if (!regressions.ok) return regressions;
   if (!isJsonValue(value.cost)) return err('fitness.cost must be JSON-serializable');
-  return ok({ heldIn: heldIn.value, heldOut: heldOut.value, regressions, cost: value.cost });
+  return ok({
+    heldIn: heldIn.value,
+    heldOut: heldOut.value,
+    regressions: regressions.value,
+    cost: value.cost,
+  });
 };
 
 const parseFitnessFile = (value: unknown): Result<EvolveFitnessFile, string> => {
