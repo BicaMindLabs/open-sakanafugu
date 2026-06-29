@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { BetaBernoulliAllocator } from '../adapters/allocation/beta-bernoulli-allocator.js';
 import { PersistentBarrier } from '../adapters/barrier/persistent-barrier.js';
 import { FsLineageStore } from '../adapters/evolution/fs-lineage-store.js';
+import { AcpAgentHarness } from '../adapters/harness/acp-agent-harness.js';
 import { AgyHarness } from '../adapters/harness/agy-harness.js';
 import {
   AgentCliHarness,
@@ -85,6 +86,8 @@ const buildHarness = (
       return new AgyHarness(runner, options);
     case 'agent-cli':
       return new AgentCliHarness(runner, QWEN_CODE_INVOCATION_DESCRIPTOR, options);
+    case 'acp-agent':
+      return new AcpAgentHarness();
   }
 };
 

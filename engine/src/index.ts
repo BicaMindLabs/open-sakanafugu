@@ -367,6 +367,13 @@ export {
   OpencodeHarness,
 } from './adapters/harness/opencode-harness.js';
 export { AGY_INVOCATION_DESCRIPTOR, AgyHarness } from './adapters/harness/agy-harness.js';
+export { AcpAgentHarness } from './adapters/harness/acp-agent-harness.js';
+export type {
+  AcpAgentHarnessOptions,
+  AcpAgentTransport,
+  AcpMethod,
+  AcpTransportError,
+} from './adapters/harness/acp-agent-harness.js';
 export {
   AgentCliHarness,
   CODEX_INVOCATION_DESCRIPTOR,
