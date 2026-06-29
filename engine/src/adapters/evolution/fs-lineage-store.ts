@@ -1,5 +1,6 @@
 import type { EvolutionLineageEntry } from '../../domain/evolution-lineage.js';
 import {
+  gatePromotion,
   parseEvolutionLineageEntry,
   renderEvolutionLineageEntry,
 } from '../../domain/evolution-lineage.js';
@@ -10,6 +11,7 @@ import { joinPath } from '../store/paths.js';
 
 export type LineageStoreError =
   | { readonly kind: 'invalid-record'; readonly detail: string }
+  | { readonly kind: 'forbidden-promotion'; readonly detail: string }
   | { readonly kind: 'not-found'; readonly detail: string };
 
 /** Filesystem lineage store: `<root>/<id>.json`, normally `.fugunano/evolution/<id>.json`. */
@@ -19,8 +21,16 @@ export class FsLineageStore {
     private readonly rootDir: string,
   ) {}
 
-  async put(entry: EvolutionLineageEntry): Promise<void> {
+  /**
+   * Record a promotion. Enforces the safety-surface gate first: an autonomous
+   * (self-harness / evolve) promotion of a safety surface is refused and never
+   * written, so the lineage can never contain an un-approved guardrail change.
+   */
+  async put(entry: EvolutionLineageEntry): Promise<Result<void, LineageStoreError>> {
+    const gated = gatePromotion(entry);
+    if (!gated.ok) return err({ kind: 'forbidden-promotion', detail: gated.error });
     await this.fs.write(this.path(entry.id), renderEvolutionLineageEntry(entry));
+    return ok(undefined);
   }
 
   async get(id: string): Promise<Result<EvolutionLineageEntry, LineageStoreError>> {

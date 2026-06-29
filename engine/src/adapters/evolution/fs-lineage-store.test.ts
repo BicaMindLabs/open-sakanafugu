@@ -43,6 +43,28 @@ describe('FsLineageStore', () => {
     if (listed.ok) expect(listed.value.map((item) => item.id)).toEqual(['evo-001', 'evo-002']);
   });
 
+  it('refuses to record an autonomous promotion of a safety surface and writes nothing', async () => {
+    const fs = new MemoryFileSystem(clock);
+    const store = new FsLineageStore(fs, '/repo/.fugunano/evolution');
+    const autonomous: EvolutionLineageEntry = { ...entry('evo-bad'), promotedBy: 'self-harness' };
+
+    const result = await store.put(autonomous);
+    expect(isErr(result)).toBe(true);
+    if (!result.ok) expect(result.error.kind).toBe('forbidden-promotion');
+
+    // nothing persisted → the entry cannot be read back
+    const got = await store.get('evo-bad');
+    expect(isErr(got)).toBe(true);
+    if (!got.ok) expect(got.error.kind).toBe('not-found');
+  });
+
+  it('allows an operator promotion of a safety surface', async () => {
+    const fs = new MemoryFileSystem(clock);
+    const store = new FsLineageStore(fs, '/repo/.fugunano/evolution');
+    const result = await store.put(entry('evo-ok')); // promotedBy: 'operator'
+    expect(isOk(result)).toBe(true);
+  });
+
   it('returns typed errors for missing or invalid entries', async () => {
     const fs = new MemoryFileSystem(clock);
     const store = new FsLineageStore(fs, '/repo/.fugunano/evolution');

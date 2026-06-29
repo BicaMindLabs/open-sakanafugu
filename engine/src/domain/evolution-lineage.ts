@@ -41,6 +41,33 @@ export interface EvolutionLineageEntry {
   readonly supersedes?: readonly string[];
 }
 
+/**
+ * Surfaces that are themselves safety controls. Evolving one is not a normal
+ * optimization: a guard-rule decides what dispatch refuses, so an agent that
+ * could autonomously promote a guard-rule edit could evolve the very rule that
+ * blocks prompt-injection / privileged actions into not blocking. These must be
+ * promoted by an operator, never by `self-harness` / `evolve`.
+ */
+export const SAFETY_SURFACES: readonly EvolvableSurface[] = ['guard-rule'];
+
+export const isSafetySurface = (surface: EvolvableSurface): boolean =>
+  SAFETY_SURFACES.includes(surface);
+
+/**
+ * Promotion gate: returns the entry unchanged when the promotion is allowed, or
+ * a typed error refusing an autonomous promotion of a safety surface. This is
+ * the one rule that keeps the evolution loop from neutering its own guardrails;
+ * the lineage store enforces it on write so nothing illegal is ever recorded.
+ */
+export const gatePromotion = (
+  entry: EvolutionLineageEntry,
+): Result<EvolutionLineageEntry, string> =>
+  isSafetySurface(entry.surface) && entry.promotedBy !== 'operator'
+    ? err(
+        `refusing autonomous promotion of safety surface '${entry.surface}' by '${entry.promotedBy}'; safety surfaces require promotedBy=operator`,
+      )
+    : ok(entry);
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 

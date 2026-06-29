@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { isErr, isOk } from './result.js';
 import {
+  gatePromotion,
+  isSafetySurface,
   parseEvolutionLineageEntry,
   renderEvolutionLineageEntry,
   type EvolutionLineageEntry,
@@ -65,5 +67,18 @@ describe('evolution lineage', () => {
 
     expect(isErr(parsed)).toBe(true);
     if (!parsed.ok) expect(parsed.error).toBe('surface must be guard-rule');
+  });
+
+  it('treats guard-rule as a safety surface', () => {
+    expect(isSafetySurface('guard-rule')).toBe(true);
+  });
+
+  it('gates autonomous promotion of a safety surface', () => {
+    expect(isErr(gatePromotion({ ...entry, promotedBy: 'self-harness' }))).toBe(true);
+    expect(isErr(gatePromotion({ ...entry, promotedBy: 'evolve' }))).toBe(true);
+  });
+
+  it('allows an operator promotion of a safety surface', () => {
+    expect(isOk(gatePromotion({ ...entry, promotedBy: 'operator' }))).toBe(true);
   });
 });
