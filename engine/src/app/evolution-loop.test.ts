@@ -5,12 +5,17 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { FsLineageStore } from '../adapters/evolution/fs-lineage-store.js';
+import type { EvolutionLineageEntry } from '../domain/evolution-lineage.js';
+import { gatePromotion } from '../domain/evolution-lineage.js';
+import { err, ok } from '../domain/result.js';
 import type { ReviewVerdict } from '../domain/review-packet.js';
 import { runtimeGuardPacket } from '../domain/runtime-guard.js';
 import type { ReviewRubricCase, RubricEvaluator } from '../domain/evolution-rubric.js';
-import { NodeFileSystem } from '../infra/node-file-system.js';
-import type { EvolutionCandidate, EvolutionCandidateProposer } from './evolution-loop.js';
+import type {
+  EvolutionCandidate,
+  EvolutionCandidateProposer,
+  EvolutionLineageWriter,
+} from './evolution-loop.js';
 import { EvolutionLoop } from './evolution-loop.js';
 import { wireEvolution } from './wire.js';
 
@@ -21,6 +26,17 @@ class ScriptedProposer implements EvolutionCandidateProposer {
 
   propose(): Promise<readonly EvolutionCandidate[]> {
     return Promise.resolve(this.candidates);
+  }
+}
+
+class GatedMemoryLineageWriter implements EvolutionLineageWriter {
+  readonly entries: EvolutionLineageEntry[] = [];
+
+  put(entry: EvolutionLineageEntry) {
+    const gated = gatePromotion(entry);
+    if (!gated.ok) return Promise.resolve(err({ detail: gated.error }));
+    this.entries.push(entry);
+    return Promise.resolve(ok(undefined));
   }
 }
 
@@ -102,15 +118,9 @@ describe('EvolutionLoop', () => {
       expect(result.candidates).toHaveLength(1);
       expect(result.candidates[0]?.decision).toBe('promoted');
       expect(result.candidates[0]?.verdict).toEqual({ deltaIn: 1, deltaOut: 0, accepted: true });
-
-      const stored = await new FsLineageStore(new NodeFileSystem(), join(dir, 'evolution')).list();
-      expect(stored.ok ? stored.value.map((entry) => entry.candidateId) : []).toEqual([
-        'tighten-gh-release',
-      ]);
-      if (stored.ok) {
-        expect(stored.value[0]?.promotedBy).toBe('operator');
-        expect(stored.value[0]?.afterSha256).toBe(sha256(guardCandidate.after));
-      }
+      expect(result.candidates[0]?.lineage?.candidateId).toBe('tighten-gh-release');
+      expect(result.candidates[0]?.lineage?.promotedBy).toBe('operator');
+      expect(result.candidates[0]?.lineage?.afterSha256).toBe(sha256(guardCandidate.after));
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -130,8 +140,6 @@ describe('EvolutionLoop', () => {
 
       expect(result.candidates[0]?.decision).toBe('blocked');
       expect(result.candidates[0]?.error).toContain('safety surfaces require promotedBy=operator');
-      const stored = await new FsLineageStore(new NodeFileSystem(), join(dir, 'evolution')).list();
-      expect(stored.ok ? stored.value : []).toHaveLength(0);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -165,6 +173,7 @@ describe('EvolutionLoop', () => {
       [`${candidateRubric}:security regression`, ['NEEDS_FIX', 'NEEDS_FIX', 'NEEDS_FIX']],
       [`${candidateRubric}:safe docs change`, ['NEEDS_FIX', 'ACCEPTED', 'ACCEPTED']],
     ]);
+    const lineageStore = new GatedMemoryLineageWriter();
     try {
       const loop = new EvolutionLoop({
         proposer: new ScriptedProposer([
@@ -175,7 +184,7 @@ describe('EvolutionLoop', () => {
             after: candidateRubric,
           },
         ]),
-        lineageStore: new FsLineageStore(new NodeFileSystem(), join(dir, 'evolution')),
+        lineageStore,
         cases,
         promotedBy: 'self-harness',
         k: 1,
@@ -192,6 +201,7 @@ describe('EvolutionLoop', () => {
         accepted: true,
       });
       expect(result.candidates[0]?.fitness?.heldIn).toEqual({ pass: 3, total: 3, delta: 3 });
+      expect(lineageStore.entries.map((entry) => entry.surface)).toEqual(['review-rubric']);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
