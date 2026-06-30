@@ -1,0 +1,4 @@
+approach,model,quality_score_15,gate_pass,gate_fails,regressions,review_rounds,wallclock_s,tokens,cost_usd,defects
+fugunano,,,,,,,0,,
+single-weak,cc-glm,,,,0,0,,,
+single-strong,cc-claude,,,,0,0,,,

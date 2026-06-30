@@ -1,0 +1,5 @@
+cc-deepseek	tqdm/presets.py	tqdm/cli.py,tqdm/std.py,tqdm/utils.py,tests/*,README.rst
+cc-mimo	tqdm/cli.py	tqdm/std.py,tqdm/presets.py,tqdm/utils.py,tests/*,README.rst
+cc-kimi	tests/tests_presets.py	tqdm/*,README.rst
+cc-glm	README.rst	tqdm/*,tests/*
+cc-stepfun	tqdm/utils.py	tqdm/cli.py,tqdm/std.py,tqdm/presets.py,tests/*,README.rst

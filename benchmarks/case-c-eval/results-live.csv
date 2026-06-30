@@ -1,0 +1,5 @@
+mode,writer,gate_pass,review_rounds,wallclock_s,final_verdict
+single,codex,pass,1,432,ACCEPTED
+orchestrated,codex,pass,1,346,ACCEPTED
+single,claude,pass,1,1924,ACCEPTED
+orchestrated,claude,pass,1,911,ACCEPTED
