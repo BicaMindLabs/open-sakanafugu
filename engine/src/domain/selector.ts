@@ -145,9 +145,7 @@ const escalate = (
 const smoothed = (k: number, n: number): number => (k + 1) / (n + 2);
 
 /** Group labeled candidates by label, preserving first-seen agent per bucket. */
-const clusterByLabel = (
-  candidates: readonly Candidate[],
-): Map<string, string[]> => {
+const clusterByLabel = (candidates: readonly Candidate[]): Map<string, string[]> => {
   const clusters = new Map<string, string[]>();
   for (const c of candidates) {
     if (c.label === undefined) continue;
@@ -192,27 +190,20 @@ export const route = (
   if (gateRan) return escalate('gate-failed', 0, 0);
 
   // 2. Forced-escalate categories: consensus signal is known-broken here.
-  if (
-    taskCategory !== undefined &&
-    config.forcedEscalateCategories.includes(taskCategory)
-  ) {
+  if (taskCategory !== undefined && config.forcedEscalateCategories.includes(taskCategory)) {
     return escalate('forced-category', 0, 0);
   }
 
   // 3. Agreement path (no free verifier) — best case is TRUST_SPOT_CHECK.
   const clusters = clusterByLabel(candidates);
-  const labeledTotal = [...clusters.values()].reduce(
-    (n, bucket) => n + bucket.length,
-    0,
-  );
+  const labeledTotal = [...clusters.values()].reduce((n, bucket) => n + bucket.length, 0);
   if (labeledTotal === 0) return escalate('split', 0, 0);
 
   let dominant: { agent: string; size: number } | undefined;
   for (const bucket of clusters.values()) {
     const agent = bucket[0];
     if (agent === undefined) continue;
-    if (!dominant || bucket.length > dominant.size)
-      dominant = { agent, size: bucket.length };
+    if (!dominant || bucket.length > dominant.size) dominant = { agent, size: bucket.length };
   }
   if (!dominant) return escalate('split', 0, 0);
 
@@ -251,9 +242,7 @@ export const route = (
  *
  * Returns indices into `decisions`, escalated ones only, in spend order.
  */
-export const escalationPriority = (
-  decisions: readonly SelectorDecision[],
-): readonly number[] => {
+export const escalationPriority = (decisions: readonly SelectorDecision[]): readonly number[] => {
   const reasonRank: Record<SelectorReason, number> = {
     'gate-failed': 0,
     'forced-category': 1,

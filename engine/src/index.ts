@@ -288,11 +288,7 @@ export type {
   SelectorConfig,
   SelectorDecision,
 } from './domain/selector.js';
-export {
-  DEFAULT_SELECTOR_CONFIG,
-  escalationPriority,
-  route,
-} from './domain/selector.js';
+export { DEFAULT_SELECTOR_CONFIG, escalationPriority, route } from './domain/selector.js';
 export type {
   EditableSurface,
   HarnessConfig,

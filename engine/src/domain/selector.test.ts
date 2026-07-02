@@ -2,11 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as fc from 'fast-check';
 
 import type { Candidate, SelectorConfig, SelectorDecision } from './selector.js';
-import {
-  DEFAULT_SELECTOR_CONFIG,
-  escalationPriority,
-  route,
-} from './selector.js';
+import { DEFAULT_SELECTOR_CONFIG, escalationPriority, route } from './selector.js';
 
 const cfg = (overrides: Partial<SelectorConfig> = {}): SelectorConfig => ({
   ...DEFAULT_SELECTOR_CONFIG,
@@ -55,9 +51,7 @@ describe('route — free-gate precedence', () => {
 describe('route — forced-escalate categories', () => {
   it('security tasks with no gate escalate outright, ignoring unanimity', () => {
     const d = route(
-      ['mimo', 'stepfun', 'doubao', 'deepseek', 'minimax'].map((a) =>
-        labeled(a, 'same-answer'),
-      ),
+      ['mimo', 'stepfun', 'doubao', 'deepseek', 'minimax'].map((a) => labeled(a, 'same-answer')),
       cfg(),
       'security',
     );
@@ -87,9 +81,7 @@ describe('route — forced-escalate categories', () => {
 describe('route — agreement path (no free gate)', () => {
   it('unanimous consensus is TRUST_SPOT_CHECK, never clean TRUST', () => {
     const d = route(
-      ['mimo', 'stepfun', 'doubao', 'deepseek', 'minimax'].map((a) =>
-        labeled(a, 'A'),
-      ),
+      ['mimo', 'stepfun', 'doubao', 'deepseek', 'minimax'].map((a) => labeled(a, 'A')),
     );
     expect(d.outcome).toBe('TRUST_SPOT_CHECK');
     expect(d.reason).toBe('quorum');
@@ -99,10 +91,7 @@ describe('route — agreement path (no free gate)', () => {
   });
 
   it('4/5 majority passes the default 0.7 threshold (smoothed 5/7)', () => {
-    const d = route([
-      ...['a', 'b', 'c', 'd'].map((x) => labeled(x, 'A')),
-      labeled('e', 'B'),
-    ]);
+    const d = route([...['a', 'b', 'c', 'd'].map((x) => labeled(x, 'A')), labeled('e', 'B')]);
     expect(d.outcome).toBe('TRUST_SPOT_CHECK');
     expect(d.confidence).toBeCloseTo(5 / 7);
   });
@@ -209,8 +198,7 @@ describe('route — invariants', () => {
             ...(r.label !== undefined ? { label: r.label } : {}),
           }));
           const d = route(candidates, DEFAULT_SELECTOR_CONFIG, category);
-          if (candidates.some((c) => c.verified === true))
-            expect(d.outcome).toBe('TRUST');
+          if (candidates.some((c) => c.verified === true)) expect(d.outcome).toBe('TRUST');
           if (d.outcome === 'ESCALATE') expect(d.pick).toBeUndefined();
           else expect(d.pick).toBeDefined();
           // Clean TRUST only ever comes from a gate.
